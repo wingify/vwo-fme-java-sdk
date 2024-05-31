@@ -1,0 +1,250 @@
+/**
+ * Copyright 2024 Wingify Software Pvt. Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.vwo.packages.segmentation_evaluator.evaluators;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.vwo.enums.UrlEnum;
+// import com.vwo.modules.logger.core.LogManager;
+import com.vwo.models.user.VWOContext;
+import com.vwo.packages.logger.enums.LogLevelEnum;
+import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandRegexEnum;
+import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandValueEnum;
+import com.vwo.services.LoggerService;
+import com.vwo.utils.GatewayServiceUtil;
+
+import static com.vwo.packages.segmentation_evaluator.utils.SegmentUtil.getKeyValue;
+import static com.vwo.packages.segmentation_evaluator.utils.SegmentUtil.matchWithRegex;
+import static com.vwo.utils.DataTypeUtil.isBoolean;
+
+public class SegmentOperandEvaluator {
+    public Boolean evaluateCustomVariableDSL(JsonNode dslOperandValue, Map<String, Object> properties) {
+        Map.Entry<String, JsonNode> entry = getKeyValue(dslOperandValue);
+        String operandKey = entry.getKey();
+        JsonNode operandValueNode = entry.getValue();
+        String operandValue = operandValueNode.asText();
+
+        // Check if the property exists
+        if (!properties.containsKey(operandKey)) {
+            return false;
+        }
+
+        // Handle 'inlist' operand
+        if (operandValue.contains("inlist")) {
+            Pattern listIdPattern = Pattern.compile("inlist\\((\\w+:\\d+)\\)");
+            Matcher matcher = listIdPattern.matcher(operandValue);
+            if (!matcher.find()) {
+                LoggerService.log(LogLevelEnum.ERROR, "Invalid 'inList' operand format");
+                return false;
+            }
+            String listId = matcher.group(1);
+            // Process the tag value and prepare query parameters
+            Object tagValue = properties.get(operandKey);
+            String attributeValue = preProcessTagValue(tagValue.toString());
+            Map<String, String> queryParamsObj = new HashMap<>();
+            queryParamsObj.put("attribute", attributeValue);
+            queryParamsObj.put("listId", listId);
+
+            // Make a web service call to check the attribute against the list
+            String gatewayServiceResponse = GatewayServiceUtil.getFromGatewayService(queryParamsObj, UrlEnum.ATTRIBUTE_CHECK.getUrl());
+            if (gatewayServiceResponse == null) {
+                return false;
+            }
+            return Boolean.parseBoolean(gatewayServiceResponse);
+        } else {
+            // Process other types of operands
+            Object tagValue = properties.get(operandKey);
+            tagValue = preProcessTagValue(tagValue.toString());
+            Map<String, Object> preProcessOperandValue = preProcessOperandValue(operandValue);
+            Map<String, Object> processedValues = processValues(preProcessOperandValue.get("operandValue"), tagValue);
+            tagValue = processedValues.get("tagValue");
+            SegmentOperandValueEnum operandType = (SegmentOperandValueEnum) preProcessOperandValue.get("operandType");
+            return extractResult(operandType, processedValues.get("operandValue").toString().trim().replace("\"", ""), tagValue.toString());
+        }
+    }
+
+    public Map<String, Object> preProcessOperandValue(String operand) {
+        SegmentOperandValueEnum operandType;
+        String operandValue = null;
+
+        if (matchWithRegex(operand, SegmentOperandRegexEnum.LOWER_MATCH.getRegex())) {
+            operandType = SegmentOperandValueEnum.LOWER_VALUE;
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.LOWER_MATCH.getRegex());
+        } else if (matchWithRegex(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.getRegex())) {
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.WILDCARD_MATCH.getRegex());
+            boolean startingStar = matchWithRegex(operandValue, SegmentOperandRegexEnum.STARTING_STAR.getRegex());
+            boolean endingStar = matchWithRegex(operandValue, SegmentOperandRegexEnum.ENDING_STAR.getRegex());
+            if (startingStar && endingStar) {
+                operandType = SegmentOperandValueEnum.STARTING_ENDING_STAR_VALUE;
+            } else if (startingStar) {
+                operandType = SegmentOperandValueEnum.STARTING_STAR_VALUE;
+            } else if (endingStar) {
+                operandType = SegmentOperandValueEnum.ENDING_STAR_VALUE;
+            } else {
+                operandType = SegmentOperandValueEnum.REGEX_VALUE;
+            }
+            operandValue = operandValue.replaceAll(SegmentOperandRegexEnum.STARTING_STAR.getRegex(), "")
+                    .replaceAll(SegmentOperandRegexEnum.ENDING_STAR.getRegex(), "");
+        } else if (matchWithRegex(operand, SegmentOperandRegexEnum.REGEX_MATCH.getRegex())) {
+            operandType = SegmentOperandValueEnum.REGEX_VALUE;
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.REGEX_MATCH.getRegex());
+        } else if (matchWithRegex(operand, SegmentOperandRegexEnum.GREATER_THAN_MATCH.getRegex())) {
+            operandType = SegmentOperandValueEnum.GREATER_THAN_VALUE;
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.GREATER_THAN_MATCH.getRegex());
+        } else if (matchWithRegex(operand, SegmentOperandRegexEnum.GREATER_THAN_EQUAL_TO_MATCH.getRegex())) {
+            operandType = SegmentOperandValueEnum.GREATER_THAN_EQUAL_TO_VALUE;
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.GREATER_THAN_EQUAL_TO_MATCH.getRegex());
+        } else if (matchWithRegex(operand, SegmentOperandRegexEnum.LESS_THAN_MATCH.getRegex())) {
+            operandType = SegmentOperandValueEnum.LESS_THAN_VALUE;
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.LESS_THAN_MATCH.getRegex());
+        } else if (matchWithRegex(operand, SegmentOperandRegexEnum.LESS_THAN_EQUAL_TO_MATCH.getRegex())) {
+            operandType = SegmentOperandValueEnum.LESS_THAN_EQUAL_TO_VALUE;
+            operandValue = extractOperandValue(operand, SegmentOperandRegexEnum.LESS_THAN_EQUAL_TO_MATCH.getRegex());
+        } else {
+            operandType = SegmentOperandValueEnum.EQUAL_VALUE;
+            operandValue = operand;
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("operandType", operandType);
+        result.put("operandValue", operandValue);
+        return result;
+    }
+
+    public boolean evaluateUserDSL(String dslOperandValue, Map<String, Object> properties) {
+        String[] users = dslOperandValue.split(",");
+        for (String user : users) {
+            if (user.trim().replace("\"", "").equals(properties.get("_vwoUserId"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean evaluateUserAgentDSL(String dslOperandValue, VWOContext context) {
+        if (context == null || context.getUserAgent() == null) {
+            //LogManager.getInstance().info("To Evaluate UserAgent segmentation, please provide userAgent in context");
+            return false;
+        }
+        String tagValue = java.net.URLDecoder.decode(context.getUserAgent());
+        Map<String, Object> preProcessOperandValue = preProcessOperandValue(dslOperandValue);
+        Map<String, Object> processedValues = processValues(preProcessOperandValue.get("operandValue"), tagValue);
+        tagValue = (String) processedValues.get("tagValue");
+        SegmentOperandValueEnum operandType = (SegmentOperandValueEnum) preProcessOperandValue.get("operandType");
+        return extractResult(operandType, processedValues.get("operandValue").toString().trim().replace("\"", ""), tagValue);
+    }
+
+    public String preProcessTagValue(String tagValue) {
+        if (tagValue == null) {
+            return "";
+        }
+        if (isBoolean(tagValue)) {
+            return Boolean.toString(Boolean.parseBoolean(tagValue));
+        }
+        return tagValue.trim();
+    }
+
+    private Map<String, Object> processValues(Object operandValue, Object tagValue) {
+        // Convert operand and tag values to floats
+        Double processedOperandValue;
+        Double processedTagValue;
+        Map<String, Object> result = new HashMap<>();
+        try {
+            processedOperandValue = Double.parseDouble(operandValue.toString());
+            processedTagValue = Double.parseDouble(tagValue.toString());
+        } catch (NumberFormatException e) {
+            // Return original values if conversion fails
+            result.put("operandValue", operandValue);
+            result.put("tagValue", tagValue);
+            return result;
+        }
+        // Convert numeric values back to strings
+        result.put("operandValue", processedOperandValue.toString());
+        result.put("tagValue", processedTagValue.toString());
+        return result;
+    }
+
+    /**
+     * Extracts the result of the evaluation based on the operand type and values.
+     * @param operandType The type of the operand.
+     * @param operandValue The value of the operand.
+     * @param tagValue The value of the tag to compare against.
+     * @return A boolean indicating the result of the evaluation.
+     */
+    public boolean extractResult(SegmentOperandValueEnum operandType, Object operandValue, String tagValue) {
+        boolean result = false;
+
+        switch (operandType) {
+            case LOWER_VALUE:
+                result = operandValue.toString().equalsIgnoreCase(tagValue);
+                break;
+            case STARTING_ENDING_STAR_VALUE:
+                result = tagValue.contains(operandValue.toString());
+                break;
+            case STARTING_STAR_VALUE:
+                result = tagValue.endsWith(operandValue.toString());
+                break;
+            case ENDING_STAR_VALUE:
+                result = tagValue.startsWith(operandValue.toString());
+                break;
+            case REGEX_VALUE:
+                try {
+                    Pattern pattern = Pattern.compile(operandValue.toString());
+                    Matcher matcher = pattern.matcher(tagValue);
+                    result = matcher.matches();
+                } catch (Exception e) {
+                    result = false;
+                }
+                break;
+            case GREATER_THAN_VALUE:
+                result = Float.parseFloat(tagValue) > Float.parseFloat(operandValue.toString());
+                break;
+            case GREATER_THAN_EQUAL_TO_VALUE:
+                result = Float.parseFloat(tagValue) >= Float.parseFloat(operandValue.toString());
+                break;
+            case LESS_THAN_VALUE:
+                result = Float.parseFloat(tagValue) < Float.parseFloat(operandValue.toString());
+                break;
+            case LESS_THAN_EQUAL_TO_VALUE:
+                result = Float.parseFloat(tagValue) <= Float.parseFloat(operandValue.toString());
+                break;
+            default:
+                result = tagValue.equals(operandValue.toString());
+        }
+
+        return result;
+    }
+
+    /**
+     * Extracts the operand value based on the provided regex pattern.
+     *
+     * @param operand The operand to be matched.
+     * @param regex The regex pattern to match the operand against.
+     * @return The extracted operand value or the original operand if no match is found.
+     */
+    public String extractOperandValue(String operand, String regex) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(operand);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return operand;
+    }
+}
