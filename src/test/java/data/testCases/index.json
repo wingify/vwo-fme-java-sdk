@@ -1,0 +1,587 @@
+{
+  "GETFLAG_WITHOUT_STORAGE": [{
+    "settings": "NO_ROLLOUT_ONLY_TESTING_RULE_SETTINGS",
+    "description": "should return false for a flag that does not exists and return default values for variables",
+    "context": {
+      "id": "user_id"
+    },
+    "featureKey": "invalid_key",
+    "expectation": {
+      "isEnabled": false,
+      "intVariable": 1,
+      "stringVariable": "VWO",
+      "floatVariable": 1.1,
+      "booleanVariable": false,
+      "jsonVariable": {}
+    }
+  },
+    {
+      "settings": "BASIC_ROLLOUT_SETTINGS",
+      "description": "should return true for a flag having settings: 100% traffic allocation and no segmentation",
+      "context": {
+        "id": "user_id"
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 10,
+        "stringVariable": "test",
+        "floatVariable": 20.01,
+        "booleanVariable": false,
+        "jsonVariable": {
+          "name": "VWO"
+        }
+      }
+    },
+    {
+      "settings": "BASIC_ROLLOUT_TESTING_RULE_SETTINGS",
+      "description": "should return true for a flag having settings: 100% traffic allocation and no segmentation and Testing Rule",
+      "context": {
+        "id": "user_id",
+        "customVariables": {
+          "price": 200
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "test_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "name": "VWO",
+          "variation": 1
+        }
+      }
+    },
+    {
+      "settings": "NO_ROLLOUT_ONLY_TESTING_RULE_SETTINGS",
+      "description": "should return true for a flag having no segmentation and only testing rule",
+      "context": {
+        "id": "user_id"
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "test_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "name": "VWO",
+          "variation": 1
+        }
+      }
+    },
+    {
+      "settings": "ROLLOUT_TESTING_PRE_SEGMENT_RULE_SETTINGS",
+      "description": "should return false for a flag that does not exists and return default values for variables",
+      "context": {
+        "id": "user_id"
+      },
+      "featureKey": "feature_not_present",
+      "expectation": {
+        "isEnabled": false,
+        "intVariable": 1,
+        "stringVariable": "VWO",
+        "floatVariable": 1.1,
+        "booleanVariable": false,
+        "jsonVariable": {}
+      }
+    },
+    {
+      "settings": "ROLLOUT_TESTING_PRE_SEGMENT_RULE_SETTINGS",
+      "description": "should return true for a flag that pass pre segment for rollout1 and testingRule1",
+      "context": {
+        "id": "user_id",
+        "customVariables": {
+          "price": 100
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "testing1_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "campaign": "testing1_variation"
+        }
+      }
+    },
+    {
+      "settings": "ROLLOUT_TESTING_PRE_SEGMENT_RULE_SETTINGS",
+      "description": "should return true for a flag that pass pre segment for rollout2 and testingRule2",
+      "context": {
+        "id": "user_id",
+        "customVariables": {
+          "price": 200
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "testing2_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "campaign": "testing2_variation"
+        }
+      }
+    },
+    {
+      "settings": "TESTING_WHITELISTING_SEGMENT_RULE_SETTINGS",
+      "description": "should return true for a flag that pass control whitelisting for testingRule1",
+      "context": {
+        "id": "user_id",
+        "customVariables": {
+          "price": 100
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 10,
+        "stringVariable": "testing1",
+        "floatVariable": 20.01,
+        "booleanVariable": false,
+        "jsonVariable": {
+          "campaign": "testing1"
+        }
+      }
+    },
+    {
+      "settings": "TESTING_WHITELISTING_SEGMENT_RULE_SETTINGS",
+      "description": "should return true for a flag that fails whitelisting for testingRule1 and only rollout rule pass",
+      "context": {
+        "id": "user_id_1",
+        "customVariables": {
+          "price": 100
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 10,
+        "stringVariable": "rollout1",
+        "floatVariable": 20.01,
+        "booleanVariable": false,
+        "jsonVariable": {
+          "campaign": "rollout1"
+        }
+      }
+    }
+  ],
+  "GETFLAG_MEG_RANDOM": [{
+    "settings": "MEG_CAMPAIGN_RANDOM_ALGO_SETTINGS",
+    "description": "should return true for a flag having 3 meg campaigns, where testingRule1 and personaliseRule1 are eligible",
+    "context": {
+      "id": "user_id_1",
+      "customVariables": {
+        "price": 100,
+        "name": "personalise"
+      }
+    },
+    "featureKey": "feature1",
+    "expectation": {
+      "isEnabled": true,
+      "intVariable": 11,
+      "stringVariable": "personalizeRule1_variation",
+      "floatVariable": 20.02,
+      "booleanVariable": true,
+      "jsonVariable": {
+        "campaign": "personalizeRule1_variation"
+      }
+    }
+  },
+    {
+      "settings": "MEG_CAMPAIGN_RANDOM_ALGO_SETTINGS",
+      "description": "should return true for a flag having 3 meg campaigns, where all campaigns are inEligible",
+      "context": {
+        "id": "user_id",
+        "customVariables": {
+          "firstname": "testingRule2"
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 10,
+        "stringVariable": "testing2",
+        "floatVariable": 20.01,
+        "booleanVariable": false,
+        "jsonVariable": {
+          "campaign": "testing2"
+        }
+      }
+    },
+    {
+      "settings": "MEG_CAMPAIGN_RANDOM_ALGO_SETTINGS",
+      "description": "should return true for a flag having 3 meg campaigns, where personalizeRule1 and testingRule3 are eligible but testingRule2 will be returned",
+      "context": {
+        "id": "user_id_1",
+        "customVariables": {
+          "name": "personalise",
+          "lastname": "vwo",
+          "firstname": "testingRule2"
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 10,
+        "stringVariable": "testing2",
+        "floatVariable": 20.01,
+        "booleanVariable": false,
+        "jsonVariable": {
+          "campaign": "testing2"
+        }
+      }
+    },
+    {
+      "settings": "MEG_CAMPAIGN_RANDOM_ALGO_SETTINGS",
+      "description": "should return true for a flag having 3 meg campaigns, where E2 and E4 are eligible and E4 will be returned",
+      "context": {
+        "id": "user_id_1",
+        "customVariables": {
+          "name": "personalise",
+          "lastname": "vwo"
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "testing3_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "campaign": "testing3_variation"
+        }
+      }
+    }
+  ],
+  "GETFLAG_MEG_ADVANCE": [{
+    "settings": "MEG_CAMPAIGN_ADVANCE_ALGO_SETTINGS",
+    "description": "should return true for a flag having 4 meg campaigns, where testingRule1 should be returned as it pass pre segment",
+    "context": {
+      "id": "user_id_1",
+      "customVariables": {
+        "price": 100,
+        "name": "personalise",
+        "firstname": "testingRule2"
+      }
+    },
+    "featureKey": "feature1",
+    "expectation": {
+      "isEnabled": true,
+      "intVariable": 11,
+      "stringVariable": "testing1_variation",
+      "floatVariable": 20.02,
+      "booleanVariable": true,
+      "jsonVariable": {
+        "campaign": "testing1_variation"
+      }
+    }
+  },
+    {
+      "settings": "MEG_CAMPAIGN_ADVANCE_ALGO_SETTINGS",
+      "description": "should return true for a flag having 4 meg campaigns, where testingRule2 should be returned",
+      "context": {
+        "id": "user_id_1",
+        "customVariables": {
+          "name": "personalise",
+          "firstname": "testingRule2"
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 10,
+        "stringVariable": "testing2",
+        "floatVariable": 20.01,
+        "booleanVariable": false,
+        "jsonVariable": {
+          "campaign": "testing2"
+        }
+      }
+    },
+    {
+      "settings": "MEG_CAMPAIGN_ADVANCE_ALGO_SETTINGS",
+      "description": "should return true for a flag having 4 meg campaigns, where personaliseRule1 should be returned",
+      "context": {
+        "id": "user_id_1",
+        "customVariables": {
+          "name": "personalise"
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "personalizeRule1_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "campaign": "personalizeRule1_variation"
+        }
+      }
+    },
+    {
+      "settings": "MEG_CAMPAIGN_ADVANCE_ALGO_SETTINGS",
+      "description": "should return true for a flag having 4 meg campaigns, where testingRule3 should be returned",
+      "context": {
+        "id": "user_id_1",
+        "customVariables": {
+          "lastname": "vwo"
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "testing3_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "campaign": "testing3_variation"
+        }
+      }
+    },
+    {
+      "settings": "MEG_CAMPAIGN_ADVANCE_ALGO_SETTINGS",
+      "description": "should return true for a flag having 4 meg campaigns, where testingRule5 should be returned",
+      "context": {
+        "id": "user_id_1"
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "testing5_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "campaign": "testing5_variation"
+        }
+      }
+    }
+  ],
+  "GETFLAG_WITH_STORAGE": [{
+    "settings": "BASIC_ROLLOUT_SETTINGS",
+    "description": "should return true for a flag having settings: 100% traffic allocation and no segmentation",
+    "context": {
+      "id": "user_id"
+    },
+    "featureKey": "feature1",
+    "expectation": {
+      "isEnabled": true,
+      "intVariable": 10,
+      "stringVariable": "test",
+      "floatVariable": 20.01,
+      "booleanVariable": false,
+      "jsonVariable": {
+        "name": "VWO"
+      },
+      "storageData": {
+        "rolloutKey": "feature1_rolloutRule1",
+        "rolloutVariationId": 1
+      }
+    }
+  },
+    {
+      "settings": "BASIC_ROLLOUT_TESTING_RULE_SETTINGS",
+      "description": "should return true for a flag having settings: 100% traffic allocation and no segmentation and Testing Rule",
+      "context": {
+        "id": "user_id_1",
+        "customVariables": {
+          "price": 200
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "test_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "name": "VWO",
+          "variation": 1
+        },
+        "storageData": {
+          "rolloutKey": "feature1_rolloutRule1",
+          "rolloutVariationId": 1,
+          "experimentKey": "feature1_testingRule1",
+          "experimentVariationId": 2
+        }
+      }
+    },
+    {
+      "settings": "NO_ROLLOUT_ONLY_TESTING_RULE_SETTINGS",
+      "description": "should return true for a flag having no segmentation and only testing rule",
+      "context": {
+        "id": "user_id_4"
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "test_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "name": "VWO",
+          "variation": 1
+        },
+        "storageData": {
+          "experimentKey": "feature1_testingRule1",
+          "experimentVariationId": 2
+        }
+      }
+    },
+    {
+      "settings": "NO_ROLLOUT_ONLY_TESTING_RULE_SETTINGS",
+      "description": "should return false for a flag that does not exist and return default values for variables",
+      "context": {
+        "id": "user_id_5"
+      },
+      "featureKey": "feature_not_present",
+      "expectation": {
+        "isEnabled": false,
+        "intVariable": 1,
+        "stringVariable": "VWO",
+        "floatVariable": 1.1,
+        "booleanVariable": false,
+        "jsonVariable": {},
+        "storageData": {}
+      }
+    },
+    {
+      "settings": "ROLLOUT_TESTING_PRE_SEGMENT_RULE_SETTINGS",
+      "description": "should return false for a flag that does not pass pre segment of any rule",
+      "context": {
+        "id": "user_id_6"
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": false,
+        "intVariable": 1,
+        "stringVariable": "VWO",
+        "floatVariable": 1.1,
+        "booleanVariable": false,
+        "jsonVariable": {},
+        "storageData": {}
+      }
+    },
+    {
+      "settings": "ROLLOUT_TESTING_PRE_SEGMENT_RULE_SETTINGS",
+      "description": "should return true for a flag that pass pre segment for rollout1 and testingRule1",
+      "context": {
+        "id": "user_id_7",
+        "customVariables": {
+          "price": 100
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "testing1_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "campaign": "testing1_variation"
+        },
+        "storageData": {
+          "rolloutKey": "feature1_rolloutRule1",
+          "rolloutVariationId": 1,
+          "experimentKey": "feature1_testingRule1",
+          "experimentVariationId": 2
+        }
+      }
+    },
+    {
+      "settings": "ROLLOUT_TESTING_PRE_SEGMENT_RULE_SETTINGS",
+      "description": "should return true for a flag that pass pre segment for rollout2 and testingRule2",
+      "context": {
+        "id": "user_id_8",
+        "customVariables": {
+          "price": 200
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 11,
+        "stringVariable": "testing2_variation",
+        "floatVariable": 20.02,
+        "booleanVariable": true,
+        "jsonVariable": {
+          "campaign": "testing2_variation"
+        },
+        "storageData": {
+          "rolloutKey": "feature1_rolloutRule1",
+          "rolloutVariationId": 2,
+          "experimentKey": "feature1_testingRule2",
+          "experimentVariationId": 2
+        }
+      }
+    },
+    {
+      "settings": "TESTING_WHITELISTING_SEGMENT_RULE_SETTINGS",
+      "description": "should return true for a flag that pass control whitelisting for testingRule1",
+      "context": {
+        "id": "user_id_9",
+        "customVariables": {
+          "price": 100
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 10,
+        "stringVariable": "testing1",
+        "floatVariable": 20.01,
+        "booleanVariable": false,
+        "jsonVariable": {
+          "campaign": "testing1"
+        },
+        "storageData": {
+          "rolloutKey": "feature1_rolloutRule1",
+          "rolloutVariationId": 1,
+          "experimentVariationId": 1,
+          "experimentKey": "feature1_testingRule1"
+        }
+      }
+    },
+    {
+      "settings": "TESTING_WHITELISTING_SEGMENT_RULE_SETTINGS",
+      "description": "should return true for a flag that fails whitelisting for testingRule1 and only rollout rule pass",
+      "context": {
+        "id": "user_id_10",
+        "customVariables": {
+          "price": 100
+        }
+      },
+      "featureKey": "feature1",
+      "expectation": {
+        "isEnabled": true,
+        "intVariable": 10,
+        "stringVariable": "rollout1",
+        "floatVariable": 20.01,
+        "booleanVariable": false,
+        "jsonVariable": {
+          "campaign": "rollout1"
+        },
+        "storageData": {
+          "rolloutKey": "feature1_rolloutRule1",
+          "rolloutVariationId": 1
+        }
+      }
+    }
+  ]
+}
