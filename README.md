@@ -8,8 +8,8 @@
 
 The Java SDK supports:
 
-* Open JDK - 21 onwards
-* Oracle JDK - 21 onwards
+* Open JDK - 8 onwards
+* Oracle JDK - 8 onwards
 
 Our [Build](https://github.com/wingify/vwo-fme-java-sdk/actions) is successful on these Java Versions -
 
