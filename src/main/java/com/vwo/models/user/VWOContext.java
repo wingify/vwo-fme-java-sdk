@@ -25,7 +25,6 @@ public class VWOContext {
     private Map<String, ?> customVariables = new HashMap<>();
 
     private Map<String, ?> variationTargetingVariables = new HashMap<>();
-    private Map<String, ?> eventProperties = new HashMap<>();
 
     private GatewayService _vwo;
 
@@ -75,13 +74,5 @@ public class VWOContext {
 
     public void setVwo(GatewayService _vwo) {
         this._vwo = _vwo;
-    }
-
-    public Map<String, ?> getEventProperties() {
-        return eventProperties;
-    }
-
-    public void setEventProperties(Map<String, ?> eventProperties) {
-        this.eventProperties = eventProperties;
     }
 }

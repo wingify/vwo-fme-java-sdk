@@ -36,13 +36,14 @@ public class TrackEventAPI {
      * @param settings The settings model containing configuration.
      * @param eventName The name of the event to track.
      * @param context The user context model containing user-specific data.
+     * @param eventProperties event properties for the event
      * @param hooksManager The hooks manager instance.
      * @return Boolean indicating if the event was successfully tracked.
      */
-    public static Boolean track(Settings settings, String eventName, VWOContext context, HooksManager hooksManager) {
+    public static Boolean track(Settings settings, String eventName, VWOContext context, Map<String, ?> eventProperties, HooksManager hooksManager) {
         try {
             if (FunctionUtil.doesEventBelongToAnyFeature(eventName, settings)) {
-                createAndSendImpressionForTrack(settings, eventName, context);
+                createAndSendImpressionForTrack(settings, eventName, context, eventProperties);
                 Map<String, Object> objectToReturn = new HashMap<>();
                 objectToReturn.put("eventName", eventName);
                 objectToReturn.put("api", ApiEnum.TRACK.getValue());
@@ -71,11 +72,13 @@ public class TrackEventAPI {
      * @param settings   The settings model containing configuration.
      * @param eventName  The name of the event to track.
      * @param context    The user context model containing user-specific data.
+     * @param eventProperties event properties for the event
      */
     private static void createAndSendImpressionForTrack(
             Settings settings,
             String eventName,
-            VWOContext context
+            VWOContext context,
+            Map<String, ?> eventProperties
     ) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
@@ -90,7 +93,8 @@ public class TrackEventAPI {
                 settings,
                 context.getId(),
                 eventName,
-                context
+                context,
+                eventProperties
         );
 
         // Send the constructed properties and payload as a POST request

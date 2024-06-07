@@ -30,6 +30,7 @@ import com.vwo.services.HooksManager;
 import com.vwo.services.LoggerService;
 import com.vwo.services.UrlService;
 import com.vwo.utils.DataTypeUtil;
+import com.vwo.utils.SDKMetaUtil;
 import com.vwo.utils.SettingsUtil;
 
 import java.util.HashMap;
@@ -54,7 +55,10 @@ public class VWOClient {
             this.settings = settings;
             this.processedSettings = objectMapper.readValue(settings, Settings.class);
             SettingsUtil.processSettings(this.processedSettings);
+            // init url version with collection prefix
             UrlService.init(this.processedSettings.getCollectionPrefix());
+            // init SDKMetaUtil and set sdkVersion
+            SDKMetaUtil.init();
             LoggerService.log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null);
         } catch (Exception exception) {
            LoggerService.log(LogLevelEnum.ERROR, "exception occurred while parsing settings " + exception.getMessage());
@@ -119,9 +123,10 @@ public class VWOClient {
      * This method is used to track the event
      * @param eventName Event name to be tracked
      * @param context User context
+     * @param eventProperties event properties to be sent for the event
      * @return Map containing the event name and its status
      */
-    public Map<String, Boolean> trackEvent(String eventName, VWOContext context) {
+    private Map<String, Boolean> track(String eventName, VWOContext context, Map<String, ?> eventProperties) {
         String apiName = "trackEvent";
         Map<String, Boolean> resultMap = new HashMap<>();
         try {
@@ -149,7 +154,7 @@ public class VWOClient {
                 return resultMap;
             }
 
-            Boolean result = TrackEventAPI.track(this.processedSettings, eventName, context, hooksManager);
+            Boolean result = TrackEventAPI.track(this.processedSettings, eventName, context, eventProperties, hooksManager);
             if (result) {
                 resultMap.put(eventName, true);
             } else {
@@ -165,6 +170,30 @@ public class VWOClient {
             return resultMap;
         }
     }
+
+    /**
+     * Overloaded function if event properties need to be passed
+     * calls track method to track the event
+     * @param eventName Event name to be tracked
+     * @param context User context
+     * @param eventProperties event properties to be sent for the event
+     * @return Map containing the event name and its status
+     */
+    public Map<String, Boolean> trackEvent(String eventName, VWOContext context, Map<String, ?> eventProperties) {
+        return track(eventName, context, eventProperties);
+    }
+
+    /**
+     * Overloaded function for no event properties
+     * calls track method to track the event
+     * @param eventName Event name to be tracked
+     * @param context User context
+     * @return Map containing the event name and its status
+     */
+    public Map<String, Boolean> trackEvent(String eventName, VWOContext context) {
+        return track(eventName, context, new HashMap<>());
+    }
+
 
     /**
      * Sets an attribute for a user in the context provided.

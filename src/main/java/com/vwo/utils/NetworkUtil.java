@@ -140,7 +140,7 @@ public class NetworkUtil {
     private static Props createProps(Settings settings) {
         Props props = new Props();
         props.setSdkName(Constants.SDK_NAME);
-        props.setSdkVersion(Constants.SDK_VERSION);
+        props.setSdkVersion(SDKMetaUtil.getSdkVersion());
         props.setEnvKey(settings.getSdkKey());
         return props;
     }
@@ -191,12 +191,13 @@ public class NetworkUtil {
      * @param userId  The ID of the user.
      * @param eventName  The name of the event.
      * @param context  The user context model containing user-specific data.
+     * @param eventProperties event properties for the event
      * @return  Map containing the payload data.
      */
-    public static Map<String, Object> getTrackGoalPayloadData(Settings settings, String userId, String eventName, VWOContext context) {
+    public static Map<String, Object> getTrackGoalPayloadData(Settings settings, String userId, String eventName, VWOContext context, Map<String, ?> eventProperties) {
         EventArchPayload properties = getEventBasePayload(settings, userId, eventName, context.getUserAgent(), context.getIpAddress());
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
-        addCustomEventProperties(properties, (Map<String, Object>) context.getEventProperties());
+        addCustomEventProperties(properties, (Map<String, Object>) eventProperties);
         LoggerService.log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_GOAL", new HashMap<String, String>() {
             {
                 put("eventName", eventName);
