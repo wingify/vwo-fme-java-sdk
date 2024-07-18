@@ -32,7 +32,7 @@ public class SetAttributeAPI {
      * @param attributeValue The value of the attribute to set.
      * @param context  The user context model containing user-specific data.
      */
-    public static void setAttribute(Settings settings, String attributeKey, String attributeValue, VWOContext context) {
+    public static void setAttribute(Settings settings, String attributeKey, Object attributeValue, VWOContext context) {
         createAndSendImpressionForSetAttribute(settings, attributeKey, attributeValue, context);
     }
 
@@ -49,7 +49,7 @@ public class SetAttributeAPI {
     private static void createAndSendImpressionForSetAttribute(
             Settings settings,
             String attributeKey,
-            String attributeValue,
+            Object attributeValue,
             VWOContext context
     ) {
         // Get base properties for the event

@@ -35,13 +35,15 @@ public class SegmentUtil {
         for (String key : actualMap.keySet()) {
             if (expectedMap.containsKey(key)) {
                 List<String> expectedValues = expectedMap.get(key);
+                // convert expectedValues to lowercase
+                expectedValues.replaceAll(String::toLowerCase);
                 String actualValue = actualMap.get(key);
 
                 // Handle wildcard patterns for all keys
                 for (String val : expectedValues) {
                     if (val.startsWith("wildcard(") && val.endsWith(")")) {
                         String wildcardPattern = val.substring(9, val.length() - 1); // Extract pattern from wildcard string
-                        Pattern regex = Pattern.compile(wildcardPattern.replace("*", ".*")); // Convert wildcard pattern to regex
+                        Pattern regex = Pattern.compile(wildcardPattern.replace("*", ".*"), Pattern.CASE_INSENSITIVE); // Convert wildcard pattern to regex
                         Matcher matcher = regex.matcher(actualValue);
                         if (matcher.matches()) {
                             return true; // Match found, return true

@@ -65,6 +65,11 @@ public class SegmentationManager {
     this.evaluator.settings = settings;
     this.evaluator.feature = feature;
 
+    // if user agent and ipAddress both are null or empty, return
+    if ((context.getUserAgent() == null || context.getUserAgent().isEmpty()) && (context.getIpAddress() == null || context.getIpAddress().isEmpty())) {
+      return;
+    }
+
     // If gateway service is required and the base URL is not the default one, fetch the data from the gateway service
     if (feature.getIsGatewayServiceRequired() && !UrlService.getBaseUrl().contains(Constants.HOST_NAME) && (context.getVwo() == null)) {
       Map<String, String> queryParams = new HashMap<>();

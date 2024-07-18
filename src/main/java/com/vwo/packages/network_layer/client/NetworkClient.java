@@ -64,7 +64,8 @@ public class NetworkClient implements NetworkClientInterface {
       String contentType = connection.getHeaderField("Content-Type");
 
       if (statusCode != 200 || !contentType.contains("application/json")) {
-        String error = "Invalid response. Status Code: " + statusCode + ", Response : " + connection.getResponseMessage();
+        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getErrorStream()));
+        String error = "Invalid response " + in.readLine()+ ", Status Code: " + statusCode + ", Response : " + connection.getResponseMessage();
         responseModel.setError(new Exception(error));
         return responseModel;
       }

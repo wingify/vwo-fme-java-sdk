@@ -118,7 +118,7 @@ public class SegmentEvaluator {
                         String featureIdKey = featureIdKeys.next();
                         String featureIdValue = featureIdObject.get(featureIdKey).asText();
 
-                        if (featureIdValue.equals("on")) {
+                        if (featureIdValue.equals("on") || featureIdValue.equals("off")) {
                             List<Feature> features = settings.getFeatures();
                             Feature feature = features.stream()
                                     .filter(f -> f.getId() == Integer.parseInt(featureIdKey))
@@ -128,6 +128,9 @@ public class SegmentEvaluator {
                             if (feature != null) {
                                 String featureKey = feature.getKey();
                                 boolean result = checkInUserStorage(settings, featureKey, context);
+                                if (featureIdValue.equals("off")) {
+                                    return !result;
+                                }
                                 return result;
                             } else {
                                 LoggerService.log(LogLevelEnum.DEBUG, "Feature not found with featureIdKey: " + featureIdKey);
