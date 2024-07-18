@@ -202,7 +202,7 @@ public class VWOClient {
      * @param attributeValue - The value of the attribute to set.
      * @param context User context
      */
-    public void setAttribute(String attributeKey, String attributeValue, VWOContext context) {
+    public void setAttribute(String attributeKey, Object attributeValue, VWOContext context) {
         String apiName = "setAttribute";
         try {
             LoggerService.log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
@@ -218,14 +218,14 @@ public class VWOClient {
                 throw new IllegalArgumentException("TypeError: attributeKey should be a string");
             }
 
-            if (!DataTypeUtil.isString(attributeValue)) {
+            if (!DataTypeUtil.isString(attributeValue) && !DataTypeUtil.isNumber(attributeValue) && !DataTypeUtil.isBoolean(attributeValue)) {
                 LoggerService.log(LogLevelEnum.ERROR, "API_INVALID_PARAM", new HashMap<String, String>() {{
                     put("apiName", apiName);
                     put("key", "eventName");
                     put("type", DataTypeUtil.getType(attributeValue));
-                    put("correctType", "String");
+                    put("correctType", "String, Number, Boolean");
                 }});
-                throw new IllegalArgumentException("TypeError: attributeValue should be a string");
+                throw new IllegalArgumentException("TypeError: attributeValue should be a string, number or boolean");
             }
 
             if (context == null || context.getId() == null || context.getId().isEmpty()) {

@@ -229,7 +229,7 @@ public class NetworkUtil {
      * @param attributeValue The value of the attribute.
      * @return
      */
-    public static Map<String, Object> getAttributePayloadData(Settings settings, String userId, String eventName, String attributeKey, String attributeValue) {
+    public static Map<String, Object> getAttributePayloadData(Settings settings, String userId, String eventName, String attributeKey, Object attributeValue) {
         EventArchPayload properties = getEventBasePayload(settings, userId, eventName, null, null);
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
         properties.getD().getVisitor().getProps().put(attributeKey, attributeValue);

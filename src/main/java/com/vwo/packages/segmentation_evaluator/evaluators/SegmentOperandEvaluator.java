@@ -15,6 +15,7 @@
  */
 package com.vwo.packages.segmentation_evaluator.evaluators;
 
+import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -71,11 +72,23 @@ public class SegmentOperandEvaluator {
         } else {
             // Process other types of operands
             Object tagValue = properties.get(operandKey);
+            if (tagValue == null) {
+                tagValue = "";
+            }
             tagValue = preProcessTagValue(tagValue.toString());
             Map<String, Object> preProcessOperandValue = preProcessOperandValue(operandValue);
             Map<String, Object> processedValues = processValues(preProcessOperandValue.get("operandValue"), tagValue);
-            tagValue = processedValues.get("tagValue");
+
+            // Convert numeric values to strings if processing wildcard pattern
             SegmentOperandValueEnum operandType = (SegmentOperandValueEnum) preProcessOperandValue.get("operandType");
+            if (operandType == SegmentOperandValueEnum.STARTING_ENDING_STAR_VALUE ||
+                    operandType == SegmentOperandValueEnum.STARTING_STAR_VALUE ||
+                    operandType == SegmentOperandValueEnum.ENDING_STAR_VALUE ||
+                    operandType == SegmentOperandValueEnum.REGEX_VALUE) {
+                processedValues.put("tagValue", processedValues.get("tagValue").toString());
+            }
+
+            tagValue = processedValues.get("tagValue");
             return extractResult(operandType, processedValues.get("operandValue").toString().trim().replace("\"", ""), tagValue.toString());
         }
     }
@@ -162,23 +175,38 @@ public class SegmentOperandEvaluator {
     }
 
     private Map<String, Object> processValues(Object operandValue, Object tagValue) {
-        // Convert operand and tag values to floats
-        Double processedOperandValue;
-        Double processedTagValue;
         Map<String, Object> result = new HashMap<>();
-        try {
-            processedOperandValue = Double.parseDouble(operandValue.toString());
-            processedTagValue = Double.parseDouble(tagValue.toString());
-        } catch (NumberFormatException e) {
-            // Return original values if conversion fails
-            result.put("operandValue", operandValue);
-            result.put("tagValue", tagValue);
-            return result;
-        }
-        // Convert numeric values back to strings
-        result.put("operandValue", processedOperandValue.toString());
-        result.put("tagValue", processedTagValue.toString());
+
+        // Process operandValue
+        result.put("operandValue", convertValue(operandValue));
+
+        // Process tagValue
+        result.put("tagValue", convertValue(tagValue));
+
         return result;
+    }
+
+    private String convertValue(Object value) {
+        // Check if the value is a boolean
+        if (value instanceof Boolean) {
+            return value.toString(); // Convert boolean to "true" or "false"
+        }
+
+        try {
+            // Attempt to convert to a numeric value
+            double numericValue = Double.parseDouble(value.toString());
+            // Check if the numeric value is actually an integer
+            if (numericValue == (int) numericValue) {
+                return String.valueOf((int) numericValue); // Remove '.0' by converting to int
+            } else {
+                // Format float to avoid scientific notation for large numbers
+                DecimalFormat df = new DecimalFormat("#.##############"); // Adjust the pattern as needed
+                return df.format(numericValue);
+            }
+        } catch (NumberFormatException e) {
+            // Return the value as-is if it's not a number
+            return value.toString();
+        }
     }
 
     /**
