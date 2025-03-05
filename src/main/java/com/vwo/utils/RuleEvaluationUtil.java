@@ -49,7 +49,7 @@ public class RuleEvaluationUtil {
             Campaign campaign,
             VWOContext context,
             Map<String, Object> evaluatedFeatureMap,
-            Map<Integer, Integer> megGroupWinnerCampaigns,
+            Map<Integer, String> megGroupWinnerCampaigns,
             StorageService storageService,
             Map<String, Object> decision
     ) {

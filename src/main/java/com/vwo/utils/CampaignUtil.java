@@ -158,11 +158,17 @@ public class CampaignUtil {
      * @param campaignId The ID of the campaign to check.
      * @return An object containing the group ID and name if the campaign is part of a group, otherwise an empty object.
      */
-    public static Map<String, String> getGroupDetailsIfCampaignPartOfIt(Settings settings, int campaignId) {
-        // Check if the campaign is associated with a group and return the group details
+    public static Map<String, String> getGroupDetailsIfCampaignPartOfIt(Settings settings, int campaignId, int variationId) {
+         // If variationId is null, that means that campaign is testing campaign
+         // If variationId is not null, that means that campaign is personalization campaign and we need to append variationId to campaignId using _
+         // then check if the current campaign is part of any group
         Map<String, String> groupDetails = new HashMap<>();
-        if (settings.getCampaignGroups() != null && settings.getCampaignGroups().containsKey(String.valueOf(campaignId))) {
-            int groupId = settings.getCampaignGroups().get(String.valueOf(campaignId));
+        String campaignToCheck = String.valueOf(campaignId);
+        if (variationId != -1) {
+            campaignToCheck = campaignToCheck + "_" + variationId;
+        }
+        if (settings.getCampaignGroups() != null && settings.getCampaignGroups().containsKey(campaignToCheck)) {
+            int groupId = settings.getCampaignGroups().get(campaignToCheck);
             String groupName = settings.getGroups().get(String.valueOf(groupId)).getName();
             groupDetails.put("groupId", String.valueOf(groupId));
             groupDetails.put("groupName", groupName);
@@ -178,22 +184,25 @@ public class CampaignUtil {
      * @return An array of groups associated with the feature.
      */
     public static List<Map<String, String>> findGroupsFeaturePartOf(Settings settings, String featureKey) {
-        List<Integer> campaignIds = new ArrayList<>();
-        // Loop over all rules inside the feature where the feature key matches and collect all campaign IDs
+        // Initialize an array to store all rules for the given feature to fetch campaignId and variationId later
+        List<Rule> ruleArrayList = new ArrayList<>();
         for (Feature feature : settings.getFeatures()) {
             if (feature.getKey().equals(featureKey)) {
                 feature.getRules().forEach(rule -> {
-                    if (!campaignIds.contains(rule.getCampaignId())) {
-                        campaignIds.add(rule.getCampaignId());
+                    // Add rule to the array if it's not already present
+                    if (!ruleArrayList.contains(rule)) {
+                        ruleArrayList.add(rule);
                     }
                 });
             }
         }
 
-        // Loop over all campaigns and find the group for each campaign
+        // Initialize an array to store all groups associated with the feature
         List<Map<String, String>> groups = new ArrayList<>();
-        for (int campaignId : campaignIds) {
-            Map<String, String> group = getGroupDetailsIfCampaignPartOfIt(settings, campaignId);
+        // Iterate over each rule to find the group details
+        for (Rule rule : ruleArrayList) {
+            Map<String, String> group = getGroupDetailsIfCampaignPartOfIt(settings, rule.getCampaignId(), rule.getType().equals(CampaignTypeEnum.PERSONALIZE.getValue()) ? rule.getVariationId() : -1);
+            // Add group to the array if it's not already present
             if (!group.isEmpty() && groups.stream().noneMatch(g -> g.get("groupId").equals(group.get("groupId")))) {
                 groups.add(group);
             }
@@ -207,7 +216,7 @@ public class CampaignUtil {
      * @param groupId The ID of the group.
      * @return An array of campaigns associated with the specified group ID.
      */
-    public static List<Integer> getCampaignsByGroupId(Settings settings, int groupId) {
+    public static List<String> getCampaignsByGroupId(Settings settings, int groupId) {
         // find the group
         Groups group = settings.getGroups().get(String.valueOf(groupId));
         return group.getCampaigns();
@@ -216,16 +225,34 @@ public class CampaignUtil {
     /**
      * Retrieves feature keys from a list of campaign IDs.
      * @param settings The settings model containing all features.
-     * @param campaignIds An array of campaign IDs.
+     * @param campaignIdWithVariation An array of campaign IDs.
      * @return An array of feature keys associated with the provided campaign IDs.
      */
-    public static List<String> getFeatureKeysFromCampaignIds(Settings settings, List<Integer> campaignIds) {
+    public static List<String> getFeatureKeysFromCampaignIds(Settings settings, List<String> campaignIdWithVariation) {
       List<String> featureKeys = new ArrayList<>();
-      for (int campaignId : campaignIds) {
+      for (String campaign : campaignIdWithVariation) {
+          // split key with _ to separate campaignId and variationId
+          String[] campaignIdVariationId = campaign.split("_");
+          int campaignId = Integer.parseInt(campaignIdVariationId[0]);
+          Integer variationId = (campaignIdVariationId.length > 1) ? Integer.parseInt(campaignIdVariationId[1]) : null;
+          // Iterate over each feature to find the feature key
          for (Feature feature : settings.getFeatures()) {
+             // Break if feature key is already added
+             if (featureKeys.contains(feature.getKey())) {
+                 continue;
+             }
              feature.getRules().forEach(rule -> {
                  if (rule.getCampaignId() == campaignId) {
-                     featureKeys.add(feature.getKey());
+                     // Check if variationId is provided and matches the rule's variationId
+                     if (variationId != null) {
+                         // Add feature key if variationId matches
+                         if (Objects.equals(rule.getVariationId(), variationId)) {
+                             featureKeys.add(feature.getKey());
+                         }
+                     } else {
+                         // Add feature key if no variationId is provided
+                         featureKeys.add(feature.getKey());
+                     }
                  }
              });
          }

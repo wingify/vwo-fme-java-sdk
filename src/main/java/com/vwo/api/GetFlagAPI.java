@@ -185,7 +185,7 @@ public class GetFlagAPI {
         if (shouldCheckForExperimentsRules) {
             List<Campaign> experimentRulesToEvaluate = new ArrayList<>();
             List<Campaign> experimentRules = getAllExperimentRules(feature);
-            Map<Integer, Integer> megGroupWinnerCampaigns = new HashMap<>();
+            Map<Integer, String> megGroupWinnerCampaigns = new HashMap<>();
 
             for (Campaign rule : experimentRules) {
                 // Evaluate the rule here
@@ -225,7 +225,7 @@ public class GetFlagAPI {
         if (getFlag.isEnabled()){
             Map<String, Object> storageMap = new HashMap<>();
             storageMap.put("featureKey", feature.getKey());
-            storageMap.put("user", context.getId());
+            storageMap.put("userId", context.getId());
             storageMap.putAll(passedRulesInformation);
             new StorageDecorator().setDataInStorage(storageMap, storageService);
         }

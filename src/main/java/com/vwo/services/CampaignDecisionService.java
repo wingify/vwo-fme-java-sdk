@@ -54,8 +54,8 @@ public class CampaignDecisionService {
 
         LoggerService.log(LogLevelEnum.INFO, "USER_PART_OF_CAMPAIGN", new HashMap<String, String>() {{
             put("userId", userId);
-            put("campaignKey", campaign.getRuleKey());
             put("notPart", isUserPart? "" : "not");
+            put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
         }});
         return isUserPart;
     }
@@ -137,14 +137,14 @@ public class CampaignDecisionService {
         if (segments.isEmpty()) {
             LoggerService.log(LogLevelEnum.INFO, "SEGMENTATION_SKIP", new HashMap<String, String>() {{
                 put("userId", context.getId());
-                put("campaignKey", campaign.getRuleKey());
+                put("campaignKey",campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             }});
             return true;
         } else {
             boolean preSegmentationResult = SegmentationManager.getInstance().validateSegmentation(segments, (Map<String, Object>) context.getCustomVariables());
             LoggerService.log(LogLevelEnum.INFO, "SEGMENTATION_STATUS", new HashMap<String, String>() {{
                 put("userId", context.getId());
-                put("campaignKey", campaign.getRuleKey());
+                put("campaignKey",campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                 put("status", preSegmentationResult ? "passed" : "failed");
             }});
             return preSegmentationResult;

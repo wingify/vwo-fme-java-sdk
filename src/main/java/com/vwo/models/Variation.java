@@ -33,6 +33,12 @@ public class Variation {
     @JsonProperty("name")
     private String name;
 
+    @JsonProperty("ruleKey")
+    private String ruleKey;
+
+    @JsonProperty("type")
+    private String type;
+
     @JsonProperty("weight")
     private double weight;
 
@@ -57,6 +63,14 @@ public class Variation {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public void setRuleKey(String ruleKey) {
+        this.ruleKey = ruleKey;
+    }
+
+    public String getRuleKey() {
+        return ruleKey;
     }
 
     public String getKey() {
@@ -123,4 +137,7 @@ public class Variation {
         this.segments = segments;
     }
 
+    public String getType() {return type;}
+
+    public void setType(String type) {this.type = type;}
 }

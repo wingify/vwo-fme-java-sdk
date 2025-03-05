@@ -35,7 +35,7 @@ public class StorageDecorator implements IStorageDecorator {
     @Override
     public Variation setDataInStorage(Map<String, Object> data, StorageService storageService) {
         String featureKey = (String) data.get("featureKey");
-        String userId = data.get("user").toString();
+        String userId = data.get("userId").toString();
 
         if (featureKey == null || featureKey.isEmpty()) {
             LoggerService.log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){

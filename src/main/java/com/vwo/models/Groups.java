@@ -18,6 +18,8 @@ package com.vwo.models;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -26,15 +28,15 @@ public class Groups {
     @JsonProperty("name")
     private String name;
     @JsonProperty("campaigns")
-    private List<Integer> campaigns;
+    private List<String> campaigns;
 
     // this is where algo, priority, weight go
     @JsonProperty("et")
     private Integer et;
     @JsonProperty("p")
-    private List<Integer> p;
+    private List<String> p = new ArrayList<>();
     @JsonProperty("wt")
-    private Map<String, Integer> wt;
+    private Map<String, Double> wt = new HashMap<>();
 
     @JsonProperty("name")
     public String getName() {
@@ -47,12 +49,12 @@ public class Groups {
     }
 
     @JsonProperty("campaigns")
-    public List<Integer> getCampaigns() {
+    public List<String> getCampaigns() {
         return campaigns;
     }
 
     @JsonProperty("campaigns")
-    public void setCampaigns(List<Integer> campaigns) {
+    public void setCampaigns(List<String> campaigns) {
         this.campaigns = campaigns;
     }
 
@@ -71,22 +73,22 @@ public class Groups {
     }
 
     @JsonProperty("p")
-    public void setP(List<Integer> p) {
+    public void setP(List<String> p) {
         this.p = p;
     }
 
     @JsonProperty("p")
-    public List<Integer> getP() {
+    public List<String> getP() {
         return p;
     }
 
     @JsonProperty("wt")
-    public void setWt(Map<String, Integer> wt) {
+    public void setWt(Map<String, Double> wt) {
         this.wt = wt;
     }
 
     @JsonProperty("wt")
-    public Map<String, Integer> getWt() {
+    public Map<String, Double> getWt() {
         return wt;
     }
 }

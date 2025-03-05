@@ -26,7 +26,7 @@ public class StorageTest extends Connector {
 
     @Override
     public void set(Map<String, Object> data) {
-        String key = data.get("featureKey") + "_" + data.get("user");
+        String key = data.get("featureKey") + "_" + data.get("userId");
 
         // Create a map to store the data
         Map<String, Object> value = new HashMap<>();

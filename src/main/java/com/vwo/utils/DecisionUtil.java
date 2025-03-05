@@ -17,12 +17,12 @@ package com.vwo.utils;
 
 import java.util.*;
 
+import com.vwo.VWOClient;
+import com.vwo.constants.Constants;
+import com.vwo.decorators.StorageDecorator;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.enums.StatusEnum;
-import com.vwo.models.Campaign;
-import com.vwo.models.Feature;
-import com.vwo.models.Settings;
-import com.vwo.models.Variation;
+import com.vwo.models.*;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.decision_maker.DecisionMaker;
 import com.vwo.packages.logger.enums.LogLevelEnum;
@@ -51,7 +51,7 @@ public class DecisionUtil {
             Campaign campaign,
             VWOContext context,
             Map<String, Object> evaluatedFeatureMap,
-            Map<Integer, Integer> megGroupWinnerCampaigns,
+            Map<Integer, String> megGroupWinnerCampaigns,
             StorageService storageService,
             Map<String, Object> decision) {
 
@@ -97,21 +97,88 @@ public class DecisionUtil {
         decision.put("customVariables", context.getCustomVariables()); // for integration
 
         // Check if RUle being evaluated is part of Mutually Exclusive Group
-        String groupId = CampaignUtil.getGroupDetailsIfCampaignPartOfIt(settings, campaignId).get("groupId");
+        String groupId = CampaignUtil.getGroupDetailsIfCampaignPartOfIt(settings, campaign.getId(), campaign.getType().equals(CampaignTypeEnum.PERSONALIZE.getValue()) ? campaign.getVariations().get(0).getId() : -1).get("groupId");
         if (groupId != null && !groupId.isEmpty()) {
-            Integer groupWinnerCampaignId = megGroupWinnerCampaigns.get(Integer.parseInt(groupId));
-            if (groupWinnerCampaignId != null && !groupWinnerCampaignId.toString().isEmpty() && groupWinnerCampaignId == campaignId) {
-                // If the campaign is the winner of the MEG, return true
-                return new HashMap<String, Object>() {{
-                    put("preSegmentationResult", true);
-                    put("whitelistedObject", null);
-                }};
-            } else if (groupWinnerCampaignId != null && !groupWinnerCampaignId.toString().isEmpty()) {
+            // check if the group is already evaluated for the user
+            String groupWinnerCampaignId = megGroupWinnerCampaigns.get(Integer.parseInt(groupId));
+            if (groupWinnerCampaignId != null && !groupWinnerCampaignId.isEmpty()) {
+                if (campaign.getType().equals(CampaignTypeEnum.AB.getValue())) {
+                    if (groupWinnerCampaignId.equals(String.valueOf(campaignId))) {
+                        // If the campaign is the winner of the MEG, return true
+                        return new HashMap<String, Object>() {{
+                            put("preSegmentationResult", true);
+                            put("whitelistedObject", null);
+                        }};
+                    }
+                } else if (campaign.getType().equals(CampaignTypeEnum.PERSONALIZE.getValue())) {
+                    // if personalise then check if the reqeusted variation is the winner
+                    if (groupWinnerCampaignId.equals(campaign.getId() + "_" + campaign.getVariations().get(0).getId())) {
+                        // If the campaign is the winner of the MEG, return true
+                        return new HashMap<String, Object>() {{
+                            put("preSegmentationResult", true);
+                            put("whitelistedObject", null);
+                        }};
+                    }
+                }
                 // If the campaign is not the winner of the MEG, return false
                 return new HashMap<String, Object>() {{
                     put("preSegmentationResult", false);
                     put("whitelistedObject", null);
                 }};
+            } else {
+                // check in storage if the group is already evaluated for the user
+                Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(Constants.VWO_META_MEG_KEY + groupId, context, storageService);
+                try {
+                    String storageMapAsString = VWOClient.objectMapper.writeValueAsString(storedDataMap);
+                    Storage storedData = VWOClient.objectMapper.readValue(storageMapAsString, Storage.class);
+                    if (storedData != null && storedData.getExperimentId() != null && storedData.getExperimentKey() != null) {
+                        LoggerService.log(LogLevelEnum.INFO, "MEG_CAMPAIGN_FOUND_IN_STORAGE", new HashMap<String, String>(){
+                            {
+                                put("campaignKey", storedData.getExperimentKey());
+                                put("userId", context.getId());
+                            }
+                        });
+                        if (storedData.getExperimentId() == campaignId) {
+                            if (campaign.getType().equals(CampaignTypeEnum.PERSONALIZE.getValue())) {
+                                // if personalise then check if the reqeusted variation is the winner
+                                if (storedData.getExperimentVariationId().equals(campaign.getVariations().get(0).getId())) {
+                                    return new HashMap<String, Object>() {{
+                                        put("preSegmentationResult", true);
+                                        put("whitelistedObject", null);
+                                    }};
+                                } else {
+                                    // store the campaign in local cache, so that it can be used later without looking into user storage again
+                                    megGroupWinnerCampaigns.put(Integer.parseInt(groupId), storedData.getExperimentId() + "_" + storedData.getExperimentVariationId());
+                                    return new HashMap<String, Object>() {{
+                                        put("preSegmentationResult", false);
+                                        put("whitelistedObject", null);
+                                    }};
+                                }
+                            } else {
+                                // return the campaign if the called campaignId matches
+                                return new HashMap<String, Object>() {{
+                                    put("preSegmentationResult", true);
+                                    put("whitelistedObject", null);
+                                }};
+                            }
+                        }
+                        // if experimentId is not -1 then campaign is personalise campaign, store the details and return
+                        if (storedData.getExperimentVariationId() != -1) {
+                            megGroupWinnerCampaigns.put(Integer.parseInt(groupId), storedData.getExperimentId() + "_" + storedData.getExperimentVariationId());
+                        } else {
+                            // else store the campaignId only and return
+                            megGroupWinnerCampaigns.put(Integer.parseInt(groupId), String.valueOf(storedData.getExperimentId()));
+                        }
+                        return new HashMap<String, Object>() {{
+                            put("preSegmentationResult", false);
+                            put("whitelistedObject", null);
+                        }};
+                    }
+                } catch (Exception e) {
+                    LoggerService.log(LogLevelEnum.ERROR, "STORED_DATA_ERROR", new HashMap<String, String>() {{
+                        put("err", e.toString());
+                    }});
+                }
             }
         }
 
@@ -127,13 +194,46 @@ public class DecisionUtil {
                     context,
                     storageService
             );
+            // this condition would be true only when the current campaignId match with group winner campaignId
+            // for personalise campaign, all personalise variations have same campaignId, so we check for campaignId_variationId
             if (variationModel != null && variationModel.getId() != null && variationModel.getId().equals(campaignId)) {
+                // if campaign is AB then return true
+                if (Objects.equals(variationModel.getType(), CampaignTypeEnum.AB.getValue())) {
+                    return new HashMap<String, Object>() {{
+                        put("preSegmentationResult", true);
+                        put("whitelistedObject", null);
+                    }};
+                } else {
+                    // if personalise then check if the requested variation is the winner
+                    if (variationModel.getVariations().get(0).getId().equals(campaign.getVariations().get(0).getId())) {
+                        return new HashMap<String, Object>() {{
+                            put("preSegmentationResult", true);
+                            put("whitelistedObject", null);
+                        }};
+                    } else {
+                        // store the campaign in local cache, so that it can be used later
+                        megGroupWinnerCampaigns.put(Integer.parseInt(groupId), variationModel.getId() + "_" + variationModel.getVariations().get(0).getId());
+                        return new HashMap<String, Object>() {{
+                            put("preSegmentationResult", false);
+                            put("whitelistedObject", null);
+                        }};
+                    }
+                }
+            } else if (variationModel != null && variationModel.getId() != null) { // when there is a winner but not the current campaign
+                if (variationModel.getType().equals(CampaignTypeEnum.AB.getValue())) {
+                    // if campaign is AB then store only the campaignId
+                    megGroupWinnerCampaigns.put(Integer.parseInt(groupId), String.valueOf(variationModel.getId()));
+                } else {
+                    // if campaign is personalise then store the campaignId_variationId
+                    megGroupWinnerCampaigns.put(Integer.parseInt(groupId), variationModel.getId() + "_" + variationModel.getVariations().get(0).getId());
+                }
                 return new HashMap<String, Object>() {{
-                    put("preSegmentationResult", true);
+                    put("preSegmentationResult", false);
                     put("whitelistedObject", null);
                 }};
             }
-            megGroupWinnerCampaigns.put(Integer.parseInt(groupId), variationModel != null && variationModel.getId() != null ? variationModel.getId() : 0);
+            // store -1 if no winner found, so that we don't evaluate the group again as the result would be the same for the current getFlag call
+            megGroupWinnerCampaigns.put(Integer.parseInt(groupId), String.valueOf(-1));
             return new HashMap<String, Object>() {{
                 put("preSegmentationResult", false);
                 put("whitelistedObject", null);
@@ -162,7 +262,7 @@ public class DecisionUtil {
         if (variation == null) {
             LoggerService.log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, String>() {{
                 put("userId", userId);
-                put("campaignKey", campaign.getRuleKey());
+                put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                 put("status", "did not get any variation");
             }});
             return null;
@@ -170,7 +270,7 @@ public class DecisionUtil {
 
         LoggerService.log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, String>() {{
             put("userId", userId);
-            put("campaignKey", campaign.getRuleKey());
+            put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             put("status", "got variation: " + variation.getName());
         }});
         return variation;
@@ -188,7 +288,7 @@ public class DecisionUtil {
         String variationString = whitelistingResult != null ? (String) whitelistingResult.get("variationName") : "";
         LoggerService.log(LogLevelEnum.INFO, "WHITELISTING_STATUS", new HashMap<String, String>() {{
             put("userId", context.getId());
-            put("campaignKey", campaign.getRuleKey());
+            put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             put("status", status.getStatus());
             put("variationString", variationString);
         }});
@@ -208,7 +308,7 @@ public class DecisionUtil {
             if (variation.getSegments() != null && variation.getSegments().isEmpty()) {
                 LoggerService.log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, String>() {{
                     put("userId", context.getId());
-                    put("campaignKey", campaign.getRuleKey());
+                    put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                     put("variation", !variation.getName().isEmpty() ? "for variation: " + variation.getName() : "");
                 }});
                 continue;

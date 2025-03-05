@@ -56,11 +56,10 @@ public class MegUtil {
         // get all feature keys and all campaignIds from the groupId
         Map<String, List<?>> featureKeysAndGroupCampaignIds = getFeatureKeysFromGroup(settings, groupId);
         List<String> featureKeys = (List<String>) featureKeysAndGroupCampaignIds.get("featureKeys");
-        List<Integer> groupCampaignIds = (List<Integer>) featureKeysAndGroupCampaignIds.get("groupCampaignIds");
+        List<String> groupCampaignIds = (List<String>) featureKeysAndGroupCampaignIds.get("groupCampaignIds");
 
         for (String featureKey : featureKeys) {
             Feature currentFeature = getFeatureFromKey(settings, featureKey);
-            List<Integer> featureCampaignIds = getCampaignIdsFromFeatureKey(settings, featureKey);
 
             // check if the feature is already evaluated
             if (featureToSkip.contains(featureKey)) {
@@ -70,12 +69,16 @@ public class MegUtil {
             // evaluate the feature rollout rules
             boolean isRolloutRulePassed = isRolloutRuleForFeaturePassed(settings, currentFeature, evaluatedFeatureMap, featureToSkip, context, storageService);
             if (isRolloutRulePassed) {
-                for (Campaign campaign : settings.getCampaigns()) {
-                    if (groupCampaignIds.contains(campaign.getId()) && featureCampaignIds.contains(campaign.getId())) {
-                        campaignMap.putIfAbsent(featureKey, new ArrayList<>());
-                        List<Campaign> campaigns = campaignMap.get(featureKey);
-                        if (campaigns.stream().noneMatch(c -> c.getKey().equals(campaign.getKey()))) {
-                            campaigns.add(campaign);
+                for (Feature feature1 : settings.getFeatures()) {
+                    if (feature1.getKey().equals(featureKey)) {
+                        for (Campaign campaign : feature1.getRulesLinkedCampaign()) {
+                            if(groupCampaignIds.contains(campaign.getId().toString()) || groupCampaignIds.contains(campaign.getId() + "_" + campaign.getVariations().get(0).getId())) {
+                                campaignMap.putIfAbsent(featureKey, new ArrayList<>());
+                                List<Campaign> campaigns = campaignMap.get(featureKey);
+                                if (campaigns.stream().noneMatch(c -> c.getRuleKey().equals(campaign.getRuleKey()))) {
+                                    campaigns.add(campaign);
+                                }
+                            }
                         }
                     }
                 }
@@ -86,7 +89,7 @@ public class MegUtil {
         List<Campaign> eligibleCampaigns = (List<Campaign>) eligibleCampaignsMap.get("eligibleCampaigns");
         List<Campaign> eligibleCampaignsWithStorage = (List<Campaign>) eligibleCampaignsMap.get("eligibleCampaignsWithStorage");
 
-        return findWinnerCampaignAmongEligibleCampaigns(settings, feature.getKey(), eligibleCampaigns, eligibleCampaignsWithStorage, groupId, context);
+        return findWinnerCampaignAmongEligibleCampaigns(settings, feature.getKey(), eligibleCampaigns, eligibleCampaignsWithStorage, groupId, context, storageService);
     }
 
     /**
@@ -97,7 +100,7 @@ public class MegUtil {
      * @return An object containing feature keys and group campaign IDs.
      */
     public static Map<String, List<?>> getFeatureKeysFromGroup(Settings settings, int groupId) {
-        List<Integer> groupCampaignIds = getCampaignsByGroupId(settings, groupId);
+        List<String> groupCampaignIds = getCampaignsByGroupId(settings, groupId);
         List<String> featureKeys = getFeatureKeysFromCampaignIds(settings, groupCampaignIds);
 
         Map<String, List<?>> result = new HashMap<>();
@@ -211,7 +214,7 @@ public class MegUtil {
                         new CampaignDecisionService().isUserPartOfCampaign(context.getId(), campaign)) {
                     LoggerService.log(LogLevelEnum.INFO, "MEG_CAMPAIGN_ELIGIBLE", new HashMap<String, String>(){
                         {
-                            put("campaignKey", campaign.getKey());
+                            put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                             put("userId", context.getId());
                         }
                     });
@@ -240,12 +243,13 @@ public class MegUtil {
      * @param eligibleCampaignsWithStorage - A list of eligible campaigns with storage.
      * @param groupId - The ID of the group.
      * @param context - The context model.
+     * @param storageService - The storage service.
      * @return The winner campaign.
      */
     private static Variation findWinnerCampaignAmongEligibleCampaigns(Settings settings, String featureKey,
                                                                       List<Campaign> eligibleCampaigns,
                                                                       List<Campaign> eligibleCampaignsWithStorage,
-                                                                      int groupId, VWOContext context) {
+                                                                      int groupId, VWOContext context, StorageService storageService) {
         List<Integer> campaignIds = getCampaignIdsFromFeatureKey(settings, featureKey);
         Variation winnerCampaign = null;
         try {
@@ -262,15 +266,15 @@ public class MegUtil {
                 Variation finalWinnerCampaign = winnerCampaign;
                 LoggerService.log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
                     {
-                        put("campaignKey", finalWinnerCampaign.getKey());
+                        put("campaignKey", finalWinnerCampaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? finalWinnerCampaign.getKey() : finalWinnerCampaign.getName() + "_" + finalWinnerCampaign.getRuleKey());
                         put("groupId", String.valueOf(groupId));
                         put("userId", context.getId());
                     }
                 });
             } else if (eligibleCampaignsWithStorage.size() > 1 && megAlgoNumber == Constants.RANDOM_ALGO) {
-                winnerCampaign = normalizeWeightsAndFindWinningCampaign(eligibleCampaignsWithStorage, context, campaignIds, groupId);
+                winnerCampaign = normalizeWeightsAndFindWinningCampaign(eligibleCampaignsWithStorage, context, campaignIds, groupId, storageService);
             } else if (eligibleCampaignsWithStorage.size() > 1) {
-                winnerCampaign = getCampaignUsingAdvancedAlgo(settings, eligibleCampaignsWithStorage, context, campaignIds, groupId);
+                winnerCampaign = getCampaignUsingAdvancedAlgo(settings, eligibleCampaignsWithStorage, context, campaignIds, groupId, storageService);
             }
 
             if (eligibleCampaignsWithStorage.isEmpty()) {
@@ -284,16 +288,16 @@ public class MegUtil {
                     Variation finalWinnerCampaign1 = winnerCampaign;
                     LoggerService.log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
                         {
-                            put("campaignKey", finalWinnerCampaign1.getKey());
+                            put("campaignKey", finalWinnerCampaign1.getType().equals(CampaignTypeEnum.AB.getValue()) ? finalWinnerCampaign1.getKey() : finalWinnerCampaign1.getName() + "_" + finalWinnerCampaign1.getRuleKey());
                             put("groupId", String.valueOf(groupId));
                             put("userId", context.getId());
                             put("algo", "");
                         }
                     });
                 } else if (eligibleCampaigns.size() > 1 && megAlgoNumber == Constants.RANDOM_ALGO) {
-                    winnerCampaign = normalizeWeightsAndFindWinningCampaign(eligibleCampaigns, context, campaignIds, groupId);
+                    winnerCampaign = normalizeWeightsAndFindWinningCampaign(eligibleCampaigns, context, campaignIds, groupId, storageService);
                 } else if (eligibleCampaigns.size() > 1) {
-                    winnerCampaign = getCampaignUsingAdvancedAlgo(settings, eligibleCampaigns, context, campaignIds, groupId);
+                    winnerCampaign = getCampaignUsingAdvancedAlgo(settings, eligibleCampaigns, context, campaignIds, groupId, storageService);
                 }
             }
         } catch (Exception exception) {
@@ -309,12 +313,13 @@ public class MegUtil {
      * @param context - The context model.
      * @param calledCampaignIds - A list of campaign IDs that have been called.
      * @param groupId - The ID of the group.
+     * @param storageService - The storage service.
      * @return The winning campaign or null if none is found.
      */
     private static Variation normalizeWeightsAndFindWinningCampaign(List<Campaign> shortlistedCampaigns,
-                                                                    VWOContext context, List<Integer> calledCampaignIds, int groupId) {
+                                                                    VWOContext context, List<Integer> calledCampaignIds, int groupId, StorageService storageService) {
         try {
-            shortlistedCampaigns.forEach(campaign -> campaign.setWeight(100 / shortlistedCampaigns.size()));
+            shortlistedCampaigns.forEach(campaign -> campaign.setWeight((Math.round(100.0/shortlistedCampaigns.size()) * 10000)/10000.0));
 
             List<Variation> variations = shortlistedCampaigns.stream()
                     .map(campaign -> {
@@ -332,18 +337,31 @@ public class MegUtil {
                     variations, new DecisionMaker().calculateBucketValue(getBucketingSeed(context.getId(), null, groupId))
             );
 
-            LoggerService.log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
-                {
-                    put("campaignKey", winnerVariation.getKey());
-                    put("groupId", String.valueOf(groupId));
-                    put("userId", context.getId());
-                    put("algo", "using random algorithm");
-                }
-            });
+            if (winnerVariation != null) {
+                LoggerService.log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
+                    {
+                        put("campaignKey", winnerVariation.getType().equals(CampaignTypeEnum.AB.getValue()) ? winnerVariation.getKey() : winnerVariation.getName() + "_" + winnerVariation.getRuleKey());
+                        put("groupId", String.valueOf(groupId));
+                        put("userId", context.getId());
+                        put("algo", "using random algorithm");
+                    }
+                });
 
-            if (winnerVariation != null && calledCampaignIds.contains(winnerVariation.getId())) {
-                return winnerVariation;
+                Map<String, Object> storageMap = new HashMap<>();
+                storageMap.put("featureKey", Constants.VWO_META_MEG_KEY + groupId);
+                storageMap.put("userId", context.getId());
+                storageMap.put("experimentId", winnerVariation.getId());
+                storageMap.put("experimentKey", winnerVariation.getKey());
+                storageMap.put("experimentVariationId", winnerVariation.getType().equals(CampaignTypeEnum.PERSONALIZE.getValue()) ? winnerVariation.getVariations().get(0).getId() : -1);
+                new StorageDecorator().setDataInStorage(storageMap, storageService);
+
+                if (calledCampaignIds.contains(winnerVariation.getId())) {
+                    return winnerVariation;
+                }
+            } else {
+                LoggerService.log(LogLevelEnum.INFO,"No winner campaign found for MEG group: " + groupId);
             }
+
         } catch (Exception exception) {
             LoggerService.log(LogLevelEnum.ERROR, "MEG: error inside normalizeWeightsAndFindWinningCampaign");
         }
@@ -358,21 +376,27 @@ public class MegUtil {
      * @param context - The context model.
      * @param calledCampaignIds - A list of campaign IDs that have been called.
      * @param groupId - The ID of the group.
+     * @param storageService - The storage service.
      * @return The winning campaign or null if none is found.
      */
     private static Variation getCampaignUsingAdvancedAlgo(Settings settings, List<Campaign> shortlistedCampaigns,
-                                                          VWOContext context, List<Integer> calledCampaignIds, int groupId) {
+                                                          VWOContext context, List<Integer> calledCampaignIds, int groupId, StorageService storageService) {
         Variation winnerCampaign = null;
         boolean found = false;
         try {
             Groups group = settings.getGroups().get(String.valueOf(groupId));
-            List<Integer> priorityOrder = group != null && !group.getP().isEmpty()
+            List<String> priorityOrder = group != null && !group.getP().isEmpty()
                     ? group.getP() : new ArrayList<>();
-            Map<Integer, Integer> wt = group != null && !group.getWt().isEmpty()
-                    ? convertWtToMap(group.getWt()) : new HashMap<>();
-            for (Integer integer : priorityOrder) {
+            Map<String, Double> wt = group != null && !group.getWt().isEmpty()
+                    ? group.getWt() : new HashMap<>();
+            for (String integer : priorityOrder) {
                 for (Campaign shortlistedCampaign : shortlistedCampaigns) {
-                    if (Objects.equals(shortlistedCampaign.getId(), integer)) {
+                    if (Objects.equals(String.valueOf(shortlistedCampaign.getId()), integer)) {
+                        String campaignModel = VWOClient.objectMapper.writeValueAsString(cloneObject(shortlistedCampaign));
+                        winnerCampaign = VWOClient.objectMapper.readValue(campaignModel, Variation.class);
+                        found = true;
+                        break;
+                    } else if ((shortlistedCampaign.getId() + "_" + shortlistedCampaign.getVariations().get(0).getId()).equals(integer)) {
                         String campaignModel = VWOClient.objectMapper.writeValueAsString(cloneObject(shortlistedCampaign));
                         winnerCampaign = VWOClient.objectMapper.readValue(campaignModel, Variation.class);
                         found = true;
@@ -386,9 +410,13 @@ public class MegUtil {
                 List<Campaign> participatingCampaignList = new ArrayList<>();
                 for (Campaign campaign : shortlistedCampaigns) {
                     int campaignId = campaign.getId();
-                    if (wt.containsKey(campaignId)) {
+                    if (wt.containsKey(String.valueOf(campaignId))) {
                         Campaign clonedCampaign = (Campaign) cloneObject(campaign);
-                        clonedCampaign.setWeight(wt.get(campaignId));
+                        clonedCampaign.setWeight(wt.get(String.valueOf(campaignId)));
+                        participatingCampaignList.add(clonedCampaign);
+                    } else if (wt.containsKey(campaignId + "_" + campaign.getVariations().get(0).getId())) {
+                        Campaign clonedCampaign = (Campaign) cloneObject(campaign);
+                        clonedCampaign.setWeight(wt.get(campaignId + "_" + campaign.getVariations().get(0).getId()));
                         participatingCampaignList.add(clonedCampaign);
                     }
                 }
@@ -411,17 +439,31 @@ public class MegUtil {
             }
 
             Variation finalWinnerCampaign = winnerCampaign;
-            LoggerService.log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
-                {
-                    put("campaignKey", finalWinnerCampaign.getName());
-                    put("groupId", String.valueOf(groupId));
-                    put("userId", context.getId());
-                    put("algo", "using advanced algorithm");
-                }
-            });
 
-            if (calledCampaignIds.contains(winnerCampaign.getId())) {
-                return winnerCampaign;
+
+            if (winnerCampaign != null) {
+                LoggerService.log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
+                    {
+                        put("campaignKey", finalWinnerCampaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? finalWinnerCampaign.getKey() : finalWinnerCampaign.getName() + "_" + finalWinnerCampaign.getRuleKey());
+                        put("groupId", String.valueOf(groupId));
+                        put("userId", context.getId());
+                        put("algo", "using advanced algorithm");
+                    }
+                });
+
+                Map<String, Object> storageMap = new HashMap<>();
+                storageMap.put("featureKey", Constants.VWO_META_MEG_KEY + groupId);
+                storageMap.put("userId", context.getId());
+                storageMap.put("experimentId", winnerCampaign.getId());
+                storageMap.put("experimentKey", winnerCampaign.getKey());
+                storageMap.put("experimentVariationId", winnerCampaign.getType().equals(CampaignTypeEnum.PERSONALIZE.getValue()) ? winnerCampaign.getVariations().get(0).getId() : -1);
+                new StorageDecorator().setDataInStorage(storageMap, storageService);
+
+                if (calledCampaignIds.contains(winnerCampaign.getId())) {
+                    return winnerCampaign;
+                }
+            }  else {
+                LoggerService.log(LogLevelEnum.INFO,"No winner campaign found for MEG group: " + groupId);
             }
         } catch (Exception exception) {
             LoggerService.log(LogLevelEnum.ERROR, "MEG: error inside getCampaignUsingAdvancedAlgo " + exception.getMessage());

@@ -49,7 +49,7 @@ public class SegmentOperandEvaluator {
 
         // Handle 'inlist' operand
         if (operandValue.contains("inlist")) {
-            Pattern listIdPattern = Pattern.compile("inlist\\((\\w+:\\d+)\\)");
+            Pattern listIdPattern = Pattern.compile("inlist\\(([^)]+)\\)");
             Matcher matcher = listIdPattern.matcher(operandValue);
             if (!matcher.find()) {
                 LoggerService.log(LogLevelEnum.ERROR, "Invalid 'inList' operand format");
