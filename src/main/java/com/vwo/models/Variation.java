@@ -57,6 +57,9 @@ public class Variation {
     @JsonProperty("segments")
     private Map<String, Object> segments = new HashMap<>();
 
+    @JsonProperty("salt")
+    private String salt;
+
     public Integer getId() {
         return id;
     }
@@ -140,4 +143,12 @@ public class Variation {
     public String getType() {return type;}
 
     public void setType(String type) {this.type = type;}
+
+    public String getSalt() {
+        return salt;
+    }
+
+    public void setSalt(String salt) {
+        this.salt = salt;
+    }
 }

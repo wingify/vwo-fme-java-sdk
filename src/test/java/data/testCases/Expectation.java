@@ -27,6 +27,7 @@ public class Expectation {
     private Boolean booleanVariable;
     private Map<String, Object> jsonVariable;
     private Storage storageData;
+    private Boolean shouldReturnSameVariation;
 
     public Boolean getIsEnabled() {
         return isEnabled;
@@ -82,5 +83,13 @@ public class Expectation {
 
     public void setStorageData(Storage storageData) {
         this.storageData = storageData;
+    }
+
+    public void setShouldReturnSameVariation(Boolean shouldReturnSameVariation) {
+        this.shouldReturnSameVariation = shouldReturnSameVariation;
+    }
+
+    public Boolean getShouldReturnSameVariation() {
+        return shouldReturnSameVariation;
     }
 }

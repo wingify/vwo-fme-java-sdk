@@ -110,8 +110,21 @@ public class CampaignUtil {
         if (groupId != null) {
             return groupId + "_" + userId;
         }
+
+        // get campaign type
+        String campaignType = campaign.getType();
+        // check if campaign type is rollout or personalize
+        boolean isRolloutOrPersonalize = Objects.equals(campaignType, CampaignTypeEnum.ROLLOUT.getValue()) || 
+                                       Objects.equals(campaignType, CampaignTypeEnum.PERSONALIZE.getValue());
+
+        // Get salt based on campaign type
+        String salt = isRolloutOrPersonalize ? campaign.getVariations().get(0).getSalt() : campaign.getSalt();
+        // if salt is not null and not empty, use salt else use campaign id
+        String bucketKey = (salt != null && !salt.isEmpty()) ? 
+                          salt + "_" + userId : 
+                          campaign.getId() + "_" + userId;
         // Return a seed combining campaign ID and user ID otherwise
-        return campaign.getId() + "_" + userId;
+        return bucketKey;
     }
 
     /**

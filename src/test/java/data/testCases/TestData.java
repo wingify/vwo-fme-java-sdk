@@ -17,12 +17,16 @@ package data.testCases;
 
 import com.vwo.models.user.VWOContext;
 
+import java.util.ArrayList;
+
 public class TestData {
     private String description;
     private String settings;
     private VWOContext context;
+    private ArrayList<String> userIds;
     private Expectation expectation;
     private String featureKey;
+    private String featureKey2;
 
     public String getDescription() {
         return description;
@@ -62,5 +66,21 @@ public class TestData {
 
     public void setFeatureKey(String featureKey) {
         this.featureKey = featureKey;
+    }
+
+    public String getFeatureKey2() {
+        return featureKey2;
+    }
+
+    public void setFeatureKey2(String featureKey2) {
+        this.featureKey2 = featureKey2;
+    }
+
+    public ArrayList<String> getUserIds() {
+        return userIds;
+    }
+
+    public void setUserIds(ArrayList<String> userIds) {
+        this.userIds = userIds;
     }
 }

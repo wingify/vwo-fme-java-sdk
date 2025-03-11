@@ -175,6 +175,25 @@
       }
     }
   ],
+  "GETFLAG_WITH_SALT": [{
+    "settings": "SETTINGS_WITH_SAME_SALT",
+    "description": "should return same variation for rule having same salt",
+    "userIds": ["user_id_1", "user_id_2", "user_id_3", "user_id_4", "user_id_5"],
+    "featureKey": "feature1",
+    "featureKey2": "feature2",
+    "expectation": {
+      "shouldReturnSameVariation": true
+    }
+  },{
+    "settings": "SETTINGS_WITH_DIFFERENT_SALT",
+    "description": "should return different variation for rule having different salt",
+    "userIds":["user_id_1", "user_id_3", "user_id_5", "user_id_10", "user_id_11"],
+    "featureKey": "feature1",
+    "featureKey2": "feature2",
+    "expectation": {
+      "shouldReturnSameVariation": false
+    }
+  }],
   "GETFLAG_MEG_RANDOM": [{
     "settings": "MEG_CAMPAIGN_RANDOM_ALGO_SETTINGS",
     "description": "should return true for a flag having 3 meg campaigns, where testingRule1 and personaliseRule1 are eligible",

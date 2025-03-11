@@ -20,6 +20,7 @@ import com.vwo.VWOBuilder;
 import com.vwo.VWOClient;
 import com.vwo.models.Storage;
 import com.vwo.models.user.GetFlag;
+import com.vwo.models.user.VWOContext;
 import com.vwo.models.user.VWOInitOptions;
 import data.StorageTest;
 import data.DummySettingsReader;
@@ -28,12 +29,12 @@ import data.testCases.TestData;
 import data.TestDataReader;
 import org.junit.jupiter.api.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class GetFlagTests {
@@ -52,18 +53,22 @@ public class GetFlagTests {
 
     @Test
     @Order(2)
+    public void testGetFlagWithSalt() { runSaltTest(testCases.getGETFLAG_WITH_SALT());}
+
+    @Test
+    @Order(3)
     public void testGetFlagWithMegRandom() {
         runTests(testCases.getGETFLAG_MEG_RANDOM(), false);
     }
 
     @Test
-    @Order(3)
+    @Order(4)
     public void testGetFlagWithMegAdvance() {
         runTests(testCases.getGETFLAG_MEG_ADVANCE(), false);
     }
 
     @Test
-    @Order(4)
+    @Order(5)
     public void testGetFlagWithStorage() {
         runTests(testCases.getGETFLAG_WITH_STORAGE(), true);
     }
@@ -111,6 +116,40 @@ public class GetFlagTests {
                     }
                 } catch (Exception e) {
                     throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    private void runSaltTest(List<TestData> tests){
+        for (TestData testData : tests) {
+            VWOInitOptions vwoInitOptions = new VWOInitOptions();
+            vwoInitOptions.setSdkKey(SDK_KEY);
+            vwoInitOptions.setAccountId(ACCOUNT_ID);
+
+            VWOBuilder vwoBuilder = new VWOBuilder(vwoInitOptions);
+            VWOBuilder vwoBuilderSpy = spy(vwoBuilder);
+
+            when(vwoBuilderSpy.getSettings(false)).thenReturn(settingsMap.get(testData.getSettings()));
+
+            vwoInitOptions.setVwoBuilder(vwoBuilderSpy);
+            VWO vwoClient = VWO.init(vwoInitOptions);
+
+            ArrayList<String> userIds = testData.getUserIds();
+
+            for (String userId : userIds) {
+                VWOContext vwoContext = new VWOContext();
+                vwoContext.setId(userId);
+                GetFlag featureFlag = vwoClient.getFlag(testData.getFeatureKey(), vwoContext);
+                GetFlag featureFlag2 = vwoClient.getFlag(testData.getFeatureKey2(), vwoContext);
+
+                List<Map<String, Object>> featureFlagVariables = featureFlag.getVariables();
+                List<Map<String, Object>> featureFlag2Variables = featureFlag2.getVariables();
+                if (testData.getExpectation().getShouldReturnSameVariation()) {
+                    assertEquals(featureFlagVariables, featureFlag2Variables, "The feature flag variables are not equal!");
+                } else {
+                    boolean areEqual = featureFlagVariables.equals(featureFlag2Variables);
+                    assertFalse(areEqual, "The feature flag variables are equal!");
                 }
             }
         }

@@ -37,6 +37,9 @@ public class Campaign {
     @JsonProperty("ruleKey")
     private String ruleKey;
 
+    @JsonProperty("salt")
+    private String salt;
+
     @JsonProperty("status")
     private String status;
 
@@ -217,6 +220,14 @@ public class Campaign {
         this.endRangeVariation = endRangeVariation;
     }
 
+    public String getSalt() {
+        return salt;
+    }
+
+    public void setSalt(String salt) {
+        this.salt = salt;
+    }
+
     public void setModelFromDictionary(Campaign model) {
         if (model.getId() != null) {
             this.id = model.getId();
@@ -270,6 +281,10 @@ public class Campaign {
 
         if (model.getEndRangeVariation() != 0) {
             this.endRangeVariation = model.getEndRangeVariation();
+        }
+
+        if (model.getSalt() != null) {
+            this.salt = model.getSalt();
         }
     }
 }

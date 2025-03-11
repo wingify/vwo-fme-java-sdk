@@ -29,6 +29,8 @@ public class TestCases {
     private List<TestData> GETFLAG_MEG_ADVANCE;
     @JsonProperty("GETFLAG_WITH_STORAGE")
     private List<TestData> GETFLAG_WITH_STORAGE;
+    @JsonProperty("GETFLAG_WITH_SALT")
+    private List<TestData> GETFLAG_WITH_SALT;
 
     public List<TestData> getGETFLAG_WITHOUT_STORAGE() {
         return GETFLAG_WITHOUT_STORAGE;
@@ -60,5 +62,13 @@ public class TestCases {
 
     public void setGETFLAG_WITH_STORAGE(List<TestData> GETFLAG_WITH_STORAGE) {
         this.GETFLAG_WITH_STORAGE = GETFLAG_WITH_STORAGE;
+    }
+
+    public List<TestData> getGETFLAG_WITH_SALT() {
+        return GETFLAG_WITH_SALT;
+    }
+
+    public void setGETFLAG_WITH_SALT(List<TestData> GETFLAG_WITH_SALT) {
+        this.GETFLAG_WITH_SALT = GETFLAG_WITH_SALT;
     }
 }

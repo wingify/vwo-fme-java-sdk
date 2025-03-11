@@ -41,15 +41,20 @@ public class CampaignDecisionService {
         double trafficAllocation;
         // Check if the campaign is of type ROLLOUT or PERSONALIZE
         // If yes, set the traffic allocation to the weight of the first variation
-        if (Objects.equals(campaign.getType(), CampaignTypeEnum.ROLLOUT.getValue()) || Objects.equals(campaign.getType(), CampaignTypeEnum.PERSONALIZE.getValue())) {
-            trafficAllocation = campaign.getVariations().get(0).getWeight();
-        } else {
-            // If the campaign is of type AB, set the traffic allocation to the percent traffic of the campaign
-            trafficAllocation = campaign.getPercentTraffic();
-        }
+        String campaignType = campaign.getType();
+        boolean isRolloutOrPersonalize = Objects.equals(campaignType, CampaignTypeEnum.ROLLOUT.getValue()) || 
+                                       Objects.equals(campaignType, CampaignTypeEnum.PERSONALIZE.getValue());
 
-        // Get the bucket value assigned to the user
-        int valueAssignedToUser = new DecisionMaker().getBucketValueForUser(campaign.getId() + "_" + userId);
+        // Get salt and traffic allocation based on campaign type
+        String salt = isRolloutOrPersonalize ? campaign.getVariations().get(0).getSalt() : campaign.getSalt();
+        trafficAllocation = isRolloutOrPersonalize ? campaign.getVariations().get(0).getWeight() : campaign.getPercentTraffic();
+
+        // Generate bucket key using salt if available, otherwise use campaign ID
+        String bucketKey = (salt != null && !salt.isEmpty()) ? 
+                          salt + "_" + userId : 
+                          campaign.getId() + "_" + userId;
+
+        int valueAssignedToUser = new DecisionMaker().getBucketValueForUser(bucketKey);
         boolean isUserPart = valueAssignedToUser != 0 && valueAssignedToUser <= trafficAllocation;
 
         LoggerService.log(LogLevelEnum.INFO, "USER_PART_OF_CAMPAIGN", new HashMap<String, String>() {{
@@ -102,7 +107,16 @@ public class CampaignDecisionService {
 
         int multiplier = campaign.getPercentTraffic() != 0 ? 1 : 0;
         int percentTraffic = campaign.getPercentTraffic();
-        long hashValue = new DecisionMaker().generateHashValue(campaign.getId() + "_" + accountId + "_" + userId);
+        // get salt from campaign
+        String salt = campaign.getSalt();
+        String bucketKey;
+        // if salt is not null and not empty, use salt else use campaign id
+        if (salt != null && !salt.isEmpty()) {
+            bucketKey = salt + "_" + accountId + "_" + userId;
+        } else {
+            bucketKey = campaign.getId() + "_" + accountId + "_" + userId;
+        }
+        long hashValue = new DecisionMaker().generateHashValue(bucketKey);
         int bucketValue = new DecisionMaker().generateBucketValue(hashValue, Constants.MAX_TRAFFIC_VALUE, multiplier);
 
         LoggerService.log(LogLevelEnum.DEBUG, "USER_BUCKET_TO_VARIATION", new HashMap<String, String>() {{
