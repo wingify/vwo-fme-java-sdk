@@ -19,7 +19,7 @@ jobs:
 
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use java ${{ matrix.java_version }}
         uses: actions/setup-java@v3
         with:
@@ -28,7 +28,7 @@ jobs:
           java-package: jdk
 
       - name: Cache Maven packages
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
