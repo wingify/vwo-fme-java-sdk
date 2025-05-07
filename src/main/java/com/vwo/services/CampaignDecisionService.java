@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import com.vwo.constants.Constants;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.models.Campaign;
 import com.vwo.models.Variation;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.packages.decision_maker.DecisionMaker;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
@@ -136,7 +136,7 @@ public class CampaignDecisionService {
      * @param context  VWOContext object containing the user context.
      * @return  boolean value indicating if the user passes the pre-segmentation.
      */
-    public boolean getPreSegmentationDecision(Campaign campaign, VWOContext context) {
+    public boolean getPreSegmentationDecision(Campaign campaign, VWOUserContext context) {
         String campaignType = campaign.getType();
         Map<String, Object> segments;
 

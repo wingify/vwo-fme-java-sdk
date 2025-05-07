@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ import com.vwo.models.request.EventArchQueryParams.RequestQueryParams;
 import com.vwo.models.request.EventArchQueryParams.SettingsQueryParams;
 import com.vwo.models.request.Props;
 import com.vwo.models.request.visitor.Visitor;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 import com.vwo.packages.network_layer.models.RequestModel;
@@ -194,7 +194,7 @@ public class NetworkUtil {
      * @param eventProperties event properties for the event
      * @return  Map containing the payload data.
      */
-    public static Map<String, Object> getTrackGoalPayloadData(Settings settings, String userId, String eventName, VWOContext context, Map<String, ?> eventProperties) {
+    public static Map<String, Object> getTrackGoalPayloadData(Settings settings, String userId, String eventName, VWOUserContext context, Map<String, ?> eventProperties) {
         EventArchPayload properties = getEventBasePayload(settings, userId, eventName, context.getUserAgent(), context.getIpAddress());
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
         addCustomEventProperties(properties, (Map<String, Object>) eventProperties);
@@ -225,14 +225,13 @@ public class NetworkUtil {
      * @param settings  The settings model containing configuration.
      * @param userId  The ID of the user.
      * @param eventName The name of the event.
-     * @param attributeKey  The key of the attribute.
-     * @param attributeValue The value of the attribute.
+     * @param attributeMap - Map of attribute key and value to be set
      * @return
      */
-    public static Map<String, Object> getAttributePayloadData(Settings settings, String userId, String eventName, String attributeKey, Object attributeValue) {
+    public static Map<String, Object> getAttributePayloadData(Settings settings, String userId, String eventName, Map<String, Object> attributeMap) {
         EventArchPayload properties = getEventBasePayload(settings, userId, eventName, null, null);
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
-        properties.getD().getVisitor().getProps().put(attributeKey, attributeValue);
+        properties.getD().getVisitor().getProps().putAll(attributeMap);
         LoggerService.log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_SYNC_VISITOR_PROP", new HashMap<String, String>() {
             {
                 put("eventName", eventName);

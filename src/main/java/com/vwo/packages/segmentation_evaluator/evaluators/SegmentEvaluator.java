@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import com.vwo.decorators.StorageDecorator;
 import com.vwo.models.Feature;
 import com.vwo.models.Settings;
 import com.vwo.models.Storage;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperatorValueEnum;
 import com.vwo.services.LoggerService;
@@ -31,7 +31,7 @@ import java.util.*;
 import static com.vwo.packages.segmentation_evaluator.utils.SegmentUtil.*;
 
 public class SegmentEvaluator {
-    public VWOContext context;
+    public VWOUserContext context;
     public Settings settings;
     public Feature feature;
 
@@ -255,7 +255,7 @@ public class SegmentEvaluator {
      * @param context The context object to check against.
      * @return A boolean indicating if the feature is enabled for the user.
      */
-    public boolean checkInUserStorage(Settings settings, String featureKey, VWOContext context) {
+    public boolean checkInUserStorage(Settings settings, String featureKey, VWOUserContext context) {
         StorageService storageService = new StorageService();
         Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(featureKey, context, storageService);
         try {

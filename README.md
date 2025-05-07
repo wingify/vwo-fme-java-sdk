@@ -37,42 +37,44 @@ Add below Maven dependency in your project.
 The following example demonstrates initializing the SDK with a VWO account ID and SDK key, setting a user context, checking if a feature flag is enabled, and tracking a custom event.
  ```java
  import com.vwo.VWO;
- import com.vwo.models.user.VWOContext;
- import com.vwo.models.user.GetFlag;
- import com.vwo.models.user.VWOInitOptions;
- import java.util.Map;
- 
- public class VWOExample {
-     public static void main(String[] args) {
-         // Initialize VWO SDK with your account details
-         VWOInitOptions vwoInitOptions = new VWOInitOptions();
-         vwoInitOptions.setSdkKey("32-alpha-numeric-sdk-key"); // Replace with your SDK key
-         vwoInitOptions.setAccountId(123456); // Replace with your account ID
-         
-         // Initialize VWO instance
-         VWO vwoInstance = VWO.init(vwoInitOptions);
-         
-         // Create user context
-         VWOContext context = new VWOContext();
-         context.setId("unique_user_id"); // Set a unique user identifier
-         
-         // Check if a feature flag is enabled
-         GetFlag getFlag = vwoInstance.getFlag("feature_key", context);
-         Boolean isFeatureEnabled = getFlag.isEnabled();
-         System.out.println("Is feature enabled? " + isFeatureEnabled);
-         
-         // Get a variable value with a default fallback
-         String variableValue = (String) getFlag.getVariable("feature_variable", "default_value");
-         System.out.println("Variable value: " + variableValue);
-         
-         // Track a custom event
-         Map<String, Boolean> trackResponse = vwoInstance.trackEvent("event_name", context);
-         System.out.println("Event tracked: " + trackResponse);
-         
-         // Set a custom attribute
-         vwoInstance.setAttribute("attribute_key", "attribute_value", context);
-     }
- }
+import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.GetFlag;
+import com.vwo.models.user.VWOInitOptions;
+import java.util.Map;
+
+public class VWOExample {
+    public static void main(String[] args) {
+        // Initialize VWO SDK with your account details
+        VWOInitOptions vwoInitOptions = new VWOInitOptions();
+        vwoInitOptions.setSdkKey("32-alpha-numeric-sdk-key"); // Replace with your SDK key
+        vwoInitOptions.setAccountId(123456); // Replace with your account ID
+
+        // Initialize VWO instance
+        VWO vwoInstance = VWO.init(vwoInitOptions);
+
+        // Create user context
+        VWOUserContext context = new VWOUserContext();
+        context.setId("unique_user_id"); // Set a unique user identifier
+
+        // Check if a feature flag is enabled
+        GetFlag getFlag = vwoInstance.getFlag("feature_key", context);
+        Boolean isFeatureEnabled = getFlag.isEnabled();
+        System.out.println("Is feature enabled? " + isFeatureEnabled);
+
+        // Get a variable value with a default fallback
+        String variableValue = (String) getFlag.getVariable("feature_variable", "default_value");
+        System.out.println("Variable value: " + variableValue);
+
+        // Track a custom event
+        Map<String, Boolean> trackResponse = vwoInstance.trackEvent("event_name", context);
+        System.out.println("Event tracked: " + trackResponse);
+
+        // Set multiple custom attributes 
+        Map<String, Object> attributeMap = new HashMap<>();
+        attributeMap.put("attribute-name", "attribute-value");
+        vwoInstance.setAttribute(attributeMap, context);
+    }
+}
  ```
 
 ## Advanced Configuration Options
@@ -93,11 +95,11 @@ Refer to the [official VWO documentation](https://developers.vwo.com/v2/docs/fme
 
 ### User Context
 
-The `VWOContext` object uniquely identifies users and is crucial for consistent feature rollouts. A typical `VWOContext` includes an `id` for identifying the user, set via `setId()`. It can also include other attributes that can be used for targeting and segmentation, such as custom variables (set via `setCustomVariables()`), user agent (set via `setUserAgent()`) and IP address (set via `setIpAddress()`).
+The `VWOUserContext` object uniquely identifies users and is crucial for consistent feature rollouts. A typical `VWOUserContext` includes an `id` for identifying the user, set via `setId()`. It can also include other attributes that can be used for targeting and segmentation, such as custom variables (set via `setCustomVariables()`), user agent (set via `setUserAgent()`) and IP address (set via `setIpAddress()`).
 
 #### Parameters Table
 
-The following table explains all the parameters in the `VWOContext` object:
+The following table explains all the parameters in the `VWOUserContext` object:
 
 | **Parameter**     | **Description**                                                            | **Required** | **Type** |
 | ----------------- | -------------------------------------------------------------------------- | ------------ | -------- |
@@ -109,7 +111,7 @@ The following table explains all the parameters in the `VWOContext` object:
 #### Example
 
 ```java
-VWOContext context = new VWOContext();
+VWOUserContext context = new VWOUserContext();
 context.setId("unique_user_id"); // Set a unique user identifier
 
 // Create the map using HashMap in Java 8 and below
@@ -172,16 +174,17 @@ See [Tracking Conversions](https://developers.vwo.com/v2/docs/fme-java-metrics#u
 
 User attributes provide rich contextual information about users, enabling powerful personalization. The `setAttribute()` method in VWOClient provides a simple way to associate these attributes with users in VWO for advanced segmentation. The method accepts an attribute key, value, and VWOContext object containing the user information. Here's what you need to know about the method parameters:
 
-| Parameter        | Description                                                            | Required | Type        |
-| ---------------- | ---------------------------------------------------------------------- | -------- | ----------- |
-| `attributeKey`   | The unique identifier/name of the attribute you want to set            | Yes      | String      |
-| `attributeValue` | The value to be assigned to the attribute                              | Yes      | Object      |
-| `context`        | Object containing user identification and other contextual information | Yes      | VWOContext  |
+| Parameter      | Description                                                            | Required | Type        |
+|----------------|------------------------------------------------------------------------| -------- | ----------- |
+| `attributeMap` | Multiple attributes you want to set for a user.                        | Yes      | String      |
+| `context`      | Object containing user identification and other contextual information | Yes      | VWOContext  |
 
 Example usage:
 
 ```java
-vwoInstance.setAttribute('attribute_name', 'attribute_value', context);
+Map<String, Object> attributeMap = new HashMap<>();
+attributeMap.put("attribute-name", "attribute-value");
+vwoInstance.setAttribute(attributeMap, context);
 ```
 
 See [Pushing Attributes](https://developers.vwo.com/v2/docs/fme-java-attributes#usage) documentation for additional information.
@@ -283,12 +286,12 @@ The storage mechanism ensures that once a decision is made for a user, it remain
 VWO by default logs all `ERROR` level messages to your server console.
 To gain more control over VWO's logging behaviour, you can use the `setLogger()` parameter in the `init` configuration.
 
-| **Parameter** | **Description**                        | **Required** | **Type** | **Default Value** |
-| ------------- | -------------------------------------- | ------------ | -------- | ----------------- |
-| `level`       | Log level to control verbosity of logs | Yes          | String   | `ERROR`           |
-| `prefix`      | Custom prefix for log messages         | No           | String   | `VWO-SDK`             |
-| `transports`   | Custom logger implementation           | No           | Object   | `null`            |
-
+| **Parameter** | **Description**                                      | **Required** | **Type** | **Default Value** |
+| ------------- |------------------------------------------------------| ------------ |---------| ----------------- |
+| `level`       | Log level to control verbosity of logs               | Yes          | String  | `ERROR`           |
+| `prefix`      | Custom prefix for log messages                       | No           | String  | `VWO-SDK`             |
+| `transport`   | Custom logger implementation for single transport    | No           | Map<String, Object>        | `null`            |
+| `transports`  | Custom logger implementation for multiple transports | No           | List<Map<String, Object>>       | `null`            |
 #### Example 1: Set log level to control verbosity of logs
 
 ```java
@@ -318,7 +321,7 @@ VWO vwoInstance = VWO.init(vwoInitOptions);
 
 #### Example 3: Implement custom transport to handle logs your way
 
-The `transports` parameter allows you to implement custom logging behavior by providing your own logging functions. You can define handlers for different log levels (`debug`, `info`, `warn`, `error`, `trace`) to process log messages according to your needs.
+The `transport` parameter allows you to implement custom logging behavior by providing your own logging functions. You can define handlers for different log levels (`debug`, `info`, `warn`, `error`, `trace`) to process log messages according to your needs.
 
 For example, you could:
 
@@ -330,39 +333,68 @@ For example, you could:
 
 The transport object should implement handlers for the log levels you want to customize. Each handler receives the log message as a parameter.
 
+For single transport you can use the `transport` parameter. For example:
+
 ```java
+import com.vwo.interfaces.logger.LogTransport;
+import com.vwo.packages.logger.enums.LogLevelEnum;
+
 VWOInitOptions vwoInitOptions = new VWOInitOptions();
 vwoInitOptions.setAccountId(123456);
 vwoInitOptions.setSdkKey("32-alpha-numeric-sdk-key");
 
 Map<String, Object> logger = new HashMap<>();
-logger.put("level", "DEBUG");
-logger.put("prefix","your_custom_prefix");
-
-List<Map<String, Object>> transports = new ArrayList<>();
-LogTransport logTransport = new LogTransport() {
-    @Override
-    public void log(LogLevelEnum level, String message) {
-        // your custom logging logic here
-    }
+LogTransport logTransport = (level, message) -> {
+    // your custom logging logic here
 };
-transports.add(new HashMap<String, Object>() {{
-    put("defaultTransport", logTransport);
+logger.put("transport", new HashMap<String, Object>() {{
+    put("level", LogLevelEnum.DEBUG);
+    put("log", logTransport);
 }});
-logger.put("transports", transports);
+
 vwoInitOptions.setLogger(logger);
 VWO vwoInstance = VWO.init(vwoInitOptions);
 ```
 
+For multiple transports you can use the `transports` parameter. For example:
+```java
+import com.vwo.interfaces.logger.LogTransport;
+import com.vwo.packages.logger.enums.LogLevelEnum;
+
+VWOInitOptions vwoInitOptions = new VWOInitOptions();
+vwoInitOptions.setAccountId(123456);
+vwoInitOptions.setSdkKey("32-alpha-numeric-sdk-key");
+
+Map<String, Object> logger = new HashMap<>();
+List<Map<String, Object>> transports = new ArrayList<>();
+LogTransport errorTransport = (level, message) -> {
+    // your custom logging logic here
+};
+LogTransport infoTransport = (level, message) -> {
+    // your custom logging logic here
+};
+
+transports.add(new HashMap<String, Object>() {{
+    put("level", LogLevelEnum.INFO);
+    put("log", infoTransport);
+}});
+transports.add(new HashMap<String, Object>() {{
+    put("level", LogLevelEnum.ERROR);
+    put("log", errorTransport);
+}});
+logger.put("transports", transports);
+
+vwoInitOptions.setLogger(logger);
+VWO vwoInstance = VWO.init(vwoInitOptions);
+```
 ### Integrations
 VWO FME SDKs provide seamless integration with third-party tools like analytics platforms, monitoring services, customer data platforms (CDPs), and messaging systems. This is achieved through a simple yet powerful callback mechanism that receives VWO-specific properties and can forward them to any third-party tool of your choice.
 
 ```java
-IntegrationCallback integrations = new IntegrationCallback() {
-    @Override
-    public void execute(Map<String, Object> properties) {
-        // your function definition 
-    }
+import com.vwo.interfaces.integration.IntegrationCallback;
+
+IntegrationCallback integrations = properties -> {
+    // your function definition 
 };
 
 VWOInitOptions vwoInitOptions = new VWOInitOptions();
@@ -391,4 +423,4 @@ Our [Code of Conduct](https://github.com/wingify/vwo-fme-java-sdk/blob/master/CO
 
 [Apache License, Version 2.0](https://github.com/wingify/vwo-fme-java-sdk/blob/master/LICENSE)
 
-Copyright 2024 Wingify Software Pvt. Ltd.
+Copyright 2024-2025 Wingify Software Pvt. Ltd.

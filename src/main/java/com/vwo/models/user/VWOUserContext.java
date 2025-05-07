@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.vwo.models.user;
 import java.util.HashMap;
 import java.util.Map;
 
-public class VWOContext {
+public class VWOUserContext {
     private String id;
     private String userAgent = "";
     private String ipAddress = "";

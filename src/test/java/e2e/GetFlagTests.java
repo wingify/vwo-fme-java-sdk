@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import com.vwo.VWOBuilder;
 import com.vwo.VWOClient;
 import com.vwo.models.Storage;
 import com.vwo.models.user.GetFlag;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.models.user.VWOInitOptions;
 import data.StorageTest;
 import data.DummySettingsReader;
@@ -138,10 +138,10 @@ public class GetFlagTests {
             ArrayList<String> userIds = testData.getUserIds();
 
             for (String userId : userIds) {
-                VWOContext vwoContext = new VWOContext();
-                vwoContext.setId(userId);
-                GetFlag featureFlag = vwoClient.getFlag(testData.getFeatureKey(), vwoContext);
-                GetFlag featureFlag2 = vwoClient.getFlag(testData.getFeatureKey2(), vwoContext);
+                VWOUserContext vwoUserContext = new VWOUserContext();
+                vwoUserContext.setId(userId);
+                GetFlag featureFlag = vwoClient.getFlag(testData.getFeatureKey(), vwoUserContext);
+                GetFlag featureFlag2 = vwoClient.getFlag(testData.getFeatureKey2(), vwoUserContext);
 
                 List<Map<String, Object>> featureFlagVariables = featureFlag.getVariables();
                 List<Map<String, Object>> featureFlag2Variables = featureFlag2.getVariables();

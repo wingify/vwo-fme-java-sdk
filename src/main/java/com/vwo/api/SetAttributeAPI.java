@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package com.vwo.api;
 
 import com.vwo.enums.EventEnum;
 import com.vwo.models.Settings;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.utils.NetworkUtil;
 
 import java.util.Map;
@@ -28,12 +28,11 @@ public class SetAttributeAPI {
     /**
      * This method is used to set an attribute for the user.
      * @param settings The settings model containing configuration.
-     * @param attributeKey The key of the attribute to set.
-     * @param attributeValue The value of the attribute to set.
+     * @param attributeMap - Map of attribute key and value to be set
      * @param context  The user context model containing user-specific data.
      */
-    public static void setAttribute(Settings settings, String attributeKey, Object attributeValue, VWOContext context) {
-        createAndSendImpressionForSetAttribute(settings, attributeKey, attributeValue, context);
+    public static void setAttribute(Settings settings, Map<String, Object> attributeMap, VWOUserContext context) {
+        createAndSendImpressionForSetAttribute(settings, attributeMap, context);
     }
 
     /**
@@ -42,15 +41,13 @@ public class SetAttributeAPI {
      * and uses the NetworkUtil to send a POST API request.
      *
      * @param settings   The settings model containing configuration.
-     * @param attributeKey  The key of the attribute to set.
-     * @param attributeValue  The value of the attribute to set.
+     * @param attributeMap - Map of attribute key and value to be set
      * @param context    The user context model containing user-specific data.
      */
     private static void createAndSendImpressionForSetAttribute(
             Settings settings,
-            String attributeKey,
-            Object attributeValue,
-            VWOContext context
+            Map<String, Object> attributeMap,
+            VWOUserContext context
     ) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
@@ -65,8 +62,7 @@ public class SetAttributeAPI {
                 settings,
                 context.getId(),
                 EventEnum.VWO_SYNC_VISITOR_PROP.getValue(),
-                attributeKey,
-                attributeValue
+                attributeMap
         );
 
         // Send the constructed properties and payload as a POST request

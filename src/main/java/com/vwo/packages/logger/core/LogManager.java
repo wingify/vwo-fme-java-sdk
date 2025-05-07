@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,8 +54,11 @@ public class LogManager extends Logger implements ILogManager {
 
   private void handleTransports() {
     List<Map<String, Object>> transportList = (List<Map<String, Object>>) config.get("transports");
+    Map<String, Object> transport = (Map<String, Object>) config.get("transport");
     if (transportList != null && !transportList.isEmpty()) {
       addTransports(transportList);
+    } else if (transport != null && !transport.isEmpty()) {
+      addTransport(transport);
     } else {
       ConsoleTransport defaultTransport = new ConsoleTransport(level);
       Map<String, Object> defaultTransportMap = new HashMap<>();
@@ -65,7 +68,7 @@ public class LogManager extends Logger implements ILogManager {
   }
 
   public void addTransport(Map<String, Object> transport) {
-    transportManager.addTransport((LogTransport) transport.get("defaultTransport"));
+    transportManager.addTransport(transport);
   }
 
   public void addTransports(List<Map<String, Object>> transportList) {

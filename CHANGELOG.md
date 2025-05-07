@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[1.6.0] - 2025-05-07
+
+### Added
+
+- Support for `Map` in `setAttribute` method to send multiple attributes data.
+- Added support to add multiple `transports` in logger.
+
 ## [1.5.0] - 2025-03-19
 
 ### Changes
@@ -37,7 +44,7 @@ Send event properties as third param in trackEvent() call`
 
    ```java
    import com.vwo.VWO;
-   import com.vwo.models.user.VWOContext;
+   import com.vwo.models.user.VWOUserContext;
    import com.vwo.models.user.GetFlag;
    import com.vwo.models.user.VWOInitOptions;
    
@@ -52,12 +59,12 @@ Send event properties as third param in trackEvent() call`
    VWO vwoInstance = VWO.init(vwoInitOptions);
    
    // Create VWOContext object
-   VWOContext context = new VWOContext();
+   VWOUserContext userContext = new VWOUserContext();
    // Set User ID
-   context.setId("user-id");
+   userContext.setId("user-id");
    
    // Get the GetFlag object for the feature key and context
-   GetFlag getFlag = vwoInstance.getFlag("feature-key", context);
+   GetFlag getFlag = vwoInstance.getFlag("feature-key", userContext);
    // Get the flag value
    Boolean isFlagEnabled = getFlag.isEnabled();
    
@@ -65,10 +72,10 @@ Send event properties as third param in trackEvent() call`
    Object variableValue = getFlag.getVariable("stringVar", "default-value");
    
    // Track the event for the given event name and context
-   Map<String, Boolean> trackResponse = vwoInstance.trackEvent("event-name", context);
+   Map<String, Boolean> trackResponse = vwoInstance.trackEvent("event-name", userContext);
    
    // send attributes data
-   vwoInstance.setAttribute("key", "value", context);
+   vwoInstance.setAttribute("key", "value", userContext);
    ```
 
 

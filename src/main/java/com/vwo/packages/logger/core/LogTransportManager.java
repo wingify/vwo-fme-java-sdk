@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,20 +26,29 @@ import java.util.List;
 import java.util.Map;
 
 public class LogTransportManager extends Logger implements LogTransport {
-    private List<LogTransport> transports = new ArrayList<>();
+    private List<Map<String, Object>> transports = new ArrayList<>();
     private Map<String, Object> config;
 
     public LogTransportManager(Map<String, Object> config) {
         this.config = config;
     }
 
-    public void addTransport(LogTransport transport) {
+    public void addTransport(Map<String, Object> transport) {
         transports.add(transport);
     }
 
-    public boolean shouldLog(String transportLevel, String configLevel) {
+    public boolean shouldLog(String transportLevel, Object configLevel) {
+        String level;
+        if (configLevel == null || configLevel.toString().isEmpty()) {
+            level = this.config.getOrDefault("level", LogLevelEnum.ERROR.name()).toString();
+        } else {
+            level = configLevel.toString();
+        }
+        if (level == null || level.isEmpty()) {
+            level = this.config.getOrDefault("level", LogLevelEnum.ERROR.name()).toString();
+        }
         int targetLevel = LogLevelNumberEnum.valueOf(transportLevel.toUpperCase()).getLevel();
-        int desiredLevel = LogLevelNumberEnum.valueOf(configLevel.toUpperCase()).getLevel();
+        int desiredLevel = LogLevelNumberEnum.valueOf(level.toUpperCase()).getLevel();
         return targetLevel >= desiredLevel;
     }
 
@@ -70,11 +79,18 @@ public class LogTransportManager extends Logger implements LogTransport {
 
     @Override
     public void log(LogLevelEnum level, String message) {
-        for (LogTransport transport : transports) {
+        for (Map<String, Object> transport : transports) {
             LogMessageBuilder logMessageBuilder = new LogMessageBuilder(config, transport);
             String formattedMessage = logMessageBuilder.formatMessage(level, message);
-            if (shouldLog(level.name(), LogManager.getInstance().getLevel().toString())) {
-                transport.log(level, formattedMessage);
+            if (shouldLog(level.name(), transport.get("level"))) {
+                Object logHandler = transport.get("log");
+                // Check if log method is implemented or not
+                if (logHandler instanceof LogTransport) {
+                    ((LogTransport) logHandler).log(level, message);
+                } else {
+                    Object defaultLogHandler = transport.get("defaultTransport");
+                    ((LogTransport) defaultLogHandler).log(level, formattedMessage);
+                }
             }
         }
     }

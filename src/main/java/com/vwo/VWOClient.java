@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import com.vwo.api.GetFlagAPI;
 import com.vwo.api.SetAttributeAPI;
 import com.vwo.api.TrackEventAPI;
 import com.vwo.models.schemas.SettingsSchema;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.models.user.GetFlag;
 import com.vwo.models.Settings;
 import com.vwo.models.user.VWOInitOptions;
@@ -84,7 +84,7 @@ public class VWOClient {
      * @param context User context
      * @return GetFlag object containing the flag values
      */
-    public GetFlag getFlag(String featureKey, VWOContext context) {
+    public GetFlag getFlag(String featureKey, VWOUserContext context) {
         String apiName = "getFlag";
         GetFlag getFlag = new GetFlag();
         try {
@@ -126,7 +126,7 @@ public class VWOClient {
      * @param eventProperties event properties to be sent for the event
      * @return Map containing the event name and its status
      */
-    private Map<String, Boolean> track(String eventName, VWOContext context, Map<String, ?> eventProperties) {
+    private Map<String, Boolean> track(String eventName, VWOUserContext context, Map<String, ?> eventProperties) {
         String apiName = "trackEvent";
         Map<String, Boolean> resultMap = new HashMap<>();
         try {
@@ -179,7 +179,7 @@ public class VWOClient {
      * @param eventProperties event properties to be sent for the event
      * @return Map containing the event name and its status
      */
-    public Map<String, Boolean> trackEvent(String eventName, VWOContext context, Map<String, ?> eventProperties) {
+    public Map<String, Boolean> trackEvent(String eventName, VWOUserContext context, Map<String, ?> eventProperties) {
         return track(eventName, context, eventProperties);
     }
 
@@ -190,7 +190,7 @@ public class VWOClient {
      * @param context User context
      * @return Map containing the event name and its status
      */
-    public Map<String, Boolean> trackEvent(String eventName, VWOContext context) {
+    public Map<String, Boolean> trackEvent(String eventName, VWOUserContext context) {
         return track(eventName, context, new HashMap<>());
     }
 
@@ -198,34 +198,31 @@ public class VWOClient {
     /**
      * Sets an attribute for a user in the context provided.
      * This method validates the types of the inputs before proceeding with the API call.
-     * @param attributeKey - The key of the attribute to set.
-     * @param attributeValue - The value of the attribute to set.
+     * @param attributeMap - Map of attribute key and value to be set
      * @param context User context
      */
-    public void setAttribute(String attributeKey, Object attributeValue, VWOContext context) {
+    public void setAttribute(Map<String, Object> attributeMap, VWOUserContext context) {
         String apiName = "setAttribute";
         try {
             LoggerService.log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
                 put("apiName", apiName);
             }});
-            if (!DataTypeUtil.isString(attributeKey)) {
-                LoggerService.log(LogLevelEnum.ERROR, "API_INVALID_PARAM", new HashMap<String, String>() {{
-                    put("apiName", apiName);
-                    put("key", "eventName");
-                    put("type", DataTypeUtil.getType(attributeKey));
-                    put("correctType", "String");
-                }});
-                throw new IllegalArgumentException("TypeError: attributeKey should be a string");
+            if (attributeMap == null || attributeMap.isEmpty()) {
+                throw new IllegalArgumentException("TypeError: attributeMap should be a non-empty map of type Map<String, Object>");
             }
 
-            if (!DataTypeUtil.isString(attributeValue) && !DataTypeUtil.isNumber(attributeValue) && !DataTypeUtil.isBoolean(attributeValue)) {
-                LoggerService.log(LogLevelEnum.ERROR, "API_INVALID_PARAM", new HashMap<String, String>() {{
-                    put("apiName", apiName);
-                    put("key", "eventName");
-                    put("type", DataTypeUtil.getType(attributeValue));
-                    put("correctType", "String, Number, Boolean");
-                }});
-                throw new IllegalArgumentException("TypeError: attributeValue should be a string, number or boolean");
+            // Validate attribute values
+            for (Map.Entry<String, Object> entry : attributeMap.entrySet()) {
+                Object value = entry.getValue();
+                if (!(value instanceof String || value instanceof Number || value instanceof Boolean)) {
+                    LoggerService.log(LogLevelEnum.ERROR, "API_INVALID_PARAM", new HashMap<String, String>() {{
+                        put("apiName", apiName);
+                        put("key", "attributeValue");
+                        put("type", value != null ? value.getClass().getSimpleName() : "null");
+                        put("correctType", "String, Number, or Boolean");
+                    }});
+                    throw new IllegalArgumentException("TypeError: Attribute value must be a String, Number, or Boolean");
+                }
             }
 
             if (context == null || context.getId() == null || context.getId().isEmpty()) {
@@ -237,12 +234,25 @@ public class VWOClient {
                 return;
             }
 
-            SetAttributeAPI.setAttribute(this.processedSettings, attributeKey, attributeValue, context);
+            SetAttributeAPI.setAttribute(this.processedSettings, attributeMap, context);
         } catch (Exception exception) {
             LoggerService.log(LogLevelEnum.ERROR, "API_THROW_ERROR", new HashMap<String, String>() {{
                 put("apiName", apiName);
                 put("err", exception.toString());
             }});
         }
+    }
+
+    /**
+     * Sets a single attribute for a user in the context provided.
+     * This is an overloaded version that accepts individual key and value parameters.
+     * @param key - The attribute key to be set
+     * @param value - The attribute value to be set
+     * @param context User context
+     */
+    public void setAttribute(String key, Object value, VWOUserContext context) {
+        Map<String, Object> attributeMap = new HashMap<>();
+        attributeMap.put(key, value);
+        setAttribute(attributeMap, context);
     }
 }
