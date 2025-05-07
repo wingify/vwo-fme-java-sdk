@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import com.vwo.constants.Constants;
 import com.vwo.decorators.StorageDecorator;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.models.*;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.packages.decision_maker.DecisionMaker;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.CampaignDecisionService;
@@ -49,7 +49,7 @@ public class MegUtil {
      * @return The evaluation result.
      */
     public static Variation evaluateGroups(Settings settings, Feature feature, int groupId,
-                                           Map<String, Object> evaluatedFeatureMap, VWOContext context, StorageService storageService) {
+                                           Map<String, Object> evaluatedFeatureMap, VWOUserContext context, StorageService storageService) {
         List<String> featureToSkip = new ArrayList<>();
         Map<String, List<Campaign>> campaignMap = new HashMap<>();
 
@@ -121,7 +121,7 @@ public class MegUtil {
      * @return true if the feature passes the rollout rules, false otherwise.
      */
     private static boolean isRolloutRuleForFeaturePassed(Settings settings, Feature feature, Map<String, Object> evaluatedFeatureMap,
-                                                         List<String> featureToSkip, VWOContext context,
+                                                         List<String> featureToSkip, VWOUserContext context,
                                                          StorageService storageService) {
         if (evaluatedFeatureMap.containsKey(feature.getKey()) &&
                 ((Map<String, Object>) evaluatedFeatureMap.get(feature.getKey())).containsKey("rolloutId")) {
@@ -175,7 +175,7 @@ public class MegUtil {
      * @return An object containing eligible campaigns, campaigns with storage, and ineligible campaigns.
      */
     private static Map<String, Object> getEligibleCampaigns(Settings settings, Map<String, List<Campaign>> campaignMap,
-                                                            VWOContext context, StorageService storageService) {
+                                                            VWOUserContext context, StorageService storageService) {
         List<Campaign> eligibleCampaigns = new ArrayList<>();
         List<Campaign> eligibleCampaignsWithStorage = new ArrayList<>();
         List<Campaign> inEligibleCampaigns = new ArrayList<>();
@@ -249,7 +249,7 @@ public class MegUtil {
     private static Variation findWinnerCampaignAmongEligibleCampaigns(Settings settings, String featureKey,
                                                                       List<Campaign> eligibleCampaigns,
                                                                       List<Campaign> eligibleCampaignsWithStorage,
-                                                                      int groupId, VWOContext context, StorageService storageService) {
+                                                                      int groupId, VWOUserContext context, StorageService storageService) {
         List<Integer> campaignIds = getCampaignIdsFromFeatureKey(settings, featureKey);
         Variation winnerCampaign = null;
         try {
@@ -317,7 +317,7 @@ public class MegUtil {
      * @return The winning campaign or null if none is found.
      */
     private static Variation normalizeWeightsAndFindWinningCampaign(List<Campaign> shortlistedCampaigns,
-                                                                    VWOContext context, List<Integer> calledCampaignIds, int groupId, StorageService storageService) {
+                                                                    VWOUserContext context, List<Integer> calledCampaignIds, int groupId, StorageService storageService) {
         try {
             shortlistedCampaigns.forEach(campaign -> campaign.setWeight((Math.round(100.0/shortlistedCampaigns.size()) * 10000)/10000.0));
 
@@ -380,7 +380,7 @@ public class MegUtil {
      * @return The winning campaign or null if none is found.
      */
     private static Variation getCampaignUsingAdvancedAlgo(Settings settings, List<Campaign> shortlistedCampaigns,
-                                                          VWOContext context, List<Integer> calledCampaignIds, int groupId, StorageService storageService) {
+                                                          VWOUserContext context, List<Integer> calledCampaignIds, int groupId, StorageService storageService) {
         Variation winnerCampaign = null;
         boolean found = false;
         try {

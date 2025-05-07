@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package com.vwo.services;
 
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.storage.Connector;
 import com.vwo.packages.storage.Storage;
@@ -31,7 +31,7 @@ public class StorageService {
      * @param context The context model containing at least an ID.
      * @return The data retrieved or an error/storage status enum.
      */
-    public Map<String, Object> getDataInStorage(String featureKey, VWOContext context) {
+    public Map<String, Object> getDataInStorage(String featureKey, VWOUserContext context) {
         Object storageInstance = Storage.getInstance().getConnector();
         if (storageInstance == null) {
             return null;

@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,14 +24,17 @@ import java.util.Map;
 
 public class LogMessageBuilder {
     private Map<String, Object> loggerConfig;
-    private LogTransport transport;
+    private Map<String, Object> transport;
     private String prefix;
     private SimpleDateFormat dateTimeFormat;
 
-    public LogMessageBuilder(Map<String, Object> loggerConfig, LogTransport transport) {
+    public LogMessageBuilder(Map<String, Object> loggerConfig, Map<String, Object> transport) {
         this.loggerConfig = loggerConfig;
         this.transport = transport;
-        this.prefix = (String) loggerConfig.getOrDefault("prefix", "VWO-SDK");
+        this.prefix = (String) this.transport.get("prefix");
+        if (this.prefix == null || this.prefix.isEmpty()) {
+            this.prefix = (String) loggerConfig.getOrDefault("prefix", "VWO-SDK");
+        }
         this.dateTimeFormat = new SimpleDateFormat((String) loggerConfig.getOrDefault("dateTimeFormat", "yyyy-MM-dd'T'HH:mm:ss.SSSZ"));
     }
 

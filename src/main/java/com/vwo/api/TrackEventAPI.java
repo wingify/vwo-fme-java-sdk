@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package com.vwo.api;
 
 import com.vwo.enums.ApiEnum;
 import com.vwo.models.Settings;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.HooksManager;
 import com.vwo.services.LoggerService;
@@ -40,7 +40,7 @@ public class TrackEventAPI {
      * @param hooksManager The hooks manager instance.
      * @return Boolean indicating if the event was successfully tracked.
      */
-    public static Boolean track(Settings settings, String eventName, VWOContext context, Map<String, ?> eventProperties, HooksManager hooksManager) {
+    public static Boolean track(Settings settings, String eventName, VWOUserContext context, Map<String, ?> eventProperties, HooksManager hooksManager) {
         try {
             if (FunctionUtil.doesEventBelongToAnyFeature(eventName, settings)) {
                 createAndSendImpressionForTrack(settings, eventName, context, eventProperties);
@@ -77,7 +77,7 @@ public class TrackEventAPI {
     private static void createAndSendImpressionForTrack(
             Settings settings,
             String eventName,
-            VWOContext context,
+            VWOUserContext context,
             Map<String, ?> eventProperties
     ) {
         // Get base properties for the event

@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,8 @@
 
 package com.vwo.interfaces.storage;
 
-import com.vwo.models.Feature;
 import com.vwo.models.Variation;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.services.StorageService;
 
 import java.util.Map;
@@ -39,6 +38,6 @@ public interface IStorageDecorator {
      * @param storageService The storage service instance.
      * @return The retrieved feature or relevant status.
      */
-    Object getFeatureFromStorage(String featureKey, VWOContext context, StorageService storageService);
+    Object getFeatureFromStorage(String featureKey, VWOUserContext context, StorageService storageService);
 }
 

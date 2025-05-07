@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package com.vwo.utils;
 
 import com.vwo.enums.EventEnum;
 import com.vwo.models.Settings;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 
 import java.util.Map;
 
@@ -37,7 +37,7 @@ public class ImpressionUtil {
             Settings settings,
             int campaignId,
             int variationId,
-            VWOContext context
+            VWOUserContext context
     ) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(

@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import com.vwo.models.Campaign;
 import com.vwo.models.Feature;
 import com.vwo.models.Settings;
 import com.vwo.models.Variation;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.LoggerService;
 import com.vwo.services.StorageService;
@@ -47,7 +47,7 @@ public class RuleEvaluationUtil {
             Settings settings,
             Feature feature,
             Campaign campaign,
-            VWOContext context,
+            VWOUserContext context,
             Map<String, Object> evaluatedFeatureMap,
             Map<Integer, String> megGroupWinnerCampaigns,
             StorageService storageService,

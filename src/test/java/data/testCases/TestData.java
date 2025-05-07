@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,14 @@
  */
 package data.testCases;
 
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 
 import java.util.ArrayList;
 
 public class TestData {
     private String description;
     private String settings;
-    private VWOContext context;
+    private VWOUserContext context;
     private ArrayList<String> userIds;
     private Expectation expectation;
     private String featureKey;
@@ -44,11 +44,11 @@ public class TestData {
         this.settings = settings;
     }
 
-    public VWOContext getContext() {
+    public VWOUserContext getContext() {
         return context;
     }
 
-    public void setContext(VWOContext context) {
+    public void setContext(VWOUserContext context) {
         this.context = context;
     }
 

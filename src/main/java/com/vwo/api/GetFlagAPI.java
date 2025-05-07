@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2025 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import com.vwo.enums.ApiEnum;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.models.*;
 import com.vwo.models.user.GetFlag;
-import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOUserContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
 import com.vwo.services.HooksManager;
@@ -46,7 +46,7 @@ public class GetFlagAPI {
      * @param hookManager  HooksManager object containing the integrations.
      * @return GetFlag object containing the flag value.
      */
-    public static GetFlag getFlag(String featureKey, Settings settings, VWOContext context, HooksManager hookManager) {
+    public static GetFlag getFlag(String featureKey, Settings settings, VWOUserContext context, HooksManager hookManager) {
         GetFlag getFlag = new GetFlag();
         boolean shouldCheckForExperimentsRules = false;
 
