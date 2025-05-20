@@ -17,7 +17,7 @@ package com.vwo.decorators;
 
 import com.vwo.interfaces.storage.IStorageDecorator;
 import com.vwo.models.Variation;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.LoggerService;
 import com.vwo.services.StorageService;
@@ -28,7 +28,7 @@ import java.util.Map;
 public class StorageDecorator implements IStorageDecorator {
 
     @Override
-    public Map<String, Object> getFeatureFromStorage(String featureKey, VWOUserContext context, StorageService storageService) {
+    public Map<String, Object> getFeatureFromStorage(String featureKey, VWOContext context, StorageService storageService) {
         return storageService.getDataInStorage(featureKey, context);
     }
 

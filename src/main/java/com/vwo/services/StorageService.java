@@ -15,7 +15,7 @@
  */
 package com.vwo.services;
 
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.storage.Connector;
 import com.vwo.packages.storage.Storage;
@@ -31,7 +31,7 @@ public class StorageService {
      * @param context The context model containing at least an ID.
      * @return The data retrieved or an error/storage status enum.
      */
-    public Map<String, Object> getDataInStorage(String featureKey, VWOUserContext context) {
+    public Map<String, Object> getDataInStorage(String featureKey, VWOContext context) {
         Object storageInstance = Storage.getInstance().getConnector();
         if (storageInstance == null) {
             return null;

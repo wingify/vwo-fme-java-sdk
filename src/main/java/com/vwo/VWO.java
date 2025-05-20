@@ -59,6 +59,7 @@ public class VWO extends VWOClient {
 
         // Set VWOClient instance in VWOBuilder
         vwoBuilder.setVWOClient(vwoInstance);
+        vwoBuilder.initBatching();
         return vwoInstance;
     }
 
@@ -66,7 +67,7 @@ public class VWO extends VWOClient {
      * Gets the singleton instance of VWO.
      * @return The singleton instance of VWO.
      */
-    public static Object getInstance() {
+    public static VWO getInstance() {
         return instance;
     }
 

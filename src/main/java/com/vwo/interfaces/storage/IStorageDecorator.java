@@ -17,7 +17,7 @@
 package com.vwo.interfaces.storage;
 
 import com.vwo.models.Variation;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.services.StorageService;
 
 import java.util.Map;
@@ -38,6 +38,6 @@ public interface IStorageDecorator {
      * @param storageService The storage service instance.
      * @return The retrieved feature or relevant status.
      */
-    Object getFeatureFromStorage(String featureKey, VWOUserContext context, StorageService storageService);
+    Object getFeatureFromStorage(String featureKey, VWOContext context, StorageService storageService);
 }
 

@@ -21,7 +21,7 @@ import com.vwo.api.GetFlagAPI;
 import com.vwo.api.SetAttributeAPI;
 import com.vwo.api.TrackEventAPI;
 import com.vwo.models.schemas.SettingsSchema;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.models.user.GetFlag;
 import com.vwo.models.Settings;
 import com.vwo.models.user.VWOInitOptions;
@@ -32,6 +32,7 @@ import com.vwo.services.UrlService;
 import com.vwo.utils.DataTypeUtil;
 import com.vwo.utils.SDKMetaUtil;
 import com.vwo.utils.SettingsUtil;
+import com.vwo.services.BatchEventQueue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +46,7 @@ public class VWOClient {
             configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         }
     };
+    private BatchEventQueue batchEventQueue;
 
     public VWOClient(String settings, VWOInitOptions options) {
         try {
@@ -63,6 +65,15 @@ public class VWOClient {
         } catch (Exception exception) {
            LoggerService.log(LogLevelEnum.ERROR, "exception occurred while parsing settings " + exception.getMessage());
         }
+    }
+
+    // Getter and Setter for batchEventQueue
+    public BatchEventQueue getBatchEventQueue() {
+        return batchEventQueue;
+    }
+
+    public void setBatchEventQueue(BatchEventQueue batchEventQueue) {
+        this.batchEventQueue = batchEventQueue;
     }
 
     /**
@@ -84,7 +95,7 @@ public class VWOClient {
      * @param context User context
      * @return GetFlag object containing the flag values
      */
-    public GetFlag getFlag(String featureKey, VWOUserContext context) {
+    public GetFlag getFlag(String featureKey, VWOContext context) {
         String apiName = "getFlag";
         GetFlag getFlag = new GetFlag();
         try {
@@ -126,7 +137,7 @@ public class VWOClient {
      * @param eventProperties event properties to be sent for the event
      * @return Map containing the event name and its status
      */
-    private Map<String, Boolean> track(String eventName, VWOUserContext context, Map<String, ?> eventProperties) {
+    private Map<String, Boolean> track(String eventName, VWOContext context, Map<String, ?> eventProperties) {
         String apiName = "trackEvent";
         Map<String, Boolean> resultMap = new HashMap<>();
         try {
@@ -179,7 +190,7 @@ public class VWOClient {
      * @param eventProperties event properties to be sent for the event
      * @return Map containing the event name and its status
      */
-    public Map<String, Boolean> trackEvent(String eventName, VWOUserContext context, Map<String, ?> eventProperties) {
+    public Map<String, Boolean> trackEvent(String eventName, VWOContext context, Map<String, ?> eventProperties) {
         return track(eventName, context, eventProperties);
     }
 
@@ -190,7 +201,7 @@ public class VWOClient {
      * @param context User context
      * @return Map containing the event name and its status
      */
-    public Map<String, Boolean> trackEvent(String eventName, VWOUserContext context) {
+    public Map<String, Boolean> trackEvent(String eventName, VWOContext context) {
         return track(eventName, context, new HashMap<>());
     }
 
@@ -201,7 +212,7 @@ public class VWOClient {
      * @param attributeMap - Map of attribute key and value to be set
      * @param context User context
      */
-    public void setAttribute(Map<String, Object> attributeMap, VWOUserContext context) {
+    public void setAttribute(Map<String, Object> attributeMap, VWOContext context) {
         String apiName = "setAttribute";
         try {
             LoggerService.log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
@@ -250,9 +261,30 @@ public class VWOClient {
      * @param value - The attribute value to be set
      * @param context User context
      */
-    public void setAttribute(String key, Object value, VWOUserContext context) {
+    public void setAttribute(String key, Object value, VWOContext context) {
         Map<String, Object> attributeMap = new HashMap<>();
         attributeMap.put(key, value);
         setAttribute(attributeMap, context);
+    }
+
+    public boolean flushEvents() {
+        int accountId = this.processedSettings.getAccountId(); // Fetch account ID from settings
+        if (this.batchEventQueue != null) {
+            // Access the size of the batchQueue directly
+            LoggerService.log(LogLevelEnum.DEBUG, String.format(
+                "Flushing events for accountId: %d. Queue size: %d",
+                accountId,
+                this.batchEventQueue.getBatchQueue().size()  // Get the size of the actual batchQueue
+            ));
+    
+            // Call flushAndClearInterval to clear the queue and flush events
+            return this.batchEventQueue.flushAndClearInterval();
+        } else {
+            LoggerService.log(LogLevelEnum.ERROR, String.format(
+                "Cannot flush events. Batching is not initialized for accountId: %d",
+                accountId
+            ));
+            return false;
+        }
     }
 }

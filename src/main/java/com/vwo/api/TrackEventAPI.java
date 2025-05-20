@@ -15,9 +15,10 @@
  */
 package com.vwo.api;
 
+import com.vwo.VWO;
 import com.vwo.enums.ApiEnum;
 import com.vwo.models.Settings;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.HooksManager;
 import com.vwo.services.LoggerService;
@@ -40,7 +41,7 @@ public class TrackEventAPI {
      * @param hooksManager The hooks manager instance.
      * @return Boolean indicating if the event was successfully tracked.
      */
-    public static Boolean track(Settings settings, String eventName, VWOUserContext context, Map<String, ?> eventProperties, HooksManager hooksManager) {
+    public static Boolean track(Settings settings, String eventName, VWOContext context, Map<String, ?> eventProperties, HooksManager hooksManager) {
         try {
             if (FunctionUtil.doesEventBelongToAnyFeature(eventName, settings)) {
                 createAndSendImpressionForTrack(settings, eventName, context, eventProperties);
@@ -77,7 +78,7 @@ public class TrackEventAPI {
     private static void createAndSendImpressionForTrack(
             Settings settings,
             String eventName,
-            VWOUserContext context,
+            VWOContext context,
             Map<String, ?> eventProperties
     ) {
         // Get base properties for the event
@@ -97,7 +98,16 @@ public class TrackEventAPI {
                 eventProperties
         );
 
-        // Send the constructed properties and payload as a POST request
-        NetworkUtil.sendPostApiRequest(properties, payload, context.getUserAgent(), context.getIpAddress());
+        // Get the instance of VWO
+        VWO vwoInstance = VWO.getInstance();
+
+        // Check if batch event queue is available
+        if (vwoInstance.getBatchEventQueue() != null) {
+            // Enqueue the event to the batch queue for future processing
+            vwoInstance.getBatchEventQueue().enqueue(payload);
+        } else {
+            // Send the event immediately if batch event queue is not available
+            NetworkUtil.sendPostApiRequest(properties, payload, context.getUserAgent(), context.getIpAddress());
+        }
     }
 }

@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vwo.enums.UrlEnum;
 // import com.vwo.modules.logger.core.LogManager;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandRegexEnum;
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandValueEnum;
@@ -151,7 +151,7 @@ public class SegmentOperandEvaluator {
         return false;
     }
 
-    public boolean evaluateUserAgentDSL(String dslOperandValue, VWOUserContext context) {
+    public boolean evaluateUserAgentDSL(String dslOperandValue, VWOContext context) {
         if (context == null || context.getUserAgent() == null) {
             //LogManager.getInstance().info("To Evaluate UserAgent segmentation, please provide userAgent in context");
             return false;

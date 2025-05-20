@@ -20,7 +20,7 @@ import com.vwo.VWOBuilder;
 import com.vwo.VWOClient;
 import com.vwo.models.Storage;
 import com.vwo.models.user.GetFlag;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.models.user.VWOInitOptions;
 import data.StorageTest;
 import data.DummySettingsReader;
@@ -138,10 +138,10 @@ public class GetFlagTests {
             ArrayList<String> userIds = testData.getUserIds();
 
             for (String userId : userIds) {
-                VWOUserContext vwoUserContext = new VWOUserContext();
-                vwoUserContext.setId(userId);
-                GetFlag featureFlag = vwoClient.getFlag(testData.getFeatureKey(), vwoUserContext);
-                GetFlag featureFlag2 = vwoClient.getFlag(testData.getFeatureKey2(), vwoUserContext);
+                VWOContext VWOContext = new VWOContext();
+                VWOContext.setId(userId);
+                GetFlag featureFlag = vwoClient.getFlag(testData.getFeatureKey(), VWOContext);
+                GetFlag featureFlag2 = vwoClient.getFlag(testData.getFeatureKey2(), VWOContext);
 
                 List<Map<String, Object>> featureFlagVariables = featureFlag.getVariables();
                 List<Map<String, Object>> featureFlag2Variables = featureFlag2.getVariables();
