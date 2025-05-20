@@ -33,6 +33,7 @@ public class Constants {
 
   public static final String HOST_NAME = "dev.visualwebsiteoptimizer.com";
   public static final String SETTINGS_ENDPOINT = "/server-side/v2-settings";
+  public static final String WEBHOOK_SETTINGS_ENDPOINT = "/server-side/v2-pull";
 
   public static final String VWO_FS_ENVIRONMENT = "vwo_fs_environment";
   public static final String HTTPS_PROTOCOL = "https";

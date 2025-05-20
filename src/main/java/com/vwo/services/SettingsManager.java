@@ -90,7 +90,7 @@ public class SettingsManager {
      */
     private String fetchSettingsAndCacheInStorage() {
         try {
-            return fetchSettings();
+            return fetchSettings(false);
         } catch (Exception e) {
             LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                 {
@@ -105,7 +105,7 @@ public class SettingsManager {
      * Fetches settings from the server
      * @return settings
      */
-    private String fetchSettings() {
+    public String fetchSettings(Boolean isViaWebhook) {
         if (sdkKey == null || accountId == null) {
             throw new IllegalArgumentException("SDK Key and Account ID are required to fetch settings. Aborting!");
         }
@@ -118,8 +118,13 @@ public class SettingsManager {
             options.put("s", "prod");
         }
 
+        String endpoint = Constants.SETTINGS_ENDPOINT;
+        if (isViaWebhook) {
+            endpoint = Constants.WEBHOOK_SETTINGS_ENDPOINT;
+        }
+
         try {
-            RequestModel request = new RequestModel(hostname, "GET", Constants.SETTINGS_ENDPOINT, options, null, null, this.protocol, port);
+            RequestModel request = new RequestModel(hostname, "GET", endpoint, options, null, null, this.protocol, port);
             request.setTimeout(networkTimeout);
 
             ResponseModel response = networkInstance.get(request);

@@ -33,6 +33,7 @@ import com.vwo.utils.DataTypeUtil;
 import com.vwo.utils.SDKMetaUtil;
 import com.vwo.utils.SettingsUtil;
 import com.vwo.services.BatchEventQueue;
+import com.vwo.services.SettingsManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -74,19 +75,6 @@ public class VWOClient {
 
     public void setBatchEventQueue(BatchEventQueue batchEventQueue) {
         this.batchEventQueue = batchEventQueue;
-    }
-
-    /**
-     * This method is used to update the settings
-     * @param newSettings New settings to be updated
-     */
-    public void updateSettings(String newSettings) {
-        try {
-            this.processedSettings = objectMapper.readValue(newSettings, Settings.class);
-            SettingsUtil.processSettings(this.processedSettings);
-        } catch (Exception exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "Exception occurred while updating settings " + exception.getMessage());
-        }
     }
 
     /**
@@ -285,6 +273,89 @@ public class VWOClient {
                 accountId
             ));
             return false;
+        }
+    }
+
+     /**
+     * This method is used to update the settings on the VWOClient instance
+     * It validates the new settings and updates the processedSettings
+     * @param newSettings New settings to be updated
+     */
+    private void updateSettingsOnVWOClient(String newSettings) {
+        try {
+            if (newSettings == null || newSettings.isEmpty()) {
+                throw new IllegalArgumentException("Settings cannot be empty");
+            }
+            // Read the new settings and update the processedSettings
+            this.processedSettings = objectMapper.readValue(newSettings, Settings.class);
+
+            // Check if the new settings are valid
+            boolean settingsValid = new SettingsSchema().isSettingsValid(this.processedSettings);
+            if (settingsValid) {
+                // Process the new settings and update the client instance
+                SettingsUtil.processSettings(this.processedSettings);
+            } else {
+                throw new IllegalStateException("Settings schema is invalid");
+            }
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception.getMessage());
+        }
+    }
+
+    /**
+     * This method is used to update the settings by fetching from server
+     */
+    public String updateSettings() {
+        return this.updateSettings(true);
+    }
+
+    /**
+     * This method is used to update the settings with provided settings string
+     * @param settings New settings to be updated
+     */
+    public String updateSettings(String settings) {
+        String apiName = "updateSettings";
+        try {
+            LoggerService.log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
+                put("apiName", apiName);
+            }});
+
+            String settingsToUpdate = settings;
+            if (settings == null || settings.isEmpty()) {
+                settingsToUpdate = this.updateSettings(true);
+            }
+            // Update the settings on the VWOClient instance
+            this.updateSettingsOnVWOClient(settingsToUpdate);
+            LoggerService.log(LogLevelEnum.INFO, "SETTINGS_UPDATED", new HashMap<String, String>() {{
+                put("apiName", apiName);
+            }});
+            return settingsToUpdate;
+        } catch (Exception exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_FAILED", new HashMap<String, String>() {{
+                put("apiName", apiName);
+                put("err", exception.toString());
+            }});
+            return null;
+        }
+    }
+
+    /**
+     * This method is used to update the settings
+     * @param isViaWebhook Boolean value to indicate if the settings are being fetched via webhook
+     */
+    public String updateSettings(Boolean isViaWebhook) {
+        String apiName = "updateSettings";
+        try {
+            // Fetch the new settings from the server
+            this.settings = SettingsManager.getInstance().fetchSettings(isViaWebhook);
+            return this.updateSettings(this.settings);
+        } catch (Exception exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_FAILED", new HashMap<String, String>() {{
+                put("apiName", apiName);
+                put("isViaWebhook", isViaWebhook.toString());
+                put("err", exception.toString());
+            }});
+            return null;
         }
     }
 }
