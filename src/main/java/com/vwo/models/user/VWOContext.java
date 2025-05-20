@@ -18,7 +18,7 @@ package com.vwo.models.user;
 import java.util.HashMap;
 import java.util.Map;
 
-public class VWOUserContext {
+public class VWOContext {
     private String id;
     private String userAgent = "";
     private String ipAddress = "";

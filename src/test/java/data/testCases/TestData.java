@@ -15,14 +15,14 @@
  */
 package data.testCases;
 
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 
 import java.util.ArrayList;
 
 public class TestData {
     private String description;
     private String settings;
-    private VWOUserContext context;
+    private VWOContext context;
     private ArrayList<String> userIds;
     private Expectation expectation;
     private String featureKey;
@@ -44,11 +44,11 @@ public class TestData {
         this.settings = settings;
     }
 
-    public VWOUserContext getContext() {
+    public VWOContext getContext() {
         return context;
     }
 
-    public void setContext(VWOUserContext context) {
+    public void setContext(VWOContext context) {
         this.context = context;
     }
 

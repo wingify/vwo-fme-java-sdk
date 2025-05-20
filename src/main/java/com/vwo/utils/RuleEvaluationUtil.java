@@ -19,7 +19,7 @@ import com.vwo.models.Campaign;
 import com.vwo.models.Feature;
 import com.vwo.models.Settings;
 import com.vwo.models.Variation;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.LoggerService;
 import com.vwo.services.StorageService;
@@ -47,7 +47,7 @@ public class RuleEvaluationUtil {
             Settings settings,
             Feature feature,
             Campaign campaign,
-            VWOUserContext context,
+            VWOContext context,
             Map<String, Object> evaluatedFeatureMap,
             Map<Integer, String> megGroupWinnerCampaigns,
             StorageService storageService,

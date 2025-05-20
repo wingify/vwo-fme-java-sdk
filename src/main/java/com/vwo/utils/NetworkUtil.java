@@ -20,10 +20,12 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vwo.VWOClient;
 import com.vwo.constants.Constants;
 import com.vwo.enums.HeadersEnum;
 import com.vwo.enums.UrlEnum;
+import com.vwo.models.FlushInterface;
 import com.vwo.models.Settings;
 import com.vwo.models.request.Event;
 import com.vwo.models.request.EventArchData;
@@ -32,14 +34,14 @@ import com.vwo.models.request.EventArchQueryParams.RequestQueryParams;
 import com.vwo.models.request.EventArchQueryParams.SettingsQueryParams;
 import com.vwo.models.request.Props;
 import com.vwo.models.request.visitor.Visitor;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.services.LoggerService;
 import com.vwo.services.SettingsManager;
 import com.vwo.services.UrlService;
-
+import com.vwo.packages.network_layer.models.ResponseModel;
 public class NetworkUtil {
 
     /**
@@ -194,7 +196,7 @@ public class NetworkUtil {
      * @param eventProperties event properties for the event
      * @return  Map containing the payload data.
      */
-    public static Map<String, Object> getTrackGoalPayloadData(Settings settings, String userId, String eventName, VWOUserContext context, Map<String, ?> eventProperties) {
+    public static Map<String, Object> getTrackGoalPayloadData(Settings settings, String userId, String eventName, VWOContext context, Map<String, ?> eventProperties) {
         EventArchPayload properties = getEventBasePayload(settings, userId, eventName, context.getUserAgent(), context.getIpAddress());
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
         addCustomEventProperties(properties, (Map<String, Object>) eventProperties);
@@ -255,7 +257,7 @@ public class NetworkUtil {
             NetworkManager.getInstance().attachClient();
             Map<String, String> headers = createHeaders(userAgent, ipAddress);
             RequestModel request = new RequestModel(UrlService.getBaseUrl(), "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, SettingsManager.getInstance().protocol, SettingsManager.getInstance().port);
-            NetworkManager.getInstance().postAsync(request);;
+            NetworkManager.getInstance().postAsync(request, null);
         } catch (Exception exception) {
             LoggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_FAILED", new HashMap<String, String>() {
                 {
@@ -265,6 +267,49 @@ public class NetworkUtil {
             });
         }
     }
+
+    /**
+     * Sends a batch POST request to the VWO server with the specified payload and account details.
+     *
+     * @param payload   The payload data to be sent in the request body. This can include event-related information.
+     * @param accountId The account ID to associate with the request, used as a query parameter.
+     * @param sdkKey    The API key to authenticate the request in the headers.
+     */
+    public static Boolean sendPostBatchRequest(Object payload, int accountId, String sdkKey, FlushInterface flushCallback) {
+        try {
+            // Create the batch payload
+            Map<String, Object> batchPayload = new HashMap<>();
+            batchPayload.put("ev", payload);
+    
+            // Create the query parameters
+            Map<String, String> query = new HashMap<>();
+            query.put("a", String.valueOf(accountId));
+            query.put("env", sdkKey);
+    
+            // Create the request model
+            RequestModel requestModel = new RequestModel(
+                    UrlService.getBaseUrl(),
+                    "POST",
+                    UrlEnum.BATCH_EVENTS.getUrl(),
+                    query,
+                    batchPayload,
+                    new HashMap<String, String>() {{
+                        put("Authorization", sdkKey);
+                        put("Content-Type", "application/json");
+                    }},
+                    SettingsManager.getInstance().protocol,
+                    SettingsManager.getInstance().port
+            );
+
+            // Send the request asynchronously
+            NetworkManager.getInstance().postAsync(requestModel, flushCallback);  // Return the result of postAsync 
+            return true;
+            // Handle the response and trigger the callback
+        } catch (Exception ex) {
+            LoggerService.log(LogLevelEnum.ERROR, "Error occurred while sending batch events: " + ex.getMessage());
+            throw new RuntimeException(ex);  // Re-throw the exception for higher-level handling if needed
+        }
+    }    
 
     /**
      * Removes null values from the map. If the value is a map, recursively removes null values from the nested map.

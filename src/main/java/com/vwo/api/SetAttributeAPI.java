@@ -15,9 +15,10 @@
  */
 package com.vwo.api;
 
+import com.vwo.VWO;
 import com.vwo.enums.EventEnum;
 import com.vwo.models.Settings;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.utils.NetworkUtil;
 
 import java.util.Map;
@@ -31,7 +32,7 @@ public class SetAttributeAPI {
      * @param attributeMap - Map of attribute key and value to be set
      * @param context  The user context model containing user-specific data.
      */
-    public static void setAttribute(Settings settings, Map<String, Object> attributeMap, VWOUserContext context) {
+    public static void setAttribute(Settings settings, Map<String, Object> attributeMap, VWOContext context) {
         createAndSendImpressionForSetAttribute(settings, attributeMap, context);
     }
 
@@ -47,7 +48,7 @@ public class SetAttributeAPI {
     private static void createAndSendImpressionForSetAttribute(
             Settings settings,
             Map<String, Object> attributeMap,
-            VWOUserContext context
+            VWOContext context
     ) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
@@ -65,7 +66,17 @@ public class SetAttributeAPI {
                 attributeMap
         );
 
-        // Send the constructed properties and payload as a POST request
-        NetworkUtil.sendPostApiRequest(properties, payload, context.getUserAgent(), context.getIpAddress());
+        // Get the instance of VWO
+        VWO vwoInstance = VWO.getInstance();
+
+        // Check if batch event queue is available
+        if (vwoInstance.getBatchEventQueue() != null) {
+            // Enqueue the event to the batch queue for future processing
+            vwoInstance.getBatchEventQueue().enqueue(payload);
+        } else {
+            // Send the event immediately if batch event queue is not available
+            NetworkUtil.sendPostApiRequest(properties, payload, context.getUserAgent(), context.getIpAddress());
+        }
     }
+
 }

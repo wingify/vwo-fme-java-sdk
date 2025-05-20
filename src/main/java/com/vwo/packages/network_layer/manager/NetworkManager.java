@@ -19,11 +19,14 @@ package com.vwo.packages.network_layer.manager;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.client.NetworkClient;
 import com.vwo.interfaces.networking.NetworkClientInterface;
+import com.vwo.models.FlushInterface;
 import com.vwo.packages.network_layer.handlers.RequestHandler;
 import com.vwo.packages.network_layer.models.GlobalRequestModel;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
 import com.vwo.services.LoggerService;
+
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -91,27 +94,57 @@ public class NetworkManager {
    * @param request - The RequestModel containing the URL, headers, and body of the POST request.
    * @return
    */
-  public ResponseModel post(RequestModel request) {
+  public ResponseModel post(RequestModel request, FlushInterface flushCallback) {
+    ResponseModel response = null;
     try {
       RequestModel networkOptions = createRequest(request);
       if (networkOptions == null) {
         return null;
+      } 
+      // Perform the actual POST request
+      response = client.POST(request);
+
+      // Handle the response and trigger callback based on success or failure
+      if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+          if (flushCallback != null) {
+              flushCallback.onFlush(null, request.getBody().toString());  // Success, pass response body to callback
+          }
       } else {
-        return client.POST(request);
+          if (flushCallback != null) {
+              flushCallback.onFlush("Failed with status code: " + response.getStatusCode(), null);  // Failure, pass error message
+          }
       }
     } catch (Exception error) {
       LoggerService.log(LogLevelEnum.ERROR,  "Error when creating post request, error: " + error);
+      if (flushCallback != null) {
+        flushCallback.onFlush("Error: " + error.getMessage(), null);  // Pass error message to callback
+      }
       return null;
     }
+    return response;
   }
 
   /**
    * Asynchronously sends a POST request to the server.
    * @param request - The RequestModel containing the URL, headers, and body of the POST request.
    */
-  public void postAsync(RequestModel request) {
-    executorService.submit(() -> {
-      post(request);
-    });
-  }
+  /**
+ * Asynchronously sends a POST request to the server.
+ * @param request - The RequestModel containing the URL, headers, and body of the POST request.
+ */
+public void postAsync(RequestModel request, FlushInterface flushCallback) {
+  executorService.submit(() -> {
+      try {
+        //print before post request
+        LoggerService.log(LogLevelEnum.INFO, "Before post request");
+          // Perform the actual POST request and handle response asynchronously
+          post(request, flushCallback);
+          //print after post request
+          LoggerService.log(LogLevelEnum.INFO, "After post request");
+      } catch (Exception ex) {
+          LoggerService.log(LogLevelEnum.ERROR, "Error occurred during post request: " + ex.getMessage());
+      }
+  });
+}
+
 }

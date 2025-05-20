@@ -23,7 +23,7 @@ import com.vwo.decorators.StorageDecorator;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.enums.StatusEnum;
 import com.vwo.models.*;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.decision_maker.DecisionMaker;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
@@ -49,7 +49,7 @@ public class DecisionUtil {
             Settings settings,
             Feature feature,
             Campaign campaign,
-            VWOUserContext context,
+            VWOContext context,
             Map<String, Object> evaluatedFeatureMap,
             Map<Integer, String> megGroupWinnerCampaigns,
             StorageService storageService,
@@ -282,7 +282,7 @@ public class DecisionUtil {
      * @param context  Context object containing user information
      * @return   Whitelisted variation or null if not whitelisted
      */
-    private static Map<String, Object> checkCampaignWhitelisting(Campaign campaign, VWOUserContext context) {
+    private static Map<String, Object> checkCampaignWhitelisting(Campaign campaign, VWOContext context) {
         Map<String, Object> whitelistingResult = evaluateWhitelisting(campaign, context);
         StatusEnum status = whitelistingResult != null ? StatusEnum.PASSED : StatusEnum.FAILED;
         String variationString = whitelistingResult != null ? (String) whitelistingResult.get("variationName") : "";
@@ -301,7 +301,7 @@ public class DecisionUtil {
      * @param context  Context object containing user information
      * @return  Whitelisted variation or null if not whitelisted
      */
-    private static Map<String, Object> evaluateWhitelisting(Campaign campaign, VWOUserContext context) {
+    private static Map<String, Object> evaluateWhitelisting(Campaign campaign, VWOContext context) {
         List<Variation> targetedVariations = new ArrayList<>();
 
         for (Variation variation : campaign.getVariations()) {

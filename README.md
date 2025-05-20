@@ -37,7 +37,7 @@ Add below Maven dependency in your project.
 The following example demonstrates initializing the SDK with a VWO account ID and SDK key, setting a user context, checking if a feature flag is enabled, and tracking a custom event.
  ```java
  import com.vwo.VWO;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.models.user.GetFlag;
 import com.vwo.models.user.VWOInitOptions;
 import java.util.Map;
@@ -53,7 +53,7 @@ public class VWOExample {
         VWO vwoInstance = VWO.init(vwoInitOptions);
 
         // Create user context
-        VWOUserContext context = new VWOUserContext();
+        VWOContext context = new VWOContext();
         context.setId("unique_user_id"); // Set a unique user identifier
 
         // Check if a feature flag is enabled
@@ -95,11 +95,11 @@ Refer to the [official VWO documentation](https://developers.vwo.com/v2/docs/fme
 
 ### User Context
 
-The `VWOUserContext` object uniquely identifies users and is crucial for consistent feature rollouts. A typical `VWOUserContext` includes an `id` for identifying the user, set via `setId()`. It can also include other attributes that can be used for targeting and segmentation, such as custom variables (set via `setCustomVariables()`), user agent (set via `setUserAgent()`) and IP address (set via `setIpAddress()`).
+The `VWOContext` object uniquely identifies users and is crucial for consistent feature rollouts. A typical `VWOContext` includes an `id` for identifying the user, set via `setId()`. It can also include other attributes that can be used for targeting and segmentation, such as custom variables (set via `setCustomVariables()`), user agent (set via `setUserAgent()`) and IP address (set via `setIpAddress()`).
 
 #### Parameters Table
 
-The following table explains all the parameters in the `VWOUserContext` object:
+The following table explains all the parameters in the `VWOContext` object:
 
 | **Parameter**     | **Description**                                                            | **Required** | **Type** |
 | ----------------- | -------------------------------------------------------------------------- | ------------ | -------- |
@@ -111,7 +111,7 @@ The following table explains all the parameters in the `VWOUserContext` object:
 #### Example
 
 ```java
-VWOUserContext context = new VWOUserContext();
+VWOContext context = new VWOContext();
 context.setId("unique_user_id"); // Set a unique user identifier
 
 // Create the map using HashMap in Java 8 and below

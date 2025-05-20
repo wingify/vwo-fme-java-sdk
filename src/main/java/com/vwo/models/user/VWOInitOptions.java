@@ -17,6 +17,7 @@ package com.vwo.models.user;
 
 import com.vwo.VWOBuilder;
 import com.vwo.interfaces.networking.NetworkClientInterface;
+import com.vwo.models.BatchEventData;
 import com.vwo.packages.segmentation_evaluator.evaluators.SegmentEvaluator;
 import com.vwo.packages.storage.Connector;
 import com.vwo.interfaces.integration.IntegrationCallback;
@@ -36,6 +37,7 @@ public class VWOInitOptions {
     private Integer pollInterval;
 
     private VWOBuilder vwoBuilder;
+    private BatchEventData batchEventData;
 
     private Map<String, Object> gatewayService = new HashMap<>();
 
@@ -117,5 +119,13 @@ public class VWOInitOptions {
 
     public VWOBuilder getVwoBuilder() {
         return vwoBuilder;
+    }
+
+    public BatchEventData getBatchEventData() {
+        return batchEventData;
+    }
+
+    public void setBatchEventData(BatchEventData batchEventData) {
+        this.batchEventData = batchEventData;
     }
 }

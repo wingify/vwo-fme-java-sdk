@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -118,7 +119,7 @@ public class NetworkClient implements NetworkClientInterface {
       try (OutputStream os = connection.getOutputStream()) {
         Object body = networkOptions.get("body");
 
-        if (body instanceof LinkedHashMap) {
+        if (body instanceof LinkedHashMap || body instanceof HashMap) {
           // Convert LinkedHashMap to JSON string
           String jsonBody = VWOClient.objectMapper.writeValueAsString(body);
           byte[] input = jsonBody.getBytes(StandardCharsets.UTF_8);

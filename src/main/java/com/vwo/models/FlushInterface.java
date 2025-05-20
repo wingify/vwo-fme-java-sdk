@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,21 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.enums;
 
-public enum UrlEnum {
-    EVENTS("/events/t"),
-    ATTRIBUTE_CHECK("/check-attribute"),
-    GET_USER_DATA("/get-user-details"),
-    BATCH_EVENTS("/server-side/batch-events-v2");
+package com.vwo.models;
 
-    private final String url;
+import com.fasterxml.jackson.databind.JsonNode;
 
-    UrlEnum(String url) {
-        this.url = url;
-    }
-
-    public String getUrl() {
-        return url;
-    }
+public interface FlushInterface {
+    void onFlush(String error, String events);
 }

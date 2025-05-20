@@ -16,12 +16,14 @@
 package com.vwo;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.vwo.constants.Constants;
 import com.vwo.models.user.VWOInitOptions;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
 import com.vwo.packages.storage.Storage;
+import com.vwo.services.BatchEventQueue;
 import com.vwo.services.LoggerService;
 import com.vwo.services.SettingsManager;
 import com.vwo.utils.DataTypeUtil;
@@ -251,4 +253,58 @@ public class VWOBuilder {
             }
         }
     }
+
+    /**
+     * Initializes batching based on options.
+     * @return The instance of this builder.
+     */
+    public VWOBuilder initBatching() {
+        // Check if gatewayService is provided and skip SDK batching if so
+        if (SettingsManager.getInstance().isGatewayServiceProvided) {
+            LoggerService.log(LogLevelEnum.WARN, "Gateway service is configured. Event batching will be handled by the gateway. SDK batching is disabled.");
+            return this;
+        }
+
+        // Check if batch event data is provided in options
+        if (this.options.getBatchEventData() != null) {
+            int eventsPerRequest = this.options.getBatchEventData().getEventsPerRequest();
+            int requestTimeInterval = this.options.getBatchEventData().getRequestTimeInterval();
+
+            boolean isEventsPerRequestValid = DataTypeUtil.isInteger(eventsPerRequest) && eventsPerRequest > 0 && eventsPerRequest <= Constants.MAX_EVENTS_PER_REQUEST;
+            boolean isRequestTimeIntervalValid = DataTypeUtil.isInteger(requestTimeInterval) && requestTimeInterval >0;
+
+            // Check data type and values for eventsPerRequest and requestTimeInterval
+            if (!isEventsPerRequestValid && !isRequestTimeIntervalValid) {
+                LoggerService.log(LogLevelEnum.ERROR, "Values mismatch from the expectation of both parameters. Batching not initialized.");
+                return this;
+            }
+
+            // Handle invalid data types for individual parameters
+            if (!isEventsPerRequestValid) {
+                LoggerService.log(LogLevelEnum.ERROR, "Events_per_request values is invalid (should be greater than 0 and less than 5000). Using default value of events_per_request parameter : 100");
+                eventsPerRequest = Constants.DEFAULT_EVENTS_PER_REQUEST; // Use default if invalid
+            }
+
+            if (!isRequestTimeIntervalValid) {
+                LoggerService.log(LogLevelEnum.ERROR, "Request_time_interval values is invalid (should be greater than 0). Using default value of request_time_interval parameter : 600");
+                requestTimeInterval = Constants.DEFAULT_REQUEST_TIME_INTERVAL; // Use default if invalid
+            }
+
+            // Initialize BatchEventQueue for batching
+            BatchEventQueue batchEventQueue = new BatchEventQueue(
+                    eventsPerRequest,
+                    requestTimeInterval,  // Cast to int since the expected type in BatchEventQueue is int
+                    this.options.getBatchEventData().getFlushCallback(),
+                    this.options.getAccountId(),
+                    this.options.getSdkKey()
+            );
+
+            vwoClient.setBatchEventQueue(batchEventQueue); // Link to the vwoClient
+            LoggerService.log(LogLevelEnum.DEBUG, "Event Batching initialized successfully in SDK.");
+        } else {
+            LoggerService.log(LogLevelEnum.DEBUG, "Event Batching functionality not initialized. SDK batching is disabled.");
+        }
+        return this;
+    }
+
 }

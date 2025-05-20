@@ -1,8 +1,56 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.7.0] - 2025-05-12
+
+### Added
+
+- Added support for `batchEventData` configuration to optimize network requests by batching multiple events together. This allows you to:
+
+  - Configure `requestTimeInterval` to flush events after a specified time interval
+  - Set `eventsPerRequest` to control maximum events per batch
+  - Implement `flushCallback` to handle batch processing results
+  - Manually trigger event flushing via `flushEvents()` method
+
+  - You can also manually flush events using the `flushEvents()` method:
+
+  ```java
+   import com.vwo.VWO;
+   import com.vwo.models.user.VWOContext;
+   import com.vwo.models.user.GetFlag;
+   import com.vwo.models.user.VWOInitOptions;
+
+  FlushInterface flushCallback = new FlushInterface() {
+    @Override
+    public void onFlush(String error, String events) {
+        System.out.println("Flush callback executed");
+        // custom implementation here
+    }
+  };
+
+   // Initialize VWO SDK
+   VWOInitOptions vwoInitOptions = new VWOInitOptions();
+
+   // Set SDK Key and Account ID
+   vwoInitOptions.setSdkKey("sdk-key");
+   vwoInitOptions.setAccountId(123);
+   BatchEventData batchEventData = new BatchEventData();
+   batchEventData.setEventsPerRequest(100);   // Send up to 100 events per request
+   batchEventData.setRequestTimeInterval(60); // Flush events every 60 seconds
+   batchEventData.setFlushCallback(flushCallback);
+
+   // create VWO instance with the vwoInitOptions
+   VWO vwoInstance = VWO.init(vwoInitOptions);
+
+  ```
+- You can also manually flush events using the `flushEvents()` method:
+```java
+  vwoInstance.flushEvents();
+```
 
 [1.6.0] - 2025-05-07
 
@@ -14,70 +62,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.5.0] - 2025-03-19
 
 ### Changes
+
 - changed uuid generation logic in `UUIDUtils` to generate similar uuid for a user across all vwo sdks.
 
 [1.4.0] - 2024-12-20
 
 ### Added
+
 - added support to use salt for bucketing if provided in the rule.
 
 [1.3.0] - 2024-11-22
 
 ### Added
+
 - Added support for Personalise rules within `Mutually Exclusive Groups`.
 
 [1.2.0] - 2024-06-17
 
 ### Fixed
+
 - Fixed segmentation evaluator issues where `contains` and `Greater than equal to` operator were not working as expected.
 - Added unit test cases for the segmentation evaluator and decision maker
 
 `[1.1.0] - 2024-06-07
 
 ### Fixed
+
 Send event properties as third param in trackEvent() call`
 
 [1.0.0] - 2024-05-31
 
 ### Added
+
 - First release of VWO Feature Management and Experimentation capabilities.
 
-   ```java
-   import com.vwo.VWO;
-   import com.vwo.models.user.VWOUserContext;
-   import com.vwo.models.user.GetFlag;
-   import com.vwo.models.user.VWOInitOptions;
-   
-   // Initialize VWO SDK
-   VWOInitOptions vwoInitOptions = new VWOInitOptions();
-   
-   // Set SDK Key and Account ID
-   vwoInitOptions.setSdkKey("sdk-key");
-   vwoInitOptions.setAccountId(123);
-   
-   // create VWO instance with the vwoInitOptions
-   VWO vwoInstance = VWO.init(vwoInitOptions);
-   
-   // Create VWOContext object
-   VWOUserContext userContext = new VWOUserContext();
-   // Set User ID
-   userContext.setId("user-id");
-   
-   // Get the GetFlag object for the feature key and context
-   GetFlag getFlag = vwoInstance.getFlag("feature-key", userContext);
-   // Get the flag value
-   Boolean isFlagEnabled = getFlag.isEnabled();
-   
-   // Get the variable value for the given variable key and default value
-   Object variableValue = getFlag.getVariable("stringVar", "default-value");
-   
-   // Track the event for the given event name and context
-   Map<String, Boolean> trackResponse = vwoInstance.trackEvent("event-name", userContext);
-   
-   // send attributes data
-   vwoInstance.setAttribute("key", "value", userContext);
-   ```
+  ```java
+  import com.vwo.VWO;
+  import com.vwo.models.user.VWOContext;
+  import com.vwo.models.user.GetFlag;
+  import com.vwo.models.user.VWOInitOptions;
 
+  // Initialize VWO SDK
+  VWOInitOptions vwoInitOptions = new VWOInitOptions();
+
+  // Set SDK Key and Account ID
+  vwoInitOptions.setSdkKey("sdk-key");
+  vwoInitOptions.setAccountId(123);
+
+  // create VWO instance with the vwoInitOptions
+  VWO vwoInstance = VWO.init(vwoInitOptions);
+
+  // Create VWOContext object
+  VWOContext userContext = new VWOContext();
+  // Set User ID
+  userContext.setId("user-id");
+
+  // Get the GetFlag object for the feature key and context
+  GetFlag getFlag = vwoInstance.getFlag("feature-key", userContext);
+  // Get the flag value
+  Boolean isFlagEnabled = getFlag.isEnabled();
+
+  // Get the variable value for the given variable key and default value
+  Object variableValue = getFlag.getVariable("stringVar", "default-value");
+
+  // Track the event for the given event name and context
+  Map<String, Boolean> trackResponse = vwoInstance.trackEvent("event-name", userContext);
+
+  // send attributes data
+  vwoInstance.setAttribute("key", "value", userContext);
+  ```
 
 - **Storage**
 
@@ -86,7 +139,7 @@ Send event properties as third param in trackEvent() call`
   import java.util.HashMap;
   import java.util.Map;
   public class StorageTest extends Connector {
-  
+
   private final Map<String, Map<String, Object>> storage = new HashMap<>();
 
     @Override
@@ -123,9 +176,9 @@ Send event properties as third param in trackEvent() call`
   Map<String, Object> logger = new HashMap<>();
   logger.put("level", "INFO");
   logger.put("prefix", "VWO");
-  
+
   VWOInitOptions vwoInitOptions = new VWOInitOptions();
-  
+
   vwInitOptions.setSdkKey("sdk-key");
   vwInitOptions.setAccountId(1234);
   vwoInitOptions.setLogger(logger);
@@ -141,9 +194,8 @@ Send event properties as third param in trackEvent() call`
 
   ```java
   VWOInitOptions vwoInitOptions = new VWOInitOptions();
-  
+
   vwInitOptions.setSdkKey("sdk-key");
   vwInitOptions.setAccountId(1234);
   vwInitOptions.setPollInterval(60);
   ```
- 

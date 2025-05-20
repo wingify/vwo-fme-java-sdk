@@ -21,7 +21,7 @@ import com.vwo.enums.ApiEnum;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.models.*;
 import com.vwo.models.user.GetFlag;
-import com.vwo.models.user.VWOUserContext;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
 import com.vwo.services.HooksManager;
@@ -46,7 +46,7 @@ public class GetFlagAPI {
      * @param hookManager  HooksManager object containing the integrations.
      * @return GetFlag object containing the flag value.
      */
-    public static GetFlag getFlag(String featureKey, Settings settings, VWOUserContext context, HooksManager hookManager) {
+    public static GetFlag getFlag(String featureKey, Settings settings, VWOContext context, HooksManager hookManager) {
         GetFlag getFlag = new GetFlag();
         boolean shouldCheckForExperimentsRules = false;
 
