@@ -40,6 +40,16 @@ public class VWOInitOptions {
     private BatchEventData batchEventData;
 
     private Map<String, Object> gatewayService = new HashMap<>();
+    private Boolean isUsageStatsDisabled = false;
+    private Map<String, Object> _vwo_meta = new HashMap<>();
+
+    public Map<String, Object> getVwoMetaData() {
+        return _vwo_meta;
+    }
+
+    public void setVwoMetaData(Map<String, Object> _vwo_meta) {
+        this._vwo_meta = _vwo_meta;
+    }
 
     public String getSdkKey() {
         return sdkKey;
@@ -127,5 +137,13 @@ public class VWOInitOptions {
 
     public void setBatchEventData(BatchEventData batchEventData) {
         this.batchEventData = batchEventData;
+    }
+
+    public Boolean getIsUsageStatsDisabled() {
+        return isUsageStatsDisabled;
+    }
+
+    public void setIsUsageStatsDisabled(Boolean isUsageStatsDisabled) {
+        this.isUsageStatsDisabled = isUsageStatsDisabled;
     }
 }

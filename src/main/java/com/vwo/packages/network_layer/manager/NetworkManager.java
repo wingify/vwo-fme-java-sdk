@@ -25,8 +25,8 @@ import com.vwo.packages.network_layer.models.GlobalRequestModel;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
 import com.vwo.services.LoggerService;
+import com.vwo.utils.UsageStatsUtil;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -135,12 +135,11 @@ public class NetworkManager {
 public void postAsync(RequestModel request, FlushInterface flushCallback) {
   executorService.submit(() -> {
       try {
-        //print before post request
-        LoggerService.log(LogLevelEnum.INFO, "Before post request");
           // Perform the actual POST request and handle response asynchronously
-          post(request, flushCallback);
-          //print after post request
-          LoggerService.log(LogLevelEnum.INFO, "After post request");
+          ResponseModel response = post(request, flushCallback);
+          if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+            UsageStatsUtil.getInstance().clearUsageStats();
+          }
       } catch (Exception ex) {
           LoggerService.log(LogLevelEnum.ERROR, "Error occurred during post request: " + ex.getMessage());
       }

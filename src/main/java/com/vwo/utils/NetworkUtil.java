@@ -176,6 +176,11 @@ public class NetworkUtil {
         properties.getD().getEvent().getProps().setId(campaignId);
         properties.getD().getEvent().getProps().setVariation(variationId.toString());
         properties.getD().getEvent().getProps().setIsFirst(1);
+        
+        if (UsageStatsUtil.getInstance().getUsageStats() != null && !UsageStatsUtil.getInstance().getUsageStats().isEmpty()) {
+            properties.getD().getEvent().getProps().setVwoMeta(UsageStatsUtil.getInstance().getUsageStats());
+        }
+
         LoggerService.log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_USER", new HashMap<String, String>() {
             {
                 put("accountId", settings.getAccountId().toString());

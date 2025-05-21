@@ -52,7 +52,8 @@ public class VWO extends VWOClient {
                 .setStorage()          // Configures storage for data persistence.
                 .setNetworkManager()   // Configures network management for API communication.
                 .setSegmentation()     // Sets up segmentation for targeted functionality.
-                .initPolling();        // Initializes the polling mechanism for fetching settings.
+                .initPolling()        // Initializes the polling mechanism for fetching settings.
+                .initUsageStats();
 
         String settings =  vwoBuilder.getSettings(false);
         VWO vwoInstance = new VWO(settings, options);

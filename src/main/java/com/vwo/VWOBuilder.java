@@ -27,6 +27,7 @@ import com.vwo.services.BatchEventQueue;
 import com.vwo.services.LoggerService;
 import com.vwo.services.SettingsManager;
 import com.vwo.utils.DataTypeUtil;
+import com.vwo.utils.UsageStatsUtil;
 
 import java.util.HashMap;
 
@@ -215,6 +216,23 @@ public class VWOBuilder {
         }
 
         new Thread(this::checkAndPoll).start();
+
+        return this;
+    }
+
+    /**
+     * Initializes the usage stats for the VWO instance.
+     * @return The instance of this builder.
+     */
+    public VWOBuilder initUsageStats() {
+
+        // if usageStatsDisabled is not null and is true, then return
+        if (this.options.getIsUsageStatsDisabled() != null && this.options.getIsUsageStatsDisabled()) {
+            return this;
+        }
+       
+        UsageStatsUtil.getInstance().setUsageStats(this.options);
+        
 
         return this;
     }

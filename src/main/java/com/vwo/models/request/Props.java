@@ -37,6 +37,8 @@ public class Props {
   private Integer isFirst;
   @JsonProperty("isCustomEvent")
   private Boolean isCustomEvent;
+  @JsonProperty("vwoMeta")
+  private Map<String, Object> vwoMeta;
 
   @JsonIgnore
   private Map<String,Object> additionalProperties = new HashMap<String,Object>();
@@ -89,4 +91,13 @@ public class Props {
   public void setAdditionalProperties(Map<String, Object> additionalProperties) {
     this.additionalProperties = additionalProperties;
   }
+
+  public Map<String, Object> getVwoMeta() {
+    return vwoMeta;
+  }
+
+  public void setVwoMeta(Map<String, Object> vwoMeta) {
+    this.vwoMeta = vwoMeta;
+  }
+
 }
