@@ -191,8 +191,13 @@ See [Pushing Attributes](https://developers.vwo.com/v2/docs/fme-java-attributes#
 
 ### Polling Interval Adjustment
 
-The `setPollInterval()` is an optional parameter that allows the SDK to automatically fetch and update settings from the VWO server at specified intervals. Setting this parameter ensures your application always uses the latest configuration.
+The `setPollInterval` is an optional parameter that allows the SDK to automatically fetch and update settings from the VWO server at specified intervals. The polling interval can be configured in three ways:
 
+1. Set via SDK options: If `pollInterval` is specified in the initialization options (must be >= 1000 milliseconds), that interval will be used
+2. VWO Application Settings: If configured in your VWO application settings, that interval will be used
+3. Default Fallback: If neither of the above is set, a 10 minute (600,000 milliseconds) polling interval is used
+
+Setting this parameter ensures your application always uses the latest configuration by periodically checking for and applying any updates.
 ```java
 VWOInitOptions vwoInitOptions = new VWOInitOptions();
 vwoInitOptions.setPollInterval(60000); // Set the poll interval to 60 seconds

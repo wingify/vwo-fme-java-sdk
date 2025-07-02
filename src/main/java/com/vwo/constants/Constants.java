@@ -40,4 +40,6 @@ public class Constants {
 
   public static final int RANDOM_ALGO = 1;
   public static final String VWO_META_MEG_KEY = "_vwo_meta_meg_";
+
+  public static final int DEFAULT_POLL_INTERVAL = 600000; // 10 minutes
 }

@@ -1,6 +1,7 @@
 {
   "API_CALLED": "API called: {apiName}",
   "SERVICE_INITIALIZED": "VWO {service} initialized while creating an instance of SDK",
+  "USING_POLL_INTERVAL_FROM_SETTINGS": "key: pollInterval not found or invalid. Using pollInterval from {source} {pollInterval}",
 
   "EXPERIMENTS_EVALUATION_WHEN_ROLLOUT_PASSED": "Rollout rule got passed for user {userId}. Hence, evaluating experiments",
   "EXPERIMENTS_EVALUATION_WHEN_NO_ROLLOUT_PRESENT": "No Rollout rules present for the feature. Hence, checking experiment rules",

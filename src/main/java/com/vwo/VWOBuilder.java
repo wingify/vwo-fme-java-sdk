@@ -17,6 +17,7 @@ package com.vwo;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vwo.constants.Constants;
+import com.vwo.models.Settings;
 import com.vwo.models.user.VWOInitOptions;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
@@ -41,6 +42,7 @@ public class VWOBuilder {
     private String settings;
     private String originalSettings;
     private boolean isSettingsFetchInProgress;
+    private boolean isValidPollIntervalPassedFromInit = false;
 
     public VWOBuilder(VWOInitOptions options) {
         this.options = options;
@@ -49,6 +51,9 @@ public class VWOBuilder {
     // Set VWOClient instance
     public void setVWOClient(VWOClient vwoClient) {
         this.vwoClient = vwoClient;
+
+        // if poll_interval is not present in options, set it to the pollInterval from settings
+        updatePollIntervalAndCheckAndPoll(settings, true);
     }
 
     /**
@@ -136,7 +141,8 @@ public class VWOBuilder {
      * @return The fetched settings.
      */
     public String getSettings(Boolean forceFetch) {
-        return fetchSettings(forceFetch);
+        this.settings = fetchSettings(forceFetch);
+        return this.settings;
     }
 
     /**
@@ -191,11 +197,13 @@ public class VWOBuilder {
      * @return The instance of this builder.
      */
     public VWOBuilder initPolling() {
-        if (this.options.getPollInterval() == null) {
+        if (this.options.getPollInterval() != null && DataTypeUtil.isInteger(this.options.getPollInterval()) && this.options.getPollInterval() >= 1000) {
+            // this is to check if the poll_interval passed in options is valid
+            isValidPollIntervalPassedFromInit = true;
+            new Thread(this::checkAndPoll).start();
             return this;
-        }
-
-        if (this.options.getPollInterval() != null && !DataTypeUtil.isInteger(this.options.getPollInterval())) {
+        } else if (this.options.getPollInterval() != null) {
+            // only log error if poll_interval is present in options
             LoggerService.log(LogLevelEnum.ERROR, "INIT_OPTIONS_INVALID", new HashMap<String, String>(){
                 {
                     put("key", "pollInterval");
@@ -204,20 +212,39 @@ public class VWOBuilder {
             });
             return this;
         }
-
-        if (this.options.getPollInterval() != null && this.options.getPollInterval() < 1000) {
-            LoggerService.log(LogLevelEnum.ERROR, "INIT_OPTIONS_INVALID", new HashMap<String, String>(){
-                {
-                    put("key", "pollInterval");
-                    put("correctType", "number");
-                }
-            });
-            return this;
-        }
-
-        new Thread(this::checkAndPoll).start();
-
         return this;
+    }
+
+    public void updatePollIntervalAndCheckAndPoll(String settings, boolean shouldCheckAndPoll) {
+        // only update the poll_interval if poll_interval is not valid or not present in options
+        Settings processedSettings = null;
+        if (settings != null && !settings.isEmpty()) {
+            try {
+                processedSettings = VWOClient.objectMapper.readValue(settings, Settings.class);
+            } catch (Exception ignored) {}
+        }
+        if (!isValidPollIntervalPassedFromInit && processedSettings != null) {
+            this.options.setPollInterval(processedSettings.getPollInterval());
+            if (processedSettings.getPollInterval() == Constants.DEFAULT_POLL_INTERVAL) {
+                LoggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, String>(){
+                    {
+                        put("source", "default");
+                        put("pollInterval", String.valueOf(Constants.DEFAULT_POLL_INTERVAL));
+                    }
+                });
+            } else {
+                LoggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, String>(){
+                    {
+                        put("source", "settings");
+                        put("pollInterval", options.getPollInterval().toString());
+                    }
+                });
+            }
+        }
+
+        if (shouldCheckAndPoll && !isValidPollIntervalPassedFromInit && processedSettings != null) {
+            new Thread(this::checkAndPoll).start();
+        }
     }
 
     /**
@@ -241,10 +268,10 @@ public class VWOBuilder {
      * Checks and polls for settings updates at the provided interval.
      */
     private void checkAndPoll() {
-        int pollingInterval = this.options.getPollInterval();
-
         while (true) {
             try {
+                // Sleep for the polling interval
+                Thread.sleep(this.options.getPollInterval());
                 String latestSettings = getSettings(true);
                 if (originalSettings != null && latestSettings != null) {
                     JsonNode latestSettingJsonNode = VWOClient.objectMapper.readTree(latestSettings);
@@ -255,13 +282,12 @@ public class VWOBuilder {
                         // Update VWOClient settings
                         if (vwoClient != null) {
                             vwoClient.updateSettings(originalSettings);
+                            updatePollIntervalAndCheckAndPoll(latestSettings, false);
                         }
                     } else {
                         LoggerService.log(LogLevelEnum.INFO, "POLLING_NO_CHANGE_IN_SETTINGS", null);
                     }
                 }
-                // Sleep for the polling interval
-                Thread.sleep(pollingInterval);
             } catch (InterruptedException e) {
                 LoggerService.log(LogLevelEnum.ERROR, "POLLING_FETCH_SETTINGS_FAILED", null);
                 Thread.currentThread().interrupt();

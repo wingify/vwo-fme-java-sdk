@@ -16,6 +16,7 @@
 package com.vwo.models;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.vwo.constants.Constants;
 
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,8 @@ public class Settings {
 
     @JsonProperty("collectionPrefix")
     private String collectionPrefix;
+    @JsonProperty("pollInterval")
+    private int pollInterval = Constants.DEFAULT_POLL_INTERVAL;
 
     public List<Feature> getFeatures() {
         return features;
@@ -123,5 +126,13 @@ public class Settings {
 
     public void setCollectionPrefix(String collectionPrefix) {
         this.collectionPrefix = collectionPrefix;
+    }
+
+    public void setPollInterval(int pollInterval) {
+        this.pollInterval = pollInterval;
+    }
+
+    public int getPollInterval() {
+        return pollInterval;
     }
 }
