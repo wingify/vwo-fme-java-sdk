@@ -82,78 +82,63 @@ public class BatchEventQueue {
 
         // clear timer
         timer = null;
-
-        // request flushing till batch queue is cleared of all events
-        do {
-            isSuccess = flush(true);
-
-            // check if batch queue cleared
-            if (batchQueue != null && batchQueue.size() > 0) {
-                // sleep before trying again
-                try {
-                    Thread.sleep(400);
-                } catch (InterruptedException e) {
-                    // no need to handle this exception
-                }
-            }
-        } while (batchQueue != null && batchQueue.size() > 0);
+        isSuccess = flush(true);
 
         return isSuccess;
     }
 
     private boolean flush(boolean manual) {
         synchronized (LockObject) {
-            if (batchQueue.isEmpty() || isBatchProcessing) {
-                LoggerService.log(LogLevelEnum.DEBUG, "Flush skipped. Either queue is empty or batch is already being processed.");
-                return false; 
+            if(batchQueue.isEmpty()) {
+                LoggerService.log(LogLevelEnum.DEBUG, "Queue is empty, skipping flush.");
+                return false;
             }
-
-            // Flag to indicate flushing is in progress
-            isBatchProcessing = true;
             // Log if flush is manual or automatic
             if (manual) {
                 LoggerService.log(LogLevelEnum.DEBUG, "Manual flush triggered.");
-            } 
-            // Create a temporary list to hold the events for the batch
-            List<Map<String, Object>> eventsToSend = new ArrayList<>(batchQueue);
-            batchQueue.clear(); // Clear the queue after taking a snapshot
+            }
+                // Create a temporary list to hold the events for the batch
+                List<Map<String, Object>> eventsToSend = new ArrayList<>(batchQueue);
+                batchQueue.clear(); // Clear the queue after taking a snapshot
 
-            // Log before sending batch events
-            LoggerService.log(LogLevelEnum.DEBUG, "Flushing " + eventsToSend.size() + " events.");
+                // Log before sending batch events
+                LoggerService.log(LogLevelEnum.DEBUG, "Flushing " + eventsToSend.size() + " events.");
 
-            // Send the batch events
-            // Flag to track success or failure asynchronously
-            final boolean[] isSentSuccessfully = {false};
-    
-            // Use ExecutorService to handle background task (better than Thread)
-            ExecutorService executorService = Executors.newSingleThreadExecutor(); // Use a single-thread pool
-            executorService.submit(() -> {
-                try {
-                    // Send the batch events and handle the result
-                    isSentSuccessfully[0] = sendBatchEvents(eventsToSend);
-                    if (isSentSuccessfully[0]) {
-                        LoggerService.log(LogLevelEnum.INFO, "Batch flush successful. Sent " + eventsToSend.size() + " events.");
-                    } else {
-                        // Re-enqueue events in case of failure for retry logic
+                // Send the batch events
+                // Flag to track success or failure asynchronously
+                final boolean[] isSentSuccessfully = { false };
+
+                // Use ExecutorService to handle background task (better than Thread)
+                ExecutorService executorService = Executors.newSingleThreadExecutor(); // Use a single-thread pool
+                executorService.submit(() -> {
+                    try {
+                        // Send the batch events and handle the result
+                        isSentSuccessfully[0] = sendBatchEvents(eventsToSend);
+                        if (isSentSuccessfully[0]) {
+                            LoggerService.log(LogLevelEnum.INFO,
+                                    "Batch flush successful. Sent " + eventsToSend.size() + " events.");
+                        } else {
+                            // Re-enqueue events in case of failure for retry logic
+                            batchQueue.addAll(eventsToSend);
+                            LoggerService.log(LogLevelEnum.ERROR,
+                                    "Failed to send batch events. Re-enqueuing events for retry.");
+                        }
+                    } catch (Exception ex) {
+                        LoggerService.log(LogLevelEnum.ERROR, "Error during batch flush: " + ex.getMessage());
+                        // Re-enqueue events in case of failure
                         batchQueue.addAll(eventsToSend);
-                        LoggerService.log(LogLevelEnum.ERROR, "Failed to send batch events. Re-enqueuing events for retry.");
+                    } finally {
+                        // Reset the flag after flush
+                        isBatchProcessing = false;
+                        // Shutdown the executor service gracefully
+                        executorService.shutdown();
                     }
-                } catch (Exception ex) {
-                    LoggerService.log(LogLevelEnum.ERROR, "Error during batch flush: " + ex.getMessage());
-                    // Re-enqueue events in case of failure
-                    batchQueue.addAll(eventsToSend);
-                } finally {
-                    // Reset the flag after flush
-                    isBatchProcessing = false;
-                    // Shutdown the executor service gracefully
-                    executorService.shutdown();
-                }
-            });
-    
-            return isSentSuccessfully[0];
+                });
+
+                return isSentSuccessfully[0];
         }
     }
-    
+
 
     private boolean sendBatchEvents(List<Map<String, Object>> events) {
         try {

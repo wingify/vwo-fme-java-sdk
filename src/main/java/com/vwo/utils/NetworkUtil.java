@@ -262,7 +262,7 @@ public class NetworkUtil {
             NetworkManager.getInstance().attachClient();
             Map<String, String> headers = createHeaders(userAgent, ipAddress);
             RequestModel request = new RequestModel(UrlService.getBaseUrl(), "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, SettingsManager.getInstance().protocol, SettingsManager.getInstance().port);
-            NetworkManager.getInstance().postAsync(request, null);
+            NetworkManager.getInstance().postAsync(request, null, false);
         } catch (Exception exception) {
             LoggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_FAILED", new HashMap<String, String>() {
                 {
@@ -307,9 +307,8 @@ public class NetworkUtil {
             );
 
             // Send the request asynchronously
-            NetworkManager.getInstance().postAsync(requestModel, flushCallback);  // Return the result of postAsync 
+            NetworkManager.getInstance().postAsync(requestModel, flushCallback, true);  // Return the result of postAsync 
             return true;
-            // Handle the response and trigger the callback
         } catch (Exception ex) {
             LoggerService.log(LogLevelEnum.ERROR, "Error occurred while sending batch events: " + ex.getMessage());
             throw new RuntimeException(ex);  // Re-throw the exception for higher-level handling if needed

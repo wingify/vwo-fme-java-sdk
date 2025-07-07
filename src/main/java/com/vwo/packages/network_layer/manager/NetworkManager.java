@@ -125,25 +125,39 @@ public class NetworkManager {
   }
 
   /**
-   * Asynchronously sends a POST request to the server.
-   * @param request - The RequestModel containing the URL, headers, and body of the POST request.
-   */
-  /**
- * Asynchronously sends a POST request to the server.
- * @param request - The RequestModel containing the URL, headers, and body of the POST request.
+ * Sends a POST request to the server either asynchronously or synchronously based on the postBatchData flag.
+ *
+ * @param request        The RequestModel containing the URL, headers, and body of the POST request.
+ * @param flushCallback  The callback to be triggered after the request is processed.
+ * @param postBatchData  If true, the POST request is sent synchronously in the current thread (used for batching);
+ *                       if false, the POST request is sent asynchronously in a new thread.
  */
-public void postAsync(RequestModel request, FlushInterface flushCallback) {
-  executorService.submit(() -> {
+
+public boolean postAsync(RequestModel request, FlushInterface flushCallback, boolean postBatchData) {
+  if(postBatchData) {
+    ResponseModel response = post(request, flushCallback);
+    //return true if response is success or false if response is not success
+    if(response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+      return true;
+    }
+    return false;
+  } else {
+    executorService.submit(() -> {
       try {
           // Perform the actual POST request and handle response asynchronously
           ResponseModel response = post(request, flushCallback);
           if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
             UsageStatsUtil.getInstance().clearUsageStats();
+            return true;
           }
+          return false;
       } catch (Exception ex) {
           LoggerService.log(LogLevelEnum.ERROR, "Error occurred during post request: " + ex.getMessage());
+          return false;
       }
-  });
+    });
+    return true;
+  }
 }
 
 }
