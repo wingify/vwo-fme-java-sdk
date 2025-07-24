@@ -113,6 +113,8 @@ public class SettingsManager {
         NetworkManager networkInstance = NetworkManager.getInstance();
         Map<String, String> options = new NetworkUtil().getSettingsPath(sdkKey, accountId);
         options.put("api-version", "3");
+        options.put("sn", Constants.SDK_NAME);
+        options.put("sv", Constants.SDK_VERSION);
 
         if (!networkInstance.getConfig().getDevelopmentMode()) {
             options.put("s", "prod");
