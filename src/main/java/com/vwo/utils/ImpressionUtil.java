@@ -41,7 +41,6 @@ public class ImpressionUtil {
             VWOContext context) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
-                settings,
                 EventEnum.VWO_VARIATION_SHOWN.getValue(),
                 encodeURIComponent(context.getUserAgent()),
                 context.getIpAddress());

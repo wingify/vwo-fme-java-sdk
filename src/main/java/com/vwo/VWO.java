@@ -16,9 +16,12 @@
 package com.vwo;
 
 import com.vwo.models.user.VWOInitOptions;
+import com.vwo.enums.EventEnum;
 import com.vwo.utils.LogMessageUtil;
+import com.vwo.utils.EventUtil;
 
-import java.util.Objects;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 
 public class VWO extends VWOClient {
@@ -82,8 +85,36 @@ public class VWO extends VWOClient {
             String message = LogMessageUtil.buildMessage("Account ID is required to initialize VWO. Please provide the accountId in the options.", null);
             System.err.println(message);
         }
-
+        //start timer
+        long initStartTime = System.currentTimeMillis();
         instance = VWO.setInstance(options);
+        long initTime = System.currentTimeMillis() - initStartTime;
+
+        // if wasInitializedEarlier in sdkMetaInfo in settings is false or is absent and settings is valid on init, then send sdk init event
+        String settings = vwoBuilder.getOriginalSettings();
+        if (settings != null && !settings.isEmpty()) {
+            try {
+                JsonNode settingsJsonNode = VWOClient.objectMapper.readTree(settings);
+
+                boolean wasInitializedEarlier = false; // default value
+                JsonNode sdkMetaInfoNode = settingsJsonNode.get("sdkMetaInfo");
+                if (sdkMetaInfoNode != null) {
+                    JsonNode wasInitializedEarlierNode = sdkMetaInfoNode.get("wasInitializedEarlier");
+                    if (wasInitializedEarlierNode != null) {
+                        wasInitializedEarlier = wasInitializedEarlierNode.asBoolean();
+                    }
+                }
+                
+                boolean isSettingsValidOnInit = vwoBuilder.getSettingsService().isSettingsValidOnInit;
+                
+                if (!wasInitializedEarlier && isSettingsValidOnInit) {
+                    EventUtil.sendSdkInitEvent(vwoBuilder.getSettingsService().getSettingsFetchTime(), initTime, EventEnum.VWO_SDK_INIT_EVENT.getValue());
+                }
+            } catch (JsonProcessingException e) {
+                String message = LogMessageUtil.buildMessage("Error parsing settings JSON: " + e.getMessage(), null);
+                System.err.println(message);
+            }
+        }
         return instance;
     }
 }

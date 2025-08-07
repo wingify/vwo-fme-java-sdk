@@ -33,14 +33,16 @@ import com.vwo.utils.NetworkUtil;
 
 // public class SettingsManager implements ISettingsManager {
 public class SettingsManager {
-    private String sdkKey;
-    private Integer accountId;
+    public String sdkKey;
+    public Integer accountId;
     private int expiry;
     private int networkTimeout;
     public String hostname;
     public int port;
     public String protocol = "https";
     public boolean isGatewayServiceProvided = false;
+    public boolean isSettingsValidOnInit = false;
+    private Long settingsFetchTime;
     private static SettingsManager instance;
 
     public SettingsManager(VWOInitOptions options) {
@@ -86,6 +88,14 @@ public class SettingsManager {
     }
 
     /**
+     * Gets the settings fetch time
+     * @return The settings fetch time in milliseconds
+     */
+    public Long getSettingsFetchTime() {
+        return this.settingsFetchTime;
+    }
+
+    /**
      * Fetches settings from the server
      */
     private String fetchSettingsAndCacheInStorage() {
@@ -126,6 +136,9 @@ public class SettingsManager {
         }
 
         try {
+            // Set fetch time
+            long startTime = System.currentTimeMillis();
+
             RequestModel request = new RequestModel(hostname, "GET", endpoint, options, null, null, this.protocol, port);
             request.setTimeout(networkTimeout);
 
@@ -138,6 +151,7 @@ public class SettingsManager {
                 });
                 return null;
             }
+            this.settingsFetchTime = System.currentTimeMillis() - startTime;
             return response.getData();
         } catch (Exception e) {
             LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
@@ -166,6 +180,7 @@ public class SettingsManager {
                 }
                 boolean settingsValid = new SettingsSchema().isSettingsValid(VWOClient.objectMapper.readValue(settings, Settings.class));
                 if (settingsValid) {
+                    this.isSettingsValidOnInit = true;
                     return settings;
                 } else {
                     LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null);

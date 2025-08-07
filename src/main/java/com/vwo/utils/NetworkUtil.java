@@ -41,7 +41,9 @@ import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.services.LoggerService;
 import com.vwo.services.SettingsManager;
 import com.vwo.services.UrlService;
-import com.vwo.packages.network_layer.models.ResponseModel;
+
+import com.vwo.enums.EventEnum;
+
 public class NetworkUtil {
 
     /**
@@ -57,17 +59,16 @@ public class NetworkUtil {
 
     /**
      * Creates the base properties for the event arch APIs.
-     * @param setting  The settings model containing configuration.
      * @param eventName  The name of the event.
      * @param visitorUserAgent  The user agent of the user.
      * @param ipAddress  The IP address of the user.
      * @return
      */
-    public static Map<String, String> getEventsBaseProperties(Settings setting, String eventName, String visitorUserAgent, String ipAddress) {
+    public static Map<String, String> getEventsBaseProperties(String eventName, String visitorUserAgent, String ipAddress) {
         RequestQueryParams requestQueryParams = new RequestQueryParams(
             eventName,
-            setting.getAccountId().toString(),
-            setting.getSdkKey(),
+            SettingsManager.getInstance().accountId.toString(),
+            SettingsManager.getInstance().sdkKey,
             visitorUserAgent,
             ipAddress,
             generateEventUrl()
@@ -85,17 +86,17 @@ public class NetworkUtil {
      * @return
      */
     public static EventArchPayload getEventBasePayload(Settings settings, String userId, String eventName, String visitorUserAgent, String ipAddress) {
-        String uuid = UUIDUtils.getUUID(userId, settings.getAccountId().toString());
+        String uuid = UUIDUtils.getUUID(userId, SettingsManager.getInstance().accountId.toString());
         EventArchData eventArchData = new EventArchData();
         eventArchData.setMsgId(generateMsgId(uuid));
         eventArchData.setVisId(uuid);
         eventArchData.setSessionId(generateSessionId());
         setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress);
 
-        Event event = createEvent(eventName, settings);
+        Event event = createEvent(eventName);
         eventArchData.setEvent(event);
 
-        Visitor visitor = createVisitor(settings);
+        Visitor visitor = createVisitor();
         eventArchData.setVisitor(visitor);
 
         EventArchPayload eventArchPayload = new EventArchPayload();
@@ -122,12 +123,11 @@ public class NetworkUtil {
     /**
      * Creates the event model for the event arch APIs.
      * @param eventName The name of the event.
-     * @param settings The settings model containing configuration.
      * @return The event model.
      */
-    private static Event createEvent(String eventName, Settings settings) {
+    private static Event createEvent(String eventName) {
         Event event = new Event();
-        Props props = createProps(settings);
+        Props props = createProps();
         event.setProps(props);
         event.setName(eventName);
         event.setTime(Calendar.getInstance().getTimeInMillis());
@@ -139,11 +139,11 @@ public class NetworkUtil {
      * @param settings The settings model containing configuration.
      * @return The visitor model.
      */
-    private static Props createProps(Settings settings) {
+    private static Props createProps() {
         Props props = new Props();
         props.setSdkName(Constants.SDK_NAME);
         props.setSdkVersion(SDKMetaUtil.getSdkVersion());
-        props.setEnvKey(settings.getSdkKey());
+        props.setEnvKey(SettingsManager.getInstance().sdkKey);
         return props;
     }
 
@@ -152,10 +152,10 @@ public class NetworkUtil {
      * @param settings The settings model containing configuration.
      * @return The visitor model.
      */
-    private static Visitor createVisitor(Settings settings) {
+    private static Visitor createVisitor() {
         Visitor visitor = new Visitor();
         Map<String, Object> visitorProps = new HashMap<>();
-        visitorProps.put(Constants.VWO_FS_ENVIRONMENT, settings.getSdkKey());
+        visitorProps.put(Constants.VWO_FS_ENVIRONMENT, SettingsManager.getInstance().sdkKey);
         visitor.setProps(visitorProps);
         return visitor;
     }
@@ -316,6 +316,37 @@ public class NetworkUtil {
     }    
 
     /**
+     * Sends a messaging event to the VWO server.
+     * @param properties The properties required for the request.
+     * @param payload The payload data for the request.
+     */
+    public static void sendEvent(Map<String, String> properties, Map<String, Object> payload, String eventName) {
+        try {
+            NetworkManager.getInstance().attachClient();
+            Map<String, String> headers = createHeaders(null, null);
+
+            String url = UrlService.getBaseUrl();
+            String protocol = SettingsManager.getInstance().protocol;
+            int port = SettingsManager.getInstance().port;
+            if(eventName.equals(EventEnum.VWO_ERROR.getValue())) {
+                url = Constants.HOST_NAME;
+                protocol = Constants.HTTPS_PROTOCOL;
+                port = 0;
+            }
+            
+            RequestModel request = new RequestModel(url, "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, protocol, port);
+            NetworkManager.getInstance().postAsync(request, null, false);
+        } catch (Exception exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_FAILED", new HashMap<String, String>() {
+                {
+                    put("method", "POST");
+                    put("err", exception.toString());
+                }
+            });
+        }
+    }
+
+    /**
      * Removes null values from the map. If the value is a map, recursively removes null values from the nested map.
      * @param originalMap The map containing null/non-null values
      * @return  Map containing non-null values.
@@ -381,6 +412,38 @@ public class NetworkUtil {
         if (userAgent != null && !userAgent.isEmpty()) headers.put(HeadersEnum.USER_AGENT.getHeader(), userAgent);
         if (ipAddress != null && !ipAddress.isEmpty()) headers.put(HeadersEnum.IP.getHeader(), ipAddress);
         return headers;
+    }
+
+    /**
+     * Constructs the payload for SDK init called event.
+     * 
+     * @param eventName The name of the event.
+     * @param settingsFetchTime Time taken to fetch settings in milliseconds (can be null).
+     * @param sdkInitTime Time taken to initialize the SDK in milliseconds (can be null).
+     * @return The constructed payload with required fields.
+     */
+    public static Map<String, Object> getSdkInitEventPayload(String eventName, Long settingsFetchTime, Long sdkInitTime) {
+        // Get settings and create user ID
+        String userId = SettingsManager.getInstance().accountId + "_" + SettingsManager.getInstance().sdkKey;
+        EventArchPayload properties = getEventBasePayload(null, userId, eventName, null, null);
+        // Set the required fields as specified
+        properties.getD().getEvent().getProps().setEnvKey(SettingsManager.getInstance().sdkKey);
+        properties.getD().getEvent().getProps().setProduct(Constants.FME);
+        
+        // Create data object
+        Map<String, Object> data = new HashMap<>();
+        data.put("isSDKInitialized", true);
+        data.put("settingsFetchTime", settingsFetchTime);
+        data.put("sdkInitTime", sdkInitTime);
+        
+        // Set additional properties
+        Map<String, Object> additionalProps = new HashMap<>();
+        additionalProps.put("data", data);
+        properties.getD().getEvent().getProps().setAdditionalProperties(additionalProps);
+
+        // Convert to Map and return
+        Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
+        return removeNullValues(payload);
     }
 
 }

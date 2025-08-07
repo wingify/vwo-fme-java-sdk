@@ -299,9 +299,21 @@ public class VWOBuilder {
     }
 
     /**
-     * Initializes batching based on options.
-     * @return The instance of this builder.
+     * Gets the original settings string
+     * @return The original settings string
      */
+    public String getOriginalSettings() {
+        return this.originalSettings;
+    }
+
+    /**
+     * Gets the settings service instance
+     * @return The settings service instance
+     */
+    public SettingsManager getSettingsService() {
+        return this.settingFileManager;
+    }
+
     public VWOBuilder initBatching() {
         // Check if gatewayService is provided and skip SDK batching if so
         if (SettingsManager.getInstance().isGatewayServiceProvided) {

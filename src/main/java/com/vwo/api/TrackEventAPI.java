@@ -83,7 +83,6 @@ public class TrackEventAPI {
     ) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
-                settings,
                 eventName,
                 encodeURIComponent(context.getUserAgent()),
                 context.getIpAddress()

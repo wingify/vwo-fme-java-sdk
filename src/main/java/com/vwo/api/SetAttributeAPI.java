@@ -52,7 +52,6 @@ public class SetAttributeAPI {
     ) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
-                settings,
                 EventEnum.VWO_SYNC_VISITOR_PROP.getValue(),
                 encodeURIComponent(context.getUserAgent()),
                 context.getIpAddress()

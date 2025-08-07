@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2025-08-04
+
+### Added
+
+- Added support for sending a one-time initialization event to the server to verify correct SDK setup.
+
 ## [1.9.2] - 2025-07-24
 
 ### Added
