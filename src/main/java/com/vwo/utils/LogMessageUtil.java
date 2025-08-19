@@ -18,10 +18,18 @@ package com.vwo.utils;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.HashSet;
+import java.util.Set;
+
+import com.vwo.constants.Constants;
+import com.vwo.enums.EventEnum;
 
 public class LogMessageUtil {
 
     private static final Pattern NARGS = Pattern.compile("\\{([0-9a-zA-Z_]+)\\}");
+
+    // create a map to store unique log messages
+    private static Set<String> errorLogMessages = new HashSet<>();
 
     /**
      * Constructs a message by replacing placeholders in a template with corresponding values from a data object.
@@ -50,6 +58,31 @@ public class LogMessageUtil {
         } catch (Exception e) {
             // Return the original template in case of an error
             return template;
+        }
+    }
+
+    /**
+     * Sends a log message to VWO.
+     * @param message The message to send.
+     * @param messageType The type of message to send.
+     */
+    public static void sendLogToVWO(String message, String messageType) {
+        String messageToSend = message + "-" + Constants.SDK_NAME + "-" + Constants.SDK_VERSION;
+
+        if(!errorLogMessages.contains(messageToSend)) {
+            errorLogMessages.add(messageToSend);
+
+            // create query parameters
+            Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
+                EventEnum.VWO_ERROR.getValue(),
+                null,
+                null
+            );
+            // create payload
+            Map<String, Object> payload = NetworkUtil.getLogToVWOEventPayload(messageType, message, EventEnum.VWO_ERROR.getValue());
+
+            // send the event
+            NetworkUtil.sendEvent(properties, payload, EventEnum.VWO_ERROR.getValue());
         }
     }
 }

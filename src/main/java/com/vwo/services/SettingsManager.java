@@ -105,6 +105,8 @@ public class SettingsManager {
             LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                 {
                     put("err", e.toString());
+                    put("accountId", accountId.toString());
+                    put("sdkKey", sdkKey);
                 }
             });
         }
@@ -147,6 +149,8 @@ public class SettingsManager {
                 LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                     {
                         put("err", response.getError().toString());
+                        put("accountId", accountId.toString());
+                        put("sdkKey", sdkKey);
                     }
                 });
                 return null;
@@ -157,6 +161,8 @@ public class SettingsManager {
             LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                 {
                     put("err", e.toString());
+                    put("accountId", accountId.toString());
+                    put("sdkKey", sdkKey);
                 }
             });
             return null;
@@ -175,18 +181,34 @@ public class SettingsManager {
             try {
                 String settings = fetchSettingsAndCacheInStorage();
                 if (settings == null) {
-                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null);
+                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                        put("errors", "Settings is null");
+                        put("accountId", accountId.toString());
+                        put("sdkKey", sdkKey);
+                        put("settings", "null");
+                    }});
                     return null;
                 }
-                boolean settingsValid = new SettingsSchema().isSettingsValid(VWOClient.objectMapper.readValue(settings, Settings.class));
-                if (settingsValid) {
+                SettingsSchema validationResult = new SettingsSchema().validateSettings(VWOClient.objectMapper.readValue(settings, Settings.class));
+                if (validationResult.isValid()) {
                     this.isSettingsValidOnInit = true;
                     return settings;
                 } else {
-                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null);
-                    return null;
+                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                        put("errors", validationResult.getErrorsAsString());
+                        put("accountId", accountId.toString());
+                        put("sdkKey", sdkKey);
+                        put("settings", settings);
+                    }});
+                    return settings;
                 }
             } catch (Exception e) {
+                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                    put("errors", "Exception during validation: " + e.getMessage());
+                    put("accountId", accountId.toString());
+                    put("sdkKey", sdkKey);
+                    put("settings", "null");
+                }});
                 return null;
             }
         }

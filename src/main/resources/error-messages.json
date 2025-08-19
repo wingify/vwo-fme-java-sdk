@@ -6,8 +6,8 @@
 
   "INIT_OPTIONS_INVALID": "Invalid {key} passed in options. Should be of type: {correctType} and greater than equal to 1000",
 
-  "SETTINGS_FETCH_ERROR": "Settings could not be fetched. Error: {err}",
-  "SETTINGS_SCHEMA_INVALID": "Settings are not valid. Failed schema validation",
+  "SETTINGS_FETCH_ERROR": "Settings could not be fetched for account ID: {accountId} and SDK key: {sdkKey}. Error: {err}",
+  "SETTINGS_SCHEMA_INVALID": "Settings are not valid for account ID: {accountId} and SDK key: {sdkKey}. Got settings as {settings} and errors: {errors}",
 
   "POLLING_FETCH_SETTINGS_FAILED": "Error while fetching VWO settings with polling",
 
