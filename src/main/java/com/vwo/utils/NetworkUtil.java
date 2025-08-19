@@ -142,7 +142,7 @@ public class NetworkUtil {
     private static Props createProps() {
         Props props = new Props();
         props.setSdkName(Constants.SDK_NAME);
-        props.setSdkVersion(SDKMetaUtil.getSdkVersion());
+        props.setSdkVersion(Constants.SDK_VERSION);
         props.setEnvKey(SettingsManager.getInstance().sdkKey);
         return props;
     }
@@ -246,6 +246,39 @@ public class NetworkUtil {
                 put("userId", userId);
             }
         });
+        Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
+        return removeNullValues(payload);
+    }
+
+    /**
+     * Returns the payload data for the attribute API.
+     * @param settings  The settings model containing configuration.
+     * @param userId  The ID of the user.
+     * @param eventName The name of the event.
+     * @param attributeMap - Map of attribute key and value to be set
+     * @return
+     */
+    public static Map<String, Object> getLogToVWOEventPayload(String messageType, String message, String eventName) {
+        String userId = SettingsManager.getInstance().accountId + "_" + SettingsManager.getInstance().sdkKey;
+        EventArchPayload properties = getEventBasePayload(null, userId, eventName, null, null);
+
+        // set product to FME
+        properties.getD().getEvent().getProps().setProduct(Constants.FME);
+
+        // set data object to send log messages to VWO server
+        Map<String, Object> data = new HashMap<>();
+        // set type of the log message
+        data.put("type", messageType);
+
+        // set content of the log message
+        Map<String, Object> content = new HashMap<>();
+        content.put("title", message);
+        content.put("dateTime", Calendar.getInstance().getTimeInMillis());
+        // set content of the log message
+        data.put("content", content);
+
+        // set data object to send log messages to VWO server
+        properties.getD().getEvent().getProps().setData(data);
         Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
         return removeNullValues(payload);
     }

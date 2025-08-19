@@ -20,6 +20,7 @@ import com.vwo.interfaces.logger.LogTransport;
 import com.vwo.packages.logger.Logger;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.logger.transports.ConsoleTransport;
+import com.vwo.utils.LogMessageUtil;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -146,5 +147,6 @@ public class LogManager extends Logger implements ILogManager {
   @Override
   public void error(String message) {
     transportManager.error(message);
+    LogMessageUtil.sendLogToVWO(message, LogLevelEnum.ERROR.name());
   }
 }

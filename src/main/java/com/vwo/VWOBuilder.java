@@ -125,6 +125,8 @@ public class VWOBuilder {
             LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                 {
                     put("err", e.toString());
+                    put("accountId", options.getAccountId().toString());
+                    put("sdkKey", options.getSdkKey());
                 }
             });
             // Clear the flag to indicate that the fetch operation is complete
@@ -277,12 +279,14 @@ public class VWOBuilder {
                     JsonNode latestSettingJsonNode = VWOClient.objectMapper.readTree(latestSettings);
                     JsonNode originalSettingsJsonNode = VWOClient.objectMapper.readTree(originalSettings);
                     if (!latestSettingJsonNode.equals(originalSettingsJsonNode)) {
-                        originalSettings = latestSettings;
                         LoggerService.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null);
                         // Update VWOClient settings
                         if (vwoClient != null) {
-                            vwoClient.updateSettings(originalSettings);
-                            updatePollIntervalAndCheckAndPoll(latestSettings, false);
+                            String updatedSettings = vwoClient.updateSettings(latestSettings);
+                            if (updatedSettings != null) {
+                                originalSettings = latestSettings;
+                                updatePollIntervalAndCheckAndPoll(originalSettings, false);
+                            }
                         }
                     } else {
                         LoggerService.log(LogLevelEnum.INFO, "POLLING_NO_CHANGE_IN_SETTINGS", null);

@@ -30,7 +30,6 @@ import com.vwo.services.HooksManager;
 import com.vwo.services.LoggerService;
 import com.vwo.services.UrlService;
 import com.vwo.utils.DataTypeUtil;
-import com.vwo.utils.SDKMetaUtil;
 import com.vwo.utils.SettingsUtil;
 import com.vwo.services.BatchEventQueue;
 import com.vwo.services.SettingsManager;
@@ -60,8 +59,6 @@ public class VWOClient {
             SettingsUtil.processSettings(this.processedSettings);
             // init url version with collection prefix
             UrlService.init(this.processedSettings.getCollectionPrefix());
-            // init SDKMetaUtil and set sdkVersion
-            SDKMetaUtil.init();
             LoggerService.log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null);
         } catch (Exception exception) {
            LoggerService.log(LogLevelEnum.ERROR, "exception occurred while parsing settings " + exception.getMessage());
@@ -101,8 +98,7 @@ public class VWOClient {
                 throw new IllegalArgumentException("Feature Key is required");
             }
 
-            if (this.processedSettings == null || !new SettingsSchema().isSettingsValid(this.processedSettings)) {
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null);
+            if (!validateSettings(this.processedSettings)) {
                 getFlag.setIsEnabled(false);
                 return getFlag;
             }
@@ -111,7 +107,7 @@ public class VWOClient {
         } catch (Exception exception) {
             LoggerService.log(LogLevelEnum.ERROR, "API_THROW_ERROR", new HashMap<String, String>() {{
                 put("apiName", "getFlag");
-                put("err", exception.toString());
+                put("err", exception.getMessage());
             }});
             getFlag.setIsEnabled(false);
             return getFlag;
@@ -147,8 +143,7 @@ public class VWOClient {
                 throw new IllegalArgumentException("User ID is required");
             }
 
-            if (this.processedSettings == null || !new SettingsSchema().isSettingsValid(this.processedSettings)) {
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null);
+            if (!validateSettings(this.processedSettings)) {
                 resultMap.put(eventName, false);
                 return resultMap;
             }
@@ -163,7 +158,7 @@ public class VWOClient {
         } catch (Exception exception) {
             LoggerService.log(LogLevelEnum.ERROR, "API_THROW_ERROR", new HashMap<String, String>() {{
                 put("apiName", apiName);
-                put("err", exception.toString());
+                put("err", exception.getMessage());
             }});
             resultMap.put(eventName, false);
             return resultMap;
@@ -228,8 +223,7 @@ public class VWOClient {
                 throw new IllegalArgumentException("User ID is required");
             }
 
-            if (this.processedSettings == null || !new SettingsSchema().isSettingsValid(this.processedSettings)) {
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", null);
+            if (!validateSettings(this.processedSettings)) {
                 return;
             }
 
@@ -237,7 +231,7 @@ public class VWOClient {
         } catch (Exception exception) {
             LoggerService.log(LogLevelEnum.ERROR, "API_THROW_ERROR", new HashMap<String, String>() {{
                 put("apiName", apiName);
-                put("err", exception.toString());
+                put("err", exception.getMessage());
             }});
         }
     }
@@ -287,15 +281,16 @@ public class VWOClient {
                 throw new IllegalArgumentException("Settings cannot be empty");
             }
             // Read the new settings and update the processedSettings
-            this.processedSettings = objectMapper.readValue(newSettings, Settings.class);
-
+            Settings newProcessedSettings = objectMapper.readValue(newSettings, Settings.class);
             // Check if the new settings are valid
-            boolean settingsValid = new SettingsSchema().isSettingsValid(this.processedSettings);
-            if (settingsValid) {
+            SettingsSchema validationResult = new SettingsSchema().validateSettings(newProcessedSettings);
+            if (validationResult.isValid()) {
+                this.processedSettings = newProcessedSettings;
+                settings = newSettings;
                 // Process the new settings and update the client instance
                 SettingsUtil.processSettings(this.processedSettings);
             } else {
-                throw new IllegalStateException("Settings schema is invalid");
+                throw new IllegalStateException("Settings schema is invalid: " + validationResult.getErrorsAsString());
             }
         } catch (Exception exception) {
             throw new IllegalStateException(exception.getMessage());
@@ -314,6 +309,7 @@ public class VWOClient {
      * @param settings New settings to be updated
      */
     public String updateSettings(String settings) {
+        Boolean isViaWebhook = false;
         String apiName = "updateSettings";
         try {
             LoggerService.log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
@@ -322,7 +318,8 @@ public class VWOClient {
 
             String settingsToUpdate = settings;
             if (settings == null || settings.isEmpty()) {
-                settingsToUpdate = this.updateSettings(true);
+                isViaWebhook = true;
+                settingsToUpdate = this.updateSettings(isViaWebhook);
             }
             // Update the settings on the VWOClient instance
             this.updateSettingsOnVWOClient(settingsToUpdate);
@@ -331,9 +328,11 @@ public class VWOClient {
             }});
             return settingsToUpdate;
         } catch (Exception exception) {
+            Boolean finalIsViaWebhook = isViaWebhook;
             LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_FAILED", new HashMap<String, String>() {{
                 put("apiName", apiName);
-                put("err", exception.toString());
+                put("err", exception.getMessage());
+                put("isViaWebhook", finalIsViaWebhook.toString());
             }});
             return null;
         }
@@ -353,9 +352,48 @@ public class VWOClient {
             LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_FAILED", new HashMap<String, String>() {{
                 put("apiName", apiName);
                 put("isViaWebhook", isViaWebhook.toString());
-                put("err", exception.toString());
+                put("err", exception.getMessage());
             }});
             return null;
         }
     }
-}
+
+
+    /**
+     * This method is used to validate the settings
+     * @param settings Settings to be validated
+     * @return Boolean value indicating if the settings are valid
+     */
+    private Boolean validateSettings(Settings processedSettings) {
+        try {
+            if (processedSettings == null) {
+                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                    put("errors", "Settings object is null");
+                    put("accountId", options.getAccountId().toString());
+                    put("sdkKey", options.getSdkKey());
+                    put("settings", "null");
+                }});
+                return false;
+            }
+            SettingsSchema validationResult = new SettingsSchema().validateSettings(processedSettings);
+            if (!validationResult.isValid()) {
+                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                    put("errors", validationResult.getErrorsAsString());
+                    put("accountId", options.getAccountId().toString());
+                    put("sdkKey", options.getSdkKey());
+                    put("settings", settings);
+                }});
+                return false;
+            }
+            return true;
+        } catch (Exception exception) {
+            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                put("errors", exception.getMessage());
+                put("accountId", options.getAccountId().toString());
+                put("sdkKey", options.getSdkKey());
+                put("settings", settings);
+            }});
+            return false;
+        }
+    }
+}   
