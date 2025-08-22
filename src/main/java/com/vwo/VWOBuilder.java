@@ -270,11 +270,12 @@ public class VWOBuilder {
      * Checks and polls for settings updates at the provided interval.
      */
     private void checkAndPoll() {
+        String latestSettings = null;
         while (true) {
             try {
                 // Sleep for the polling interval
                 Thread.sleep(this.options.getPollInterval());
-                String latestSettings = getSettings(true);
+                latestSettings = getSettings(true);
                 if (originalSettings != null && latestSettings != null) {
                     JsonNode latestSettingJsonNode = VWOClient.objectMapper.readTree(latestSettings);
                     JsonNode originalSettingsJsonNode = VWOClient.objectMapper.readTree(originalSettings);
@@ -297,7 +298,7 @@ public class VWOBuilder {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                LoggerService.log(LogLevelEnum.ERROR, "Error is " + e);
+                LoggerService.log(LogLevelEnum.ERROR, "Error occurred while polling for settings, Error: " + e.getMessage() + " originalSettings: " + originalSettings + " latestSettings: " + latestSettings);
             }
         }
     }
