@@ -30,9 +30,15 @@ public class LoggerService {
     public static Map<String, String> infoMessages;
     public static Map<String, String> warningMessages;
     public static Map<String, String> traceMessages;
+    private LogManager logManager;
 
-    public static void log(LogLevelEnum level, String key, Map<String, String> map) {
-        LogManager logManager = LogManager.getInstance();
+    /**
+     * Logs a message to the log manager
+     * @param level The level of the message
+     * @param key The key of the message
+     * @param map The map of the message
+     */
+    public void log(LogLevelEnum level, String key, Map<String, String> map) {
         switch (level) {
             case DEBUG:
                 logManager.debug(buildMessage(debugMessages.get(key), map));
@@ -51,8 +57,12 @@ public class LoggerService {
         }
     }
 
-    public static void log(LogLevelEnum level, String message) {
-        LogManager logManager = LogManager.getInstance();
+    /**
+     * Logs a message to the log manager
+     * @param level The level of the message
+     * @param message The message to log
+     */
+    public void log(LogLevelEnum level, String message) {
         switch (level) {
             case DEBUG:
                 logManager.debug(message);
@@ -71,9 +81,13 @@ public class LoggerService {
         }
     }
 
+    /**
+     * Constructor for the LoggerService
+     * @param config The configuration for the logger
+     */
     public LoggerService(Map<String, Object> config) {
         // initialize the LogManager
-        new LogManager(config);
+        logManager = new LogManager(config);
 
         // read the log files
         debugMessages = readLogFiles("debug-messages.json");
@@ -81,6 +95,14 @@ public class LoggerService {
         errorMessages = readLogFiles("error-messages.json");
         warningMessages = readLogFiles("warn-messages.json");
         traceMessages = readLogFiles("trace-messages.json");
+    }
+
+    /**
+     * Gets the log manager
+     * @return The log manager
+     */
+    public LogManager getLogManager() {
+        return logManager;
     }
 
     /**

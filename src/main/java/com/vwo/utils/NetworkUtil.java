@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vwo.VWOClient;
 import com.vwo.constants.Constants;
 import com.vwo.enums.HeadersEnum;
@@ -38,9 +37,9 @@ import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 import com.vwo.packages.network_layer.models.RequestModel;
-import com.vwo.services.LoggerService;
+import com.vwo.packages.network_layer.models.ResponseModel;
+import com.vwo.ServiceContainer;
 import com.vwo.services.SettingsManager;
-import com.vwo.services.UrlService;
 
 import com.vwo.enums.EventEnum;
 
@@ -59,44 +58,44 @@ public class NetworkUtil {
 
     /**
      * Creates the base properties for the event arch APIs.
+     * @param settingsManager The settings manager containing configuration.
      * @param eventName  The name of the event.
      * @param visitorUserAgent  The user agent of the user.
      * @param ipAddress  The IP address of the user.
      * @return
      */
-    public static Map<String, String> getEventsBaseProperties(String eventName, String visitorUserAgent, String ipAddress) {
+    public static Map<String, String> getEventsBaseProperties(SettingsManager settingsManager, String eventName, String visitorUserAgent, String ipAddress) {
         RequestQueryParams requestQueryParams = new RequestQueryParams(
             eventName,
-            SettingsManager.getInstance().accountId.toString(),
-            SettingsManager.getInstance().sdkKey,
+            settingsManager.accountId.toString(),
+            settingsManager.sdkKey,
             visitorUserAgent,
-            ipAddress,
-            generateEventUrl()
+            ipAddress
         );
         return requestQueryParams.getQueryParams();
     }
 
     /**
      * Creates the base payload for the event arch APIs.
-     * @param settings The settings model containing configuration.
+     * @param settingsManager The settings manager containing configuration.
      * @param userId  The ID of the user.
      * @param eventName The name of the event.
      * @param visitorUserAgent The user agent of the user.
      * @param ipAddress The IP address of the user.
      * @return
      */
-    public static EventArchPayload getEventBasePayload(Settings settings, String userId, String eventName, String visitorUserAgent, String ipAddress) {
-        String uuid = UUIDUtils.getUUID(userId, SettingsManager.getInstance().accountId.toString());
+    public static EventArchPayload getEventBasePayload(SettingsManager settingsManager, String userId, String eventName, String visitorUserAgent, String ipAddress) {
+        String uuid = UUIDUtils.getUUID(userId, settingsManager.accountId.toString());
         EventArchData eventArchData = new EventArchData();
         eventArchData.setMsgId(generateMsgId(uuid));
         eventArchData.setVisId(uuid);
         eventArchData.setSessionId(generateSessionId());
         setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress);
 
-        Event event = createEvent(eventName);
+        Event event = createEvent(settingsManager.sdkKey, eventName);
         eventArchData.setEvent(event);
 
-        Visitor visitor = createVisitor();
+        Visitor visitor = createVisitor(settingsManager.sdkKey);
         eventArchData.setVisitor(visitor);
 
         EventArchPayload eventArchPayload = new EventArchPayload();
@@ -122,12 +121,13 @@ public class NetworkUtil {
 
     /**
      * Creates the event model for the event arch APIs.
+     * @param sdkKey The SDK key.
      * @param eventName The name of the event.
      * @return The event model.
      */
-    private static Event createEvent(String eventName) {
+    private static Event createEvent(String sdkKey, String eventName) {
         Event event = new Event();
-        Props props = createProps();
+        Props props = createProps(sdkKey);
         event.setProps(props);
         event.setName(eventName);
         event.setTime(Calendar.getInstance().getTimeInMillis());
@@ -136,33 +136,33 @@ public class NetworkUtil {
 
     /**
      * Creates the visitor model for the event arch APIs.
-     * @param settings The settings model containing configuration.
+     * @param sdkKey The SDK key.
      * @return The visitor model.
      */
-    private static Props createProps() {
+    private static Props createProps(String sdkKey) {
         Props props = new Props();
         props.setSdkName(Constants.SDK_NAME);
         props.setSdkVersion(Constants.SDK_VERSION);
-        props.setEnvKey(SettingsManager.getInstance().sdkKey);
+        props.setEnvKey(sdkKey);
         return props;
     }
 
     /**
      * Creates the visitor model for the event arch APIs.
-     * @param settings The settings model containing configuration.
+     * @param sdkKey The SDK key.
      * @return The visitor model.
      */
-    private static Visitor createVisitor() {
+    private static Visitor createVisitor(String sdkKey) {
         Visitor visitor = new Visitor();
         Map<String, Object> visitorProps = new HashMap<>();
-        visitorProps.put(Constants.VWO_FS_ENVIRONMENT, SettingsManager.getInstance().sdkKey);
+        visitorProps.put(Constants.VWO_FS_ENVIRONMENT, sdkKey);
         visitor.setProps(visitorProps);
         return visitor;
     }
 
     /**
      * Returns the payload data for the track user API.
-     * @param settings  The settings model containing configuration.
+     * @param serviceContainer  The service container containing configuration.
      * @param userId  The ID of the user.
      * @param eventName  The name of the event.
      * @param campaignId The ID of the campaign.
@@ -171,8 +171,8 @@ public class NetworkUtil {
      * @param ipAddress  The IP address of the user.
      * @return
      */
-    public static Map<String, Object> getTrackUserPayloadData(Settings settings, String userId, String eventName, Integer campaignId, Integer variationId, String visitorUserAgent, String ipAddress) {
-        EventArchPayload properties = getEventBasePayload(settings, userId, eventName, visitorUserAgent, ipAddress);
+    public static Map<String, Object> getTrackUserPayloadData(ServiceContainer serviceContainer, String userId, String eventName, Integer campaignId, Integer variationId, String visitorUserAgent, String ipAddress) {
+        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, visitorUserAgent, ipAddress);
         properties.getD().getEvent().getProps().setId(campaignId);
         properties.getD().getEvent().getProps().setVariation(variationId.toString());
         properties.getD().getEvent().getProps().setIsFirst(1);
@@ -181,9 +181,9 @@ public class NetworkUtil {
             properties.getD().getEvent().getProps().setVwoMeta(UsageStatsUtil.getInstance().getUsageStats());
         }
 
-        LoggerService.log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_USER", new HashMap<String, String>() {
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_USER", new HashMap<String, String>() {
             {
-                put("accountId", settings.getAccountId().toString());
+                put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                 put("userId", userId);
                 put("campaignId", campaignId.toString());
             }
@@ -194,21 +194,21 @@ public class NetworkUtil {
 
     /**
      * Returns the payload data for the goal API.
-     * @param settings  The settings model containing configuration.
+     * @param serviceContainer  The service container containing configuration.
      * @param userId  The ID of the user.
      * @param eventName  The name of the event.
      * @param context  The user context model containing user-specific data.
      * @param eventProperties event properties for the event
      * @return  Map containing the payload data.
      */
-    public static Map<String, Object> getTrackGoalPayloadData(Settings settings, String userId, String eventName, VWOContext context, Map<String, ?> eventProperties) {
-        EventArchPayload properties = getEventBasePayload(settings, userId, eventName, context.getUserAgent(), context.getIpAddress());
+    public static Map<String, Object> getTrackGoalPayloadData(ServiceContainer serviceContainer, String userId, String eventName, VWOContext context, Map<String, ?> eventProperties) {
+        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, context.getUserAgent(), context.getIpAddress());
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
         addCustomEventProperties(properties, (Map<String, Object>) eventProperties);
-        LoggerService.log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_GOAL", new HashMap<String, String>() {
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_GOAL", new HashMap<String, String>() {
             {
                 put("eventName", eventName);
-                put("accountId", settings.getAccountId().toString());
+                put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                 put("userId", userId);
             }
         });
@@ -229,20 +229,20 @@ public class NetworkUtil {
 
     /**
      * Returns the payload data for the attribute API.
-     * @param settings  The settings model containing configuration.
+     * @param serviceContainer  The service container containing configuration.
      * @param userId  The ID of the user.
      * @param eventName The name of the event.
      * @param attributeMap - Map of attribute key and value to be set
      * @return
      */
-    public static Map<String, Object> getAttributePayloadData(Settings settings, String userId, String eventName, Map<String, Object> attributeMap) {
-        EventArchPayload properties = getEventBasePayload(settings, userId, eventName, null, null);
+    public static Map<String, Object> getAttributePayloadData(ServiceContainer serviceContainer, String userId, String eventName, Map<String, Object> attributeMap) {
+        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, null, null);
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
         properties.getD().getVisitor().getProps().putAll(attributeMap);
-        LoggerService.log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_SYNC_VISITOR_PROP", new HashMap<String, String>() {
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_SYNC_VISITOR_PROP", new HashMap<String, String>() {
             {
                 put("eventName", eventName);
-                put("accountId", settings.getAccountId().toString());
+                put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                 put("userId", userId);
             }
         });
@@ -257,9 +257,9 @@ public class NetworkUtil {
      * @param eventName The name of the event.
      * @return Map containing the event payload data
      */
-    public static Map<String, Object> getLogToVWOEventPayload(String messageType, String message, String eventName) {
-        String userId = SettingsManager.getInstance().accountId + "_" + SettingsManager.getInstance().sdkKey;
-        EventArchPayload properties = getEventBasePayload(null, userId, eventName, null, null);
+    public static Map<String, Object> getLogToVWOEventPayload(SettingsManager settingsManager, String messageType, String message, String eventName) {
+        String userId = settingsManager.accountId.toString() + "_" + settingsManager.sdkKey;
+        EventArchPayload properties = getEventBasePayload(settingsManager, userId, eventName, null, null);
 
         // set product to FME
         properties.getD().getEvent().getProps().setProduct(Constants.FME);
@@ -289,14 +289,40 @@ public class NetworkUtil {
      * @param userAgent The user agent of the user.
      * @param ipAddress The IP address of the user.
      */
-    public static void sendPostApiRequest(Map<String, String> properties, Map<String, Object> payload, String userAgent, String ipAddress) {
+    public static void sendPostApiRequest(ServiceContainer serviceContainer, Map<String, String> properties, Map<String, Object> payload, String userAgent, String ipAddress) {
         try {
             NetworkManager.getInstance().attachClient();
+            String eventName = properties.get("en");
             Map<String, String> headers = createHeaders(userAgent, ipAddress);
-            RequestModel request = new RequestModel(UrlService.getBaseUrl(), "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, SettingsManager.getInstance().protocol, SettingsManager.getInstance().port);
-            NetworkManager.getInstance().postAsync(request, null, false);
+            RequestModel request = new RequestModel(serviceContainer.getBaseUrl(), "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, serviceContainer.getSettingsManager().protocol, serviceContainer.getSettingsManager().port);
+            NetworkManager.getInstance().getExecutorService().submit(() -> {
+                try {
+                    ResponseModel response = NetworkManager.getInstance().post(request, null);
+                    if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                        UsageStatsUtil.getInstance().clearUsageStats();
+                    } else {
+                        serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, String>() {
+                            {
+                                put("event", eventName);
+                                put("endPoint", UrlEnum.EVENTS.getUrl());
+                                put("accountId", serviceContainer.getSettingsManager().accountId.toString());
+                                put("err", response.getError().getMessage());
+                            }
+                        });
+                    }   
+                } catch (Exception exception) {
+                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, String>() {
+                        {
+                            put("event", eventName);
+                            put("endPoint", UrlEnum.EVENTS.getUrl());
+                            put("accountId", serviceContainer.getSettingsManager().accountId.toString());
+                            put("err", exception.getMessage());
+                        }
+                    });
+                }
+            });
         } catch (Exception exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_FAILED", new HashMap<String, String>() {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_FAILED", new HashMap<String, String>() {
                 {
                     put("method", "POST");
                     put("err", exception.toString());
@@ -312,70 +338,83 @@ public class NetworkUtil {
      * @param accountId The account ID to associate with the request, used as a query parameter.
      * @param sdkKey    The API key to authenticate the request in the headers.
      */
-    public static Boolean sendPostBatchRequest(Object payload, int accountId, String sdkKey, FlushInterface flushCallback) {
-        try {
-            // Create the batch payload
-            Map<String, Object> batchPayload = new HashMap<>();
-            batchPayload.put("ev", payload);
-    
-            // Create the query parameters
-            Map<String, String> query = new HashMap<>();
-            query.put("a", String.valueOf(accountId));
-            query.put("env", sdkKey);
-    
-            // Create the request model
-            RequestModel requestModel = new RequestModel(
-                    UrlService.getBaseUrl(),
-                    "POST",
-                    UrlEnum.BATCH_EVENTS.getUrl(),
-                    query,
-                    batchPayload,
-                    new HashMap<String, String>() {{
-                        put("Authorization", sdkKey);
-                        put("Content-Type", "application/json");
-                    }},
-                    SettingsManager.getInstance().protocol,
-                    SettingsManager.getInstance().port
-            );
+    public static Boolean sendPostBatchRequest(Settings settings, Object payload, int accountId, String sdkKey, FlushInterface flushCallback) {
+        // Create the batch payload
+        Map<String, Object> batchPayload = new HashMap<>();
+        batchPayload.put("ev", payload);
 
-            // Send the request asynchronously
-            NetworkManager.getInstance().postAsync(requestModel, flushCallback, true);  // Return the result of postAsync 
-            return true;
-        } catch (Exception ex) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error occurred while sending batch events: " + ex.getMessage());
-            throw new RuntimeException(ex);  // Re-throw the exception for higher-level handling if needed
+        // Create the query parameters
+        Map<String, String> query = new HashMap<>();
+        query.put("a", String.valueOf(accountId));
+        query.put("env", sdkKey);
+
+        String url = Constants.HOST_NAME;
+        if (settings.getCollectionPrefix() != null && !settings.getCollectionPrefix().isEmpty()) {
+            url = url + "/" + settings.getCollectionPrefix();
         }
+
+        // Create the request model
+        RequestModel requestModel = new RequestModel(
+                url,
+                "POST",
+                UrlEnum.BATCH_EVENTS.getUrl(),
+                query,
+                batchPayload,
+                new HashMap<String, String>() {{
+                    put("Authorization", sdkKey);
+                    put("Content-Type", "application/json");
+                }},
+                Constants.HTTPS_PROTOCOL,
+                0
+        );
+
+        // Send the request asynchronously
+        NetworkManager.getInstance().post(requestModel, flushCallback);  // Return the result of postAsync 
+        return true;
     }    
 
     /**
      * Sends a messaging event to the VWO server.
+     * @param settingsManager The settings manager containing configuration.
      * @param properties The properties required for the request.
      * @param payload The payload data for the request.
      */
-    public static void sendEvent(Map<String, String> properties, Map<String, Object> payload, String eventName) {
-        try {
-            NetworkManager.getInstance().attachClient();
-            Map<String, String> headers = createHeaders(null, null);
-
-            String url = UrlService.getBaseUrl();
-            String protocol = SettingsManager.getInstance().protocol;
-            int port = SettingsManager.getInstance().port;
-            if(eventName.equals(EventEnum.VWO_ERROR.getValue())) {
-                url = Constants.HOST_NAME;
-                protocol = Constants.HTTPS_PROTOCOL;
-                port = 0;
-            }
-            
-            RequestModel request = new RequestModel(url, "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, protocol, port);
-            NetworkManager.getInstance().postAsync(request, null, false);
-        } catch (Exception exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_FAILED", new HashMap<String, String>() {
-                {
-                    put("method", "POST");
-                    put("err", exception.toString());
+    public static void sendEventDirectlyToDacdn(SettingsManager settingsManager, Map<String, String> properties, Map<String, Object> payload, String eventName) {
+        NetworkManager.getInstance().attachClient();
+        Map<String, String> headers = createHeaders(null, null);
+        
+        RequestModel request = new RequestModel(Constants.HOST_NAME, "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, Constants.HTTPS_PROTOCOL, 0);
+        
+        NetworkManager.getInstance().getExecutorService().submit(() -> {
+            try {
+                ResponseModel response = NetworkManager.getInstance().post(request, null);
+                if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                    UsageStatsUtil.getInstance().clearUsageStats();
+                } else {
+                    if (!eventName.equals(EventEnum.VWO_ERROR.getValue())) {
+                        settingsManager.loggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, String>() {
+                            {
+                                put("event", eventName);
+                                put("endPoint", UrlEnum.EVENTS.getUrl());
+                                put("accountId", settingsManager.accountId.toString());
+                                put("err", response.getError().getMessage());
+                            }
+                        });
+                    }
                 }
-            });
-        }
+            } catch (Exception exception) {
+                if (!eventName.equals(EventEnum.VWO_ERROR.getValue())) {
+                    settingsManager.loggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, String>() {
+                        {
+                            put("event", eventName);
+                        put("endPoint", UrlEnum.EVENTS.getUrl());
+                        put("accountId", settingsManager.accountId.toString());
+                        put("err", exception.getMessage());
+                        }
+                    });
+                }
+            }
+        });
     }
 
     /**
@@ -406,14 +445,6 @@ public class NetworkUtil {
      */
     private static String generateRandom() {
         return Double.toString(Math.random());
-    }
-
-    /**
-     * Generates the URL for the event.
-     * @return The URL for the event.
-     */
-    private static String generateEventUrl() {
-        return Constants.HTTPS_PROTOCOL + UrlService.getBaseUrl() + UrlEnum.EVENTS.getUrl();
     }
 
     /**
@@ -448,18 +479,18 @@ public class NetworkUtil {
 
     /**
      * Constructs the payload for SDK init called event.
-     * 
+     * @param settingsManager The settings manager containing configuration.
      * @param eventName The name of the event.
      * @param settingsFetchTime Time taken to fetch settings in milliseconds (can be null).
      * @param sdkInitTime Time taken to initialize the SDK in milliseconds (can be null).
      * @return The constructed payload with required fields.
      */
-    public static Map<String, Object> getSdkInitEventPayload(String eventName, Long settingsFetchTime, Long sdkInitTime) {
+    public static Map<String, Object> getSdkInitEventPayload(SettingsManager settingsManager, String eventName, Long settingsFetchTime, Long sdkInitTime) {
         // Get settings and create user ID
-        String userId = SettingsManager.getInstance().accountId + "_" + SettingsManager.getInstance().sdkKey;
-        EventArchPayload properties = getEventBasePayload(null, userId, eventName, null, null);
+        String userId = settingsManager.accountId.toString() + "_" + settingsManager.sdkKey;
+        EventArchPayload properties = getEventBasePayload(settingsManager, userId, eventName, null, null);
         // Set the required fields as specified
-        properties.getD().getEvent().getProps().setEnvKey(SettingsManager.getInstance().sdkKey);
+        properties.getD().getEvent().getProps().setEnvKey(settingsManager.sdkKey);
         properties.getD().getEvent().getProps().setProduct(Constants.FME);
         
         // Create data object

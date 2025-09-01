@@ -19,12 +19,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.vwo.VWOClient;
 import com.vwo.decorators.StorageDecorator;
 import com.vwo.models.Feature;
-import com.vwo.models.Settings;
 import com.vwo.models.Storage;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperatorValueEnum;
-import com.vwo.services.LoggerService;
+import com.vwo.ServiceContainer;
 import com.vwo.services.StorageService;
 
 import java.util.*;
@@ -32,8 +31,9 @@ import static com.vwo.packages.segmentation_evaluator.utils.SegmentUtil.*;
 
 public class SegmentEvaluator {
     public VWOContext context;
-    public Settings settings;
+    public ServiceContainer serviceContainer;
     public Feature feature;
+    public SegmentOperandEvaluator segmentOperandEvaluator;
 
     /**
      * Validates if the segmentation defined in the DSL is applicable based on the provided properties.
@@ -58,11 +58,11 @@ public class SegmentEvaluator {
             case OR:
                 return some(subDsl, properties);
             case CUSTOM_VARIABLE:
-                return new SegmentOperandEvaluator().evaluateCustomVariableDSL(subDsl, properties);
+                return segmentOperandEvaluator.evaluateCustomVariableDSL(subDsl, properties);
             case USER:
-                return new SegmentOperandEvaluator().evaluateUserDSL(subDsl.toString(), properties);
+                return segmentOperandEvaluator.evaluateUserDSL(subDsl.toString(), properties);
             case UA:
-                return new SegmentOperandEvaluator().evaluateUserAgentDSL(subDsl.toString(), context);
+                return segmentOperandEvaluator.evaluateUserAgentDSL(subDsl.toString(), context);
             default:
                 return false;
         }
@@ -119,7 +119,7 @@ public class SegmentEvaluator {
                         String featureIdValue = featureIdObject.get(featureIdKey).asText();
 
                         if (featureIdValue.equals("on") || featureIdValue.equals("off")) {
-                            List<Feature> features = settings.getFeatures();
+                            List<Feature> features = serviceContainer.getSettings().getFeatures();
                             Feature feature = features.stream()
                                     .filter(f -> f.getId() == Integer.parseInt(featureIdKey))
                                     .findFirst()
@@ -127,13 +127,13 @@ public class SegmentEvaluator {
 
                             if (feature != null) {
                                 String featureKey = feature.getKey();
-                                boolean result = checkInUserStorage(settings, featureKey, context);
+                                boolean result = checkInUserStorage(featureKey, context);
                                 if (featureIdValue.equals("off")) {
                                     return !result;
                                 }
                                 return result;
                             } else {
-                                LoggerService.log(LogLevelEnum.DEBUG, "Feature not found with featureIdKey: " + featureIdKey);
+                                serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "Feature not found with featureIdKey: " + featureIdKey);
                                 return false; // Handle the case when feature is not found
                             }
                         }
@@ -147,7 +147,7 @@ public class SegmentEvaluator {
                     boolean uaParserResult = checkUserAgentParser(uaParserMap);
                     return uaParserResult;
                 } catch (Exception err) {
-                    LoggerService.log(LogLevelEnum.ERROR, "Failed to validate User Agent. Error: " + err);
+                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Failed to validate User Agent. Error: " + err);
                 }
             }
 
@@ -219,7 +219,7 @@ public class SegmentEvaluator {
     public boolean checkLocationPreSegmentation(Map<String, Object> locationMap) {
         // Ensure user's IP address is available
         if (context == null || context.getIpAddress() == null || context.getIpAddress().isEmpty()) {
-            LoggerService.log(LogLevelEnum.INFO, "To evaluate location pre Segment, please pass ipAddress in context object");
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "To evaluate location pre Segment, please pass ipAddress in context object");
             return false;
         }
         // Check if location data is available and matches the expected values
@@ -237,7 +237,7 @@ public class SegmentEvaluator {
     public boolean checkUserAgentParser(Map<String, List<String>> uaParserMap) {
         // Ensure user's user agent is available
         if (context == null || context.getUserAgent() == null || context.getUserAgent().isEmpty()) {
-            LoggerService.log(LogLevelEnum.INFO, "To evaluate user agent related segments, please pass userAgent in context object");
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "To evaluate user agent related segments, please pass userAgent in context object");
             return false;
         }
         // Check if user agent data is available and matches the expected values
@@ -250,21 +250,20 @@ public class SegmentEvaluator {
 
     /**
      * Checks if the feature is enabled for the user by querying the storage.
-     * @param settings The settings model containing configuration.
      * @param featureKey The key of the feature to check.
      * @param context The context object to check against.
      * @return A boolean indicating if the feature is enabled for the user.
      */
-    public boolean checkInUserStorage(Settings settings, String featureKey, VWOContext context) {
+    public boolean checkInUserStorage(String featureKey, VWOContext context) {
         StorageService storageService = new StorageService();
-        Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(featureKey, context, storageService);
+        Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(featureKey, context, storageService, serviceContainer);
         try {
             String storageMapAsString = VWOClient.objectMapper.writeValueAsString(storedDataMap);
             Storage storedData = VWOClient.objectMapper.readValue(storageMapAsString, Storage.class);
 
             return storedData != null && storedDataMap.size() > 1;
         } catch (Exception exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error in checking feature in user storage. Got error: " + exception);
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Error in checking feature in user storage. Got error: " + exception);
             return false;
         }
     }

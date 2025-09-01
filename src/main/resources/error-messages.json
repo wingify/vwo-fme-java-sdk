@@ -25,5 +25,6 @@
 
   "NETWORK_CALL_FAILED": "Error occurred while sending {method} request. Error: {err}",
   "SETTINGS_FETCH_FAILED": "Failed to fetch settings and hence VWO client instance couldn't be updated when API: {apiName} got called having isViaWebhook param as {isViaWebhook}. Error: {err}",
-  "SDK_INIT_EVENT_FAILED": "Error while sending SDK init event. Error: {err}"
+  "SDK_INIT_EVENT_FAILED": "Error while sending SDK init event. Error: {err}",
+  "NETWORK_CALL_EXCEPTION": "Error occurred for event: {event} - {endPoint} with account ID: {accountId}. Error: {err}"
 }

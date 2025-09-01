@@ -23,6 +23,7 @@ import java.util.Set;
 
 import com.vwo.constants.Constants;
 import com.vwo.enums.EventEnum;
+import com.vwo.services.SettingsManager;
 
 public class LogMessageUtil {
 
@@ -66,23 +67,23 @@ public class LogMessageUtil {
      * @param message The message to send.
      * @param messageType The type of message to send.
      */
-    public static void sendLogToVWO(String message, String messageType) {
+    public static void sendLogToVWO(String message, String messageType, SettingsManager settingsManager) {
         String messageToSend = message + "-" + Constants.SDK_NAME + "-" + Constants.SDK_VERSION;
 
         if(!errorLogMessages.contains(messageToSend)) {
             errorLogMessages.add(messageToSend);
 
             // create query parameters
-            Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
+            Map<String, String> properties = NetworkUtil.getEventsBaseProperties(settingsManager,
                 EventEnum.VWO_ERROR.getValue(),
                 null,
                 null
             );
             // create payload
-            Map<String, Object> payload = NetworkUtil.getLogToVWOEventPayload(messageType, message, EventEnum.VWO_ERROR.getValue());
+            Map<String, Object> payload = NetworkUtil.getLogToVWOEventPayload(settingsManager, messageType, message, EventEnum.VWO_ERROR.getValue());
 
             // send the event
-            NetworkUtil.sendEvent(properties, payload, EventEnum.VWO_ERROR.getValue());
+            NetworkUtil.sendEventDirectlyToDacdn(settingsManager, properties, payload, EventEnum.VWO_ERROR.getValue());
         }
     }
 }

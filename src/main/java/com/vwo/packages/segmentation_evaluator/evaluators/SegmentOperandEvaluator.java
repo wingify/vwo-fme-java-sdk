@@ -23,12 +23,11 @@ import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vwo.enums.UrlEnum;
-// import com.vwo.modules.logger.core.LogManager;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandRegexEnum;
 import com.vwo.packages.segmentation_evaluator.enums.SegmentOperandValueEnum;
-import com.vwo.services.LoggerService;
+import com.vwo.ServiceContainer;
 import com.vwo.utils.GatewayServiceUtil;
 
 import static com.vwo.packages.segmentation_evaluator.utils.SegmentUtil.getKeyValue;
@@ -36,6 +35,12 @@ import static com.vwo.packages.segmentation_evaluator.utils.SegmentUtil.matchWit
 import static com.vwo.utils.DataTypeUtil.isBoolean;
 
 public class SegmentOperandEvaluator {
+    private ServiceContainer serviceContainer;
+
+    public SegmentOperandEvaluator(ServiceContainer serviceContainer) {
+        this.serviceContainer = serviceContainer;
+    }
+
     public Boolean evaluateCustomVariableDSL(JsonNode dslOperandValue, Map<String, Object> properties) {
         Map.Entry<String, JsonNode> entry = getKeyValue(dslOperandValue);
         String operandKey = entry.getKey();
@@ -52,7 +57,7 @@ public class SegmentOperandEvaluator {
             Pattern listIdPattern = Pattern.compile("inlist\\(([^)]+)\\)");
             Matcher matcher = listIdPattern.matcher(operandValue);
             if (!matcher.find()) {
-                LoggerService.log(LogLevelEnum.ERROR, "Invalid 'inList' operand format");
+                serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Invalid 'inList' operand format");
                 return false;
             }
             String listId = matcher.group(1);
@@ -64,7 +69,7 @@ public class SegmentOperandEvaluator {
             queryParamsObj.put("listId", listId);
 
             // Make a web service call to check the attribute against the list
-            String gatewayServiceResponse = GatewayServiceUtil.getFromGatewayService(queryParamsObj, UrlEnum.ATTRIBUTE_CHECK.getUrl());
+            String gatewayServiceResponse = GatewayServiceUtil.getFromGatewayService(serviceContainer, queryParamsObj, UrlEnum.ATTRIBUTE_CHECK.getUrl());
             if (gatewayServiceResponse == null) {
                 return false;
             }
@@ -153,7 +158,7 @@ public class SegmentOperandEvaluator {
 
     public boolean evaluateUserAgentDSL(String dslOperandValue, VWOContext context) {
         if (context == null || context.getUserAgent() == null) {
-            //LogManager.getInstance().info("To Evaluate UserAgent segmentation, please provide userAgent in context");
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "To Evaluate UserAgent segmentation, please provide userAgent in context");
             return false;
         }
         String tagValue = java.net.URLDecoder.decode(context.getUserAgent());

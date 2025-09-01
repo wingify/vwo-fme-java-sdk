@@ -39,7 +39,7 @@ import static org.mockito.Mockito.*;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class GetFlagTests {
     private static final String SDK_KEY = "abcd";
-    private static final int ACCOUNT_ID = 1234;
+    private static final int ACCOUNT_ID = 12345;
 
     private final Map<String, String> settingsMap = new DummySettingsReader().settingsMap;
 

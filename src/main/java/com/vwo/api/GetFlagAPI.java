@@ -16,6 +16,7 @@
 package com.vwo.api;
 
 import com.vwo.VWOClient;
+import com.vwo.ServiceContainer;
 import com.vwo.decorators.StorageDecorator;
 import com.vwo.enums.ApiEnum;
 import com.vwo.enums.CampaignTypeEnum;
@@ -23,9 +24,6 @@ import com.vwo.models.*;
 import com.vwo.models.user.GetFlag;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
-import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
-import com.vwo.services.HooksManager;
-import com.vwo.services.LoggerService;
 import com.vwo.services.StorageService;
 import com.vwo.utils.RuleEvaluationUtil;
 
@@ -41,12 +39,11 @@ public class GetFlagAPI {
     /**
      * This method is used to get the flag value for the given feature key.
      * @param featureKey Feature key for which flag value is to be fetched.
-     * @param settings Settings object containing the account settings.
      * @param context  VWOContext object containing the user context.
-     * @param hookManager  HooksManager object containing the integrations.
+     * @param serviceContainer  ServiceContainer object containing the integrations.
      * @return GetFlag object containing the flag value.
      */
-    public static GetFlag getFlag(String featureKey, Settings settings, VWOContext context, HooksManager hookManager) {
+    public static GetFlag getFlag(String featureKey, VWOContext context, ServiceContainer serviceContainer) {
         GetFlag getFlag = new GetFlag();
         boolean shouldCheckForExperimentsRules = false;
 
@@ -54,7 +51,7 @@ public class GetFlagAPI {
         Map<String, Object> evaluatedFeatureMap = new HashMap<>();
 
         // get feature object from feature key
-        Feature feature = getFeatureFromKey(settings, featureKey);
+        Feature feature = getFeatureFromKey(serviceContainer.getSettings(), featureKey);
 
         /**
          * Decision object to be sent for the integrations
@@ -67,7 +64,7 @@ public class GetFlagAPI {
         decision.put("api", ApiEnum.GET_FLAG);
 
         StorageService storageService = new StorageService();
-        Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(featureKey, context, storageService);
+        Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(featureKey, context, storageService, serviceContainer);
 
         /**
          * If feature is found in the storage, return the stored variation
@@ -77,10 +74,10 @@ public class GetFlagAPI {
             Storage storedData = VWOClient.objectMapper.readValue(storageMapAsString, Storage.class);
             if (storedData != null && storedData.getExperimentVariationId() != null && !storedData.getExperimentVariationId().toString().isEmpty()) {
                 if (storedData.getExperimentKey() != null && !storedData.getExperimentKey().isEmpty()) {
-                    Variation variation = getVariationFromCampaignKey(settings, storedData.getExperimentKey(), storedData.getExperimentVariationId());
+                    Variation variation = getVariationFromCampaignKey(serviceContainer.getSettings(), storedData.getExperimentKey(), storedData.getExperimentVariationId());
                     // If variation is found in settings, return the variation
                     if (variation != null) {
-                        LoggerService.log(LogLevelEnum.INFO, "STORED_VARIATION_FOUND", new HashMap<String, String>() {
+                        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "STORED_VARIATION_FOUND", new HashMap<String, String>() {
                             {
                                 put("variationKey", variation.getName());
                                 put("userId", context.getId());
@@ -94,10 +91,10 @@ public class GetFlagAPI {
                     }
                 }
             } else if (storedData != null && storedData.getRolloutKey() != null && !storedData.getRolloutKey().isEmpty() && storedData.getRolloutId() != null && !storedData.getRolloutId().toString().isEmpty()) {
-                Variation variation = getVariationFromCampaignKey(settings, storedData.getRolloutKey(), storedData.getRolloutVariationId());
+                Variation variation = getVariationFromCampaignKey(serviceContainer.getSettings(), storedData.getRolloutKey(), storedData.getRolloutVariationId());
                 // If variation is found in settings, evaluate experiment rules
                 if (variation != null) {
-                    LoggerService.log(LogLevelEnum.INFO, "STORED_VARIATION_FOUND", new HashMap<String, String>() {
+                    serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "STORED_VARIATION_FOUND", new HashMap<String, String>() {
                         {
                             put("variationKey", variation.getName());
                             put("userId", context.getId());
@@ -106,7 +103,7 @@ public class GetFlagAPI {
                         }
                     });
 
-                    LoggerService.log(LogLevelEnum.DEBUG, "EXPERIMENTS_EVALUATION_WHEN_ROLLOUT_PASSED", new HashMap<String, String>() {
+                    serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "EXPERIMENTS_EVALUATION_WHEN_ROLLOUT_PASSED", new HashMap<String, String>() {
                         {
                             put("userId", context.getId());
                         }
@@ -123,21 +120,21 @@ public class GetFlagAPI {
                 }
             }
         } catch (Exception e) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error parsing stored data: " + e.getMessage());
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Error parsing stored data: " + e.getMessage());
         }
 
         /**
          * if feature is not found, return false
          */
         if (feature == null) {
-            LoggerService.log(LogLevelEnum.ERROR, "FEATURE_NOT_FOUND", new HashMap<String, String>() {{
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "FEATURE_NOT_FOUND", new HashMap<String, String>() {{
                 put("featureKey", featureKey);
             }});
             getFlag.setIsEnabled(false);
             return getFlag;
         }
 
-        SegmentationManager.getInstance().setContextualData(settings, feature, context);
+        serviceContainer.getSegmentationManager().setContextualData(serviceContainer, feature, context);
 
         /**
          * get all the rollout rules for the feature and evaluate them
@@ -147,7 +144,7 @@ public class GetFlagAPI {
         if (!rollOutRules.isEmpty() && !getFlag.isEnabled()){
             List<Campaign> rolloutRulesToEvaluate = new ArrayList<>();
             for (Campaign rule : rollOutRules) {
-                Map<String, Object> evaluateRuleResult = RuleEvaluationUtil.evaluateRule(settings, feature, rule, context, evaluatedFeatureMap, new HashMap<>(), storageService, decision);
+                Map<String, Object> evaluateRuleResult = RuleEvaluationUtil.evaluateRule(serviceContainer, feature, rule, context, evaluatedFeatureMap, new HashMap<>(), storageService, decision);
                 boolean preSegmentationResult = (Boolean) evaluateRuleResult.get("preSegmentationResult");
                 // If pre-segmentation passes, add the rule to the list of rules to evaluate
                 if (preSegmentationResult) {
@@ -164,17 +161,17 @@ public class GetFlagAPI {
             // Evaluate the passed rollout rule traffic and get the variation
             if (!rolloutRulesToEvaluate.isEmpty()) {
                 Campaign passedRolloutCampaign = rolloutRulesToEvaluate.get(0);
-                Variation variation = evaluateTrafficAndGetVariation(settings, passedRolloutCampaign, context.getId());
+                Variation variation = evaluateTrafficAndGetVariation(serviceContainer, passedRolloutCampaign, context.getId());
                 if (variation != null) {
                     getFlag.setIsEnabled(true);
                     getFlag.setVariables(variation.getVariables());
                     shouldCheckForExperimentsRules = true;
                     updateIntegrationsDecisionObject(passedRolloutCampaign, variation, passedRulesInformation, decision);
-                    createAndSendImpressionForVariationShown(settings, passedRolloutCampaign.getId(), variation.getId(), context);
+                    createAndSendImpressionForVariationShown(serviceContainer, passedRolloutCampaign.getId(), variation.getId(), context);
                 }
             }
-        } else {
-            LoggerService.log(LogLevelEnum.DEBUG, "EXPERIMENTS_EVALUATION_WHEN_NO_ROLLOUT_PRESENT", null);
+        } else if (!shouldCheckForExperimentsRules) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "EXPERIMENTS_EVALUATION_WHEN_NO_ROLLOUT_PRESENT", null);
             shouldCheckForExperimentsRules = true;
         }
 
@@ -189,7 +186,7 @@ public class GetFlagAPI {
 
             for (Campaign rule : experimentRules) {
                 // Evaluate the rule here
-                Map<String, Object> evaluateRuleResult = RuleEvaluationUtil.evaluateRule(settings, feature, rule, context, evaluatedFeatureMap, megGroupWinnerCampaigns, storageService, decision);
+                Map<String, Object> evaluateRuleResult = RuleEvaluationUtil.evaluateRule(serviceContainer, feature, rule, context, evaluatedFeatureMap, megGroupWinnerCampaigns, storageService, decision);
                 boolean preSegmentationResult = (Boolean) evaluateRuleResult.get("preSegmentationResult");
                 // If pre-segmentation passes, check if the rule has whitelisted variation or not
                 if (preSegmentationResult) {
@@ -212,12 +209,12 @@ public class GetFlagAPI {
             // Evaluate the passed experiment rule traffic and get the variation
             if (!experimentRulesToEvaluate.isEmpty()) {
                 Campaign campaign = experimentRulesToEvaluate.get(0);
-                Variation variation = evaluateTrafficAndGetVariation(settings, campaign, context.getId());
+                Variation variation = evaluateTrafficAndGetVariation(serviceContainer, campaign, context.getId());
                 if (variation != null) {
                     getFlag.setIsEnabled(true);
                     getFlag.setVariables(variation.getVariables());
                     updateIntegrationsDecisionObject(campaign, variation, passedRulesInformation, decision);
-                    createAndSendImpressionForVariationShown(settings, campaign.getId(), variation.getId(), context);
+                    createAndSendImpressionForVariationShown(serviceContainer, campaign.getId(), variation.getId(), context);
                 }
             }
         }
@@ -227,19 +224,19 @@ public class GetFlagAPI {
             storageMap.put("featureKey", feature.getKey());
             storageMap.put("userId", context.getId());
             storageMap.putAll(passedRulesInformation);
-            new StorageDecorator().setDataInStorage(storageMap, storageService);
+            new StorageDecorator().setDataInStorage(storageMap, storageService, serviceContainer);
         }
 
         // Execute the integrations
-        hookManager.set(decision);
-        hookManager.execute(hookManager.get());
+        serviceContainer.getHooksManager().set(decision);
+        serviceContainer.getHooksManager().execute(serviceContainer.getHooksManager().get());
 
         /**
          * If the feature has an impact campaign, send an impression for the variation shown
          * If flag enabled - variation 2, else - variation 1
          */
         if (feature.getImpactCampaign() != null && feature.getImpactCampaign().getCampaignId() != null && !feature.getImpactCampaign().getCampaignId().toString().isEmpty()){
-            LoggerService.log(LogLevelEnum.INFO, "IMPACT_ANALYSIS", new HashMap<String, String>() {
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "IMPACT_ANALYSIS", new HashMap<String, String>() {
                 {
                     put("userId", context.getId());
                     put("featureKey", featureKey);
@@ -247,7 +244,7 @@ public class GetFlagAPI {
                 }
             });
             createAndSendImpressionForVariationShown(
-                    settings,
+                    serviceContainer,
                     feature.getImpactCampaign().getCampaignId(),
                     getFlag.isEnabled() ? 2 : 1,
                     context
@@ -266,7 +263,7 @@ public class GetFlagAPI {
     private static void updateIntegrationsDecisionObject(Campaign campaign, Variation variation, Map<String, Object> passedRulesInformation, Map<String, Object> decision) {
         if (Objects.equals(campaign.getType(), CampaignTypeEnum.ROLLOUT.getValue())) {
             passedRulesInformation.put("rolloutId", campaign.getId());
-            passedRulesInformation.put("rolloutKey", campaign.getName());
+            passedRulesInformation.put("rolloutKey", campaign.getKey());
             passedRulesInformation.put("rolloutVariationId", variation.getId());
         } else {
             passedRulesInformation.put("experimentId", campaign.getId());

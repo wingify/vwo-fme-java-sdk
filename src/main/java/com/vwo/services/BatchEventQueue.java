@@ -24,6 +24,7 @@ import com.vwo.utils.NetworkUtil;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.vwo.models.Settings;
 
 public class BatchEventQueue {
     private Queue<Map<String, Object>> batchQueue = new LinkedList<>();
@@ -35,26 +36,40 @@ public class BatchEventQueue {
     private final String sdkKey;
     private static final Object LockObject = new Object();
     private FlushInterface flushCallback;
+    private LoggerService loggerService;
+    private Settings settings;
 
-    public BatchEventQueue(int eventsPerRequest, int requestTimeInterval, FlushInterface flushCallback, int accountId, String sdkKey) {
+    public BatchEventQueue(int eventsPerRequest, int requestTimeInterval, FlushInterface flushCallback, int accountId, String sdkKey, LoggerService loggerService) {
         this.eventsPerRequest = eventsPerRequest;
         this.requestTimeInterval = requestTimeInterval;
         this.flushCallback = flushCallback;
         this.accountId = accountId;
         this.sdkKey = sdkKey;
-
+        this.loggerService = loggerService;
         createNewBatchTimer();
-        LoggerService.log(LogLevelEnum.DEBUG, "BatchEventQueue initialized with eventsPerRequest: " + eventsPerRequest + " and requestTimeInterval: " + requestTimeInterval);
+        loggerService.log(LogLevelEnum.DEBUG, "BatchEventQueue initialized with eventsPerRequest: " + eventsPerRequest + " and requestTimeInterval: " + requestTimeInterval);
     }
 
+    /**
+     * Sets the settings for the batch event queue.
+     * @param settings The settings to be set.
+     */
+    public void setSettings(Settings settings) {
+        this.settings = settings;
+    }
+
+    /**
+     * Enqueues an event data into the batch queue.
+     * @param eventData The event data to be enqueued.
+     */
     public void enqueue(Map<String, Object> eventData) {
         synchronized (LockObject) {
             batchQueue.add(eventData);
-            LoggerService.log(LogLevelEnum.DEBUG, "Event added to queue. Current queue size: " + batchQueue.size());
+            loggerService.log(LogLevelEnum.DEBUG, "Event added to queue. Current queue size: " + batchQueue.size());
 
             // If batch size reaches the limit, trigger flush
             if (batchQueue.size() >= eventsPerRequest) {
-                LoggerService.log(LogLevelEnum.DEBUG, "Queue reached max capacity, flushing now...");
+                loggerService.log(LogLevelEnum.DEBUG, "Queue reached max capacity, flushing now...");
                 flush(false);
             }
         }
@@ -69,7 +84,7 @@ public class BatchEventQueue {
             }
         }, requestTimeInterval * 1000, requestTimeInterval * 1000);
 
-        LoggerService.log(LogLevelEnum.DEBUG, "Batch timer initialized with interval: " + requestTimeInterval + " seconds.");
+        loggerService.log(LogLevelEnum.DEBUG, "Batch timer initialized with interval: " + requestTimeInterval + " seconds.");
     }
 
     /**
@@ -90,19 +105,19 @@ public class BatchEventQueue {
     private boolean flush(boolean manual) {
         synchronized (LockObject) {
             if(batchQueue.isEmpty()) {
-                LoggerService.log(LogLevelEnum.DEBUG, "Queue is empty, skipping flush.");
+                loggerService.log(LogLevelEnum.DEBUG, "Queue is empty, skipping flush.");
                 return false;
             }
             // Log if flush is manual or automatic
             if (manual) {
-                LoggerService.log(LogLevelEnum.DEBUG, "Manual flush triggered.");
+                loggerService.log(LogLevelEnum.DEBUG, "Manual flush triggered.");
             }
                 // Create a temporary list to hold the events for the batch
                 List<Map<String, Object>> eventsToSend = new ArrayList<>(batchQueue);
                 batchQueue.clear(); // Clear the queue after taking a snapshot
 
                 // Log before sending batch events
-                LoggerService.log(LogLevelEnum.DEBUG, "Flushing " + eventsToSend.size() + " events.");
+                loggerService.log(LogLevelEnum.DEBUG, "Flushing " + eventsToSend.size() + " events.");
 
                 // Send the batch events
                 // Flag to track success or failure asynchronously
@@ -115,16 +130,16 @@ public class BatchEventQueue {
                         // Send the batch events and handle the result
                         isSentSuccessfully[0] = sendBatchEvents(eventsToSend);
                         if (isSentSuccessfully[0]) {
-                            LoggerService.log(LogLevelEnum.INFO,
+                            loggerService.log(LogLevelEnum.INFO,
                                     "Batch flush successful. Sent " + eventsToSend.size() + " events.");
                         } else {
                             // Re-enqueue events in case of failure for retry logic
                             batchQueue.addAll(eventsToSend);
-                            LoggerService.log(LogLevelEnum.ERROR,
+                            loggerService.log(LogLevelEnum.ERROR,
                                     "Failed to send batch events. Re-enqueuing events for retry.");
                         }
                     } catch (Exception ex) {
-                        LoggerService.log(LogLevelEnum.ERROR, "Error during batch flush: " + ex.getMessage());
+                        loggerService.log(LogLevelEnum.ERROR, "Error during batch flush: " + ex.getMessage());
                         // Re-enqueue events in case of failure
                         batchQueue.addAll(eventsToSend);
                     } finally {
@@ -143,11 +158,16 @@ public class BatchEventQueue {
     private boolean sendBatchEvents(List<Map<String, Object>> events) {
         try {
             // Call sendPostBatchRequest and capture the return value (success or failure)
-            boolean isSentSuccessfully = NetworkUtil.sendPostBatchRequest(events, accountId, sdkKey, this.flushCallback);
-
+            boolean isSentSuccessfully = NetworkUtil.sendPostBatchRequest(settings, events, accountId, sdkKey, this.flushCallback);
+            if (this.flushCallback != null) {   
+                this.flushCallback.onFlush(null, events.toString());
+            }
             return isSentSuccessfully;  // Return whether the request was successful or not
         } catch (Exception ex) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error sending batch to VWO server: " + ex.getMessage());
+            if (this.flushCallback != null) {
+                this.flushCallback.onFlush(ex.getMessage(), events.toString());
+            }
+            loggerService.log(LogLevelEnum.ERROR, "Error sending batch to VWO server: " + ex.getMessage());
             return false;  // Return false in case of an error
         }
     }

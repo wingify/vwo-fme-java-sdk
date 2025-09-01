@@ -15,11 +15,8 @@
  */
 package com.vwo.utils;
 
-import com.vwo.VWO;
-import com.vwo.packages.logger.enums.LogLevelEnum;
-import com.vwo.services.LoggerService;
+import com.vwo.services.SettingsManager;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -35,37 +32,24 @@ public class EventUtil {
      * @param sdkInitTime Time taken to initialize the SDK in milliseconds (can be null)
      * @param eventName The name of the event to send
      */
-    public static void sendSdkInitEvent(Long settingsFetchTime, Long sdkInitTime, String eventName) {
-        try {    
-            // Create event properties
-            Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
-                eventName,
-                null,
-                null
-            );
+    public static void sendSdkInitEvent(SettingsManager settingsManager, Long settingsFetchTime, Long sdkInitTime, String eventName) {
+        // Create event properties
+        Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
+            settingsManager,
+            eventName,
+            null,
+            null
+        );
 
-            // Create payload for SDK init event using the new method
-            Map<String, Object> payload = NetworkUtil.getSdkInitEventPayload(
-                eventName,
-                settingsFetchTime,
-                sdkInitTime
-            );
+        // Create payload for SDK init event using the new method
+        Map<String, Object> payload = NetworkUtil.getSdkInitEventPayload(
+            settingsManager,
+            eventName,
+            settingsFetchTime,
+            sdkInitTime
+        );
 
-             // Get the instance of VWO
-            VWO vwoInstance = VWO.getInstance();
-            // Check if batch events are enabled
-            if (vwoInstance.getBatchEventQueue() != null) {
-                // Enqueue the event to the batch queue
-                vwoInstance.getBatchEventQueue().enqueue(payload);
-            } else {
-                // Send the event immediately if batch events are not enabled
-                NetworkUtil.sendEvent(properties, payload, eventName);
-            }
-
-        } catch (Exception e) {
-            LoggerService.log(LogLevelEnum.ERROR, "SDK_INIT_EVENT_FAILED", new HashMap<String, String>() {{
-                put("error", e.getMessage());
-            }});
-        }
+         // Send the event immediately
+         NetworkUtil.sendEventDirectlyToDacdn(settingsManager, properties, payload, eventName);
     }
 } 

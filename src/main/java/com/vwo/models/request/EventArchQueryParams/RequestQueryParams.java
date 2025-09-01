@@ -29,9 +29,8 @@ public class RequestQueryParams {
     private String p;
     private String visitor_ua;
     private String visitor_ip;
-    private String url;
 
-    public RequestQueryParams (String eventName, String accountId, String sdkKey, String visitorUserAgent, String ipAddress, String url) {
+    public RequestQueryParams (String eventName, String accountId, String sdkKey, String visitorUserAgent, String ipAddress) {
         this.en = eventName;
         this.a = accountId;
         this.env = sdkKey;
@@ -40,7 +39,6 @@ public class RequestQueryParams {
         this.p = "FS";
         this.visitor_ua = visitorUserAgent;
         this.visitor_ip = ipAddress;
-        this.url = url;
     }
 
     public Map<String, String> getQueryParams() {

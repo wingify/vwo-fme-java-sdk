@@ -42,21 +42,18 @@ public class SettingsUtil {
      * It adds linked campaigns to each feature in the settings based on rules.
      * It adds isGatewayServiceRequired flag to each feature in the settings based on pre segmentation.
      * @param settings - The settings file to modify.
+     * @param loggerService - The logger service.
      */
-    public static void processSettings(Settings settings) {
-        try {
-            List<Campaign> campaigns = settings.getCampaigns();
+    public static void processSettings(Settings settings, LoggerService loggerService) {
+        List<Campaign> campaigns = settings.getCampaigns();
 
-            for (int i = 0; i < campaigns.size(); i++) {
-                Campaign campaign = campaigns.get(i);
-                setVariationAllocation(campaign);
-                campaigns.set(i, campaign);
-            }
-            addLinkedCampaignsToSettings(settings);
-            addIsGatewayServiceRequiredFlag(settings);
-        } catch (Exception exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "Exception occurred while processing settings " + exception.getMessage());
+        for (int i = 0; i < campaigns.size(); i++) {
+            Campaign campaign = campaigns.get(i);
+            setVariationAllocation(campaign, loggerService);
+            campaigns.set(i, campaign);
         }
+        addLinkedCampaignsToSettings(settings);
+        addIsGatewayServiceRequiredFlag(settings);
     }
 
     /**

@@ -35,20 +35,20 @@ import com.vwo.utils.NetworkUtil;
 public class SettingsManager {
     public String sdkKey;
     public Integer accountId;
-    private int expiry;
-    private int networkTimeout;
+    public int expiry;
+    public int networkTimeout;
     public String hostname;
     public int port;
     public String protocol = "https";
     public boolean isGatewayServiceProvided = false;
     public boolean isSettingsValidOnInit = false;
-    private Long settingsFetchTime;
-    private static SettingsManager instance;
+    public Long settingsFetchTime;
+    public LoggerService loggerService;
 
-    public SettingsManager(VWOInitOptions options) {
+    public SettingsManager(VWOInitOptions options, LoggerService loggerService) {
+        this.loggerService = loggerService;
         this.sdkKey = options.getSdkKey();
         this.accountId = options.getAccountId();
-        // TODO -- check expiry logic
         this.expiry = (int) Constants.SETTINGS_EXPIRY;
         this.networkTimeout = (int) Constants.SETTINGS_TIMEOUT;
 
@@ -74,17 +74,12 @@ public class SettingsManager {
                     this.port = Integer.parseInt(gatewayServicePort.toString());
                 }
             } catch (Exception e) {
-                LoggerService.log(LogLevelEnum.ERROR, "Error occurred while parsing gateway service URL: " + e.getMessage());
+                loggerService.log(LogLevelEnum.ERROR, "Error occurred while parsing gateway service URL: " + e.getMessage());
                 this.hostname = Constants.HOST_NAME;
             }
         } else {
             this.hostname = Constants.HOST_NAME;
         }
-        SettingsManager.instance = this;
-    }
-
-    public static SettingsManager getInstance() {
-        return instance;
     }
 
     /**
@@ -102,7 +97,7 @@ public class SettingsManager {
         try {
             return fetchSettings(false);
         } catch (Exception e) {
-            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                 {
                     put("err", e.toString());
                     put("accountId", accountId.toString());
@@ -146,7 +141,7 @@ public class SettingsManager {
 
             ResponseModel response = networkInstance.get(request);
             if (response.getStatusCode() != 200){
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
+                loggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                     {
                         put("err", response.getError().toString());
                         put("accountId", accountId.toString());
@@ -158,7 +153,7 @@ public class SettingsManager {
             this.settingsFetchTime = System.currentTimeMillis() - startTime;
             return response.getData();
         } catch (Exception e) {
-            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                 {
                     put("err", e.toString());
                     put("accountId", accountId.toString());
@@ -181,7 +176,7 @@ public class SettingsManager {
             try {
                 String settings = fetchSettingsAndCacheInStorage();
                 if (settings == null) {
-                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                    loggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
                         put("errors", "Settings is null");
                         put("accountId", accountId.toString());
                         put("sdkKey", sdkKey);
@@ -194,7 +189,7 @@ public class SettingsManager {
                     this.isSettingsValidOnInit = true;
                     return settings;
                 } else {
-                    LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                    loggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
                         put("errors", validationResult.getErrorsAsString());
                         put("accountId", accountId.toString());
                         put("sdkKey", sdkKey);
@@ -203,7 +198,7 @@ public class SettingsManager {
                     return settings;
                 }
             } catch (Exception e) {
-                LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                loggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
                     put("errors", "Exception during validation: " + e.getMessage());
                     put("accountId", accountId.toString());
                     put("sdkKey", sdkKey);

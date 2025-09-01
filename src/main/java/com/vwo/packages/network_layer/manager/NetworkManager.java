@@ -16,7 +16,6 @@
 package com.vwo.packages.network_layer.manager;
 
 
-import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.client.NetworkClient;
 import com.vwo.interfaces.networking.NetworkClientInterface;
 import com.vwo.models.FlushInterface;
@@ -24,8 +23,8 @@ import com.vwo.packages.network_layer.handlers.RequestHandler;
 import com.vwo.packages.network_layer.models.GlobalRequestModel;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
-import com.vwo.services.LoggerService;
 import com.vwo.utils.UsageStatsUtil;
+import com.vwo.services.LoggerService;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,6 +51,14 @@ public class NetworkManager {
     return instance;
   }
 
+  /**
+   * Returns the executor service.
+   * @return The executor service.
+   */
+  public ExecutorService getExecutorService() {
+    return this.executorService;
+  }
+
   public void attachClient(NetworkClientInterface client) {
     this.client = client;
     this.config = new GlobalRequestModel(null, null, null, null); // Initialize with default config
@@ -70,22 +77,27 @@ public class NetworkManager {
     return this.config;
   }
 
+  /**
+   * Creates a RequestModel from the given request.
+   * @param request - The RequestModel containing the URL, headers, and body of the request.
+   * @return The RequestModel containing the merged URL, headers, and body of the request.
+   */
   public RequestModel createRequest(RequestModel request) {
     RequestHandler handler = new RequestHandler();
     return handler.createRequest(request, this.config); // Merge and create request
   }
 
+  /**
+   * Synchronously sends a GET request to the server.
+   * @param request - The RequestModel containing the URL, headers, and body of the GET request.
+   * @return The ResponseModel containing the status code and data of the GET request.
+   */
   public ResponseModel get(RequestModel request) {
-    try {
-      RequestModel networkOptions = createRequest(request);
-      if (networkOptions == null) {
-        return null;
-      } else {
-        return client.GET(request);
-      }
-    } catch(Exception error) {
-      LoggerService.log(LogLevelEnum.ERROR,  "Error when creating get request, error: " + error);
+    RequestModel networkOptions = createRequest(request);
+    if (networkOptions == null) {
       return null;
+    } else {
+      return client.GET(request);
     }
   }
 
@@ -96,68 +108,23 @@ public class NetworkManager {
    */
   public ResponseModel post(RequestModel request, FlushInterface flushCallback) {
     ResponseModel response = null;
-    try {
-      RequestModel networkOptions = createRequest(request);
-      if (networkOptions == null) {
-        return null;
-      } 
-      // Perform the actual POST request
-      response = client.POST(request);
-
-      // Handle the response and trigger callback based on success or failure
-      if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
-          if (flushCallback != null) {
-              flushCallback.onFlush(null, request.getBody().toString());  // Success, pass response body to callback
-          }
-      } else {
-          if (flushCallback != null) {
-              flushCallback.onFlush("Failed with status code: " + response.getStatusCode(), null);  // Failure, pass error message
-          }
-      }
-    } catch (Exception error) {
-      LoggerService.log(LogLevelEnum.ERROR,  "Error when creating post request, error: " + error);
-      if (flushCallback != null) {
-        flushCallback.onFlush("Error: " + error.getMessage(), null);  // Pass error message to callback
-      }
+    RequestModel networkOptions = createRequest(request);
+    if (networkOptions == null) {
       return null;
+    } 
+    // Perform the actual POST request
+    response = client.POST(request);
+
+    // Handle the response and trigger callback based on success or failure
+    if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+        if (flushCallback != null) {
+            flushCallback.onFlush(null, request.getBody().toString());  // Success, pass response body to callback
+        }
+    } else {
+        if (flushCallback != null) {
+            flushCallback.onFlush("Failed with status code: " + response.getStatusCode(), null);  // Failure, pass error message
+        }
     }
     return response;
   }
-
-  /**
- * Sends a POST request to the server either asynchronously or synchronously based on the postBatchData flag.
- *
- * @param request        The RequestModel containing the URL, headers, and body of the POST request.
- * @param flushCallback  The callback to be triggered after the request is processed.
- * @param postBatchData  If true, the POST request is sent synchronously in the current thread (used for batching);
- *                       if false, the POST request is sent asynchronously in a new thread.
- */
-
-public boolean postAsync(RequestModel request, FlushInterface flushCallback, boolean postBatchData) {
-  if(postBatchData) {
-    ResponseModel response = post(request, flushCallback);
-    //return true if response is success or false if response is not success
-    if(response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
-      return true;
-    }
-    return false;
-  } else {
-    executorService.submit(() -> {
-      try {
-          // Perform the actual POST request and handle response asynchronously
-          ResponseModel response = post(request, flushCallback);
-          if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
-            UsageStatsUtil.getInstance().clearUsageStats();
-            return true;
-          }
-          return false;
-      } catch (Exception ex) {
-          LoggerService.log(LogLevelEnum.ERROR, "Error occurred during post request: " + ex.getMessage());
-          return false;
-      }
-    });
-    return true;
-  }
-}
-
 }

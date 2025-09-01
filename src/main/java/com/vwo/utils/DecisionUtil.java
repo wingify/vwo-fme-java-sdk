@@ -18,6 +18,7 @@ package com.vwo.utils;
 import java.util.*;
 
 import com.vwo.VWOClient;
+import com.vwo.ServiceContainer;
 import com.vwo.constants.Constants;
 import com.vwo.decorators.StorageDecorator;
 import com.vwo.enums.CampaignTypeEnum;
@@ -36,17 +37,18 @@ import static com.vwo.utils.CampaignUtil.*;
 public class DecisionUtil {
     /**
      * This method is used to evaluate the rule for a given feature and campaign.
-     * @param settings  SettingsModel object containing the account settings.
+     * @param serviceContainer  ServiceContainer object containing the service container.
      * @param feature   FeatureModel object containing the feature settings.
      * @param campaign  CampaignModel object containing the campaign settings.
      * @param context  VWOContext object containing the user context.
      * @param evaluatedFeatureMap  Map containing the evaluated feature map.
      * @param megGroupWinnerCampaigns  Map containing the MEG group winner campaigns.
+     * @param storageService  Storage service for data persistence.
      * @param decision  Map containing the decision object.
      * @return   Map containing the result of the evaluation.
      */
     public static Map<String, Object> checkWhitelistingAndPreSeg(
-            Settings settings,
+            ServiceContainer serviceContainer,
             Feature feature,
             Campaign campaign,
             VWOContext context,
@@ -55,7 +57,7 @@ public class DecisionUtil {
             StorageService storageService,
             Map<String, Object> decision) {
 
-        String vwoUserId = UUIDUtils.getUUID(context.getId(), settings.getAccountId().toString());
+        String vwoUserId = UUIDUtils.getUUID(context.getId(), serviceContainer.getVWOInitOptions().getAccountId().toString());
         int campaignId = campaign.getId();
 
         // If the campaign is of type AB, set the _vwoUserId for variation targeting variables
@@ -71,7 +73,7 @@ public class DecisionUtil {
 
             // check if the campaign satisfies the whitelisting
             if (campaign.getIsForcedVariationEnabled()) {
-                Map<String, Object> whitelistedVariation = checkCampaignWhitelisting(campaign, context);
+                Map<String, Object> whitelistedVariation = checkCampaignWhitelisting(campaign, context, serviceContainer);
                 if (whitelistedVariation != null) {
                     return new HashMap<String, Object>() {{
                         put("preSegmentationResult", true);
@@ -79,7 +81,7 @@ public class DecisionUtil {
                     }};
                 }
             } else {
-                LoggerService.log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, String>() {{
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, String>() {{
                     put("userId", context.getId());
                     put("campaignKey", campaign.getRuleKey());
                 }});
@@ -97,7 +99,7 @@ public class DecisionUtil {
         decision.put("customVariables", context.getCustomVariables()); // for integration
 
         // Check if RUle being evaluated is part of Mutually Exclusive Group
-        String groupId = CampaignUtil.getGroupDetailsIfCampaignPartOfIt(settings, campaign.getId(), campaign.getType().equals(CampaignTypeEnum.PERSONALIZE.getValue()) ? campaign.getVariations().get(0).getId() : -1).get("groupId");
+        String groupId = CampaignUtil.getGroupDetailsIfCampaignPartOfIt(serviceContainer.getSettings(), campaign.getId(), campaign.getType().equals(CampaignTypeEnum.PERSONALIZE.getValue()) ? campaign.getVariations().get(0).getId() : -1).get("groupId");
         if (groupId != null && !groupId.isEmpty()) {
             // check if the group is already evaluated for the user
             String groupWinnerCampaignId = megGroupWinnerCampaigns.get(Integer.parseInt(groupId));
@@ -127,12 +129,12 @@ public class DecisionUtil {
                 }};
             } else {
                 // check in storage if the group is already evaluated for the user
-                Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(Constants.VWO_META_MEG_KEY + groupId, context, storageService);
+                Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(Constants.VWO_META_MEG_KEY + groupId, context, storageService, serviceContainer);
                 try {
                     String storageMapAsString = VWOClient.objectMapper.writeValueAsString(storedDataMap);
                     Storage storedData = VWOClient.objectMapper.readValue(storageMapAsString, Storage.class);
                     if (storedData != null && storedData.getExperimentId() != null && storedData.getExperimentKey() != null) {
-                        LoggerService.log(LogLevelEnum.INFO, "MEG_CAMPAIGN_FOUND_IN_STORAGE", new HashMap<String, String>(){
+                        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_CAMPAIGN_FOUND_IN_STORAGE", new HashMap<String, String>(){
                             {
                                 put("campaignKey", storedData.getExperimentKey());
                                 put("userId", context.getId());
@@ -175,7 +177,7 @@ public class DecisionUtil {
                         }};
                     }
                 } catch (Exception e) {
-                    LoggerService.log(LogLevelEnum.ERROR, "STORED_DATA_ERROR", new HashMap<String, String>() {{
+                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORED_DATA_ERROR", new HashMap<String, String>() {{
                         put("err", e.toString());
                     }});
                 }
@@ -183,11 +185,11 @@ public class DecisionUtil {
         }
 
         // If Whitelisting is skipped/failed, Check campaign's pre-segmentation
-        boolean isPreSegmentationPassed = new CampaignDecisionService().getPreSegmentationDecision(campaign, context);
+        boolean isPreSegmentationPassed = new CampaignDecisionService().getPreSegmentationDecision(campaign, context, serviceContainer);
 
         if (isPreSegmentationPassed && groupId != null && !groupId.isEmpty()) {
             Variation variationModel = MegUtil.evaluateGroups(
-                    settings,
+                    serviceContainer,
                     feature,
                     Integer.parseInt(groupId),
                     evaluatedFeatureMap,
@@ -247,20 +249,20 @@ public class DecisionUtil {
 
     /**
      * This method is used to evaluate the traffic for a given campaign and get the variation.
-     * @param settings  SettingsModel object containing the account settings.
+     * @param serviceContainer  ServiceContainer object containing the service container.
      * @param campaign  CampaignModel object containing the campaign settings.
      * @param userId   String containing the user ID.
      * @return  VariationModel object containing the variation details.
      */
     public static Variation evaluateTrafficAndGetVariation(
-            Settings settings,
+            ServiceContainer serviceContainer,
             Campaign campaign,
             String userId) {
 
         // Get the variation allotted to the user
-        Variation variation = new CampaignDecisionService().getVariationAllotted(userId, settings.getAccountId().toString(), campaign);
+        Variation variation = new CampaignDecisionService().getVariationAllotted(userId, serviceContainer.getVWOInitOptions().getAccountId().toString(), campaign, serviceContainer);
         if (variation == null) {
-            LoggerService.log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, String>() {{
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, String>() {{
                 put("userId", userId);
                 put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                 put("status", "did not get any variation");
@@ -268,7 +270,7 @@ public class DecisionUtil {
             return null;
         }
 
-        LoggerService.log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, String>() {{
+        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, String>() {{
             put("userId", userId);
             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             put("status", "got variation: " + variation.getName());
@@ -282,11 +284,11 @@ public class DecisionUtil {
      * @param context  Context object containing user information
      * @return   Whitelisted variation or null if not whitelisted
      */
-    private static Map<String, Object> checkCampaignWhitelisting(Campaign campaign, VWOContext context) {
-        Map<String, Object> whitelistingResult = evaluateWhitelisting(campaign, context);
+    private static Map<String, Object> checkCampaignWhitelisting(Campaign campaign, VWOContext context, ServiceContainer serviceContainer) {
+        Map<String, Object> whitelistingResult = evaluateWhitelisting(campaign, context, serviceContainer);
         StatusEnum status = whitelistingResult != null ? StatusEnum.PASSED : StatusEnum.FAILED;
         String variationString = whitelistingResult != null ? (String) whitelistingResult.get("variationName") : "";
-        LoggerService.log(LogLevelEnum.INFO, "WHITELISTING_STATUS", new HashMap<String, String>() {{
+        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_STATUS", new HashMap<String, String>() {{
             put("userId", context.getId());
             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             put("status", status.getStatus());
@@ -301,12 +303,12 @@ public class DecisionUtil {
      * @param context  Context object containing user information
      * @return  Whitelisted variation or null if not whitelisted
      */
-    private static Map<String, Object> evaluateWhitelisting(Campaign campaign, VWOContext context) {
+    private static Map<String, Object> evaluateWhitelisting(Campaign campaign, VWOContext context, ServiceContainer serviceContainer) {
         List<Variation> targetedVariations = new ArrayList<>();
 
         for (Variation variation : campaign.getVariations()) {
             if (variation.getSegments() != null && variation.getSegments().isEmpty()) {
-                LoggerService.log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, String>() {{
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, String>() {{
                     put("userId", context.getId());
                     put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                     put("variation", !variation.getName().isEmpty() ? "for variation: " + variation.getName() : "");
@@ -316,7 +318,7 @@ public class DecisionUtil {
 
             // Check for segmentation and evaluate
             if (variation.getSegments() != null) {
-                boolean segmentationResult = SegmentationManager.getInstance().validateSegmentation(variation.getSegments(), (Map<String, Object>) context.getVariationTargetingVariables());
+                boolean segmentationResult = serviceContainer.getSegmentationManager().validateSegmentation(variation.getSegments(), (Map<String, Object>) context.getVariationTargetingVariables());
 
                 if (segmentationResult) {
                     targetedVariations.add((Variation) FunctionUtil.cloneObject(variation));

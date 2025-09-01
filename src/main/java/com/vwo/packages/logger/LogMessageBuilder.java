@@ -15,7 +15,6 @@
  */
 package com.vwo.packages.logger;
 
-import com.vwo.interfaces.logger.LogTransport;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 
 import java.text.SimpleDateFormat;

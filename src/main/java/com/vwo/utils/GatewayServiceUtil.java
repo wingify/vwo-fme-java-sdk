@@ -22,11 +22,11 @@ import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
 import com.vwo.services.LoggerService;
 import com.vwo.services.SettingsManager;
-import com.vwo.services.UrlService;
 
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
+import com.vwo.ServiceContainer;
 
 public class GatewayServiceUtil {
 
@@ -36,22 +36,22 @@ public class GatewayServiceUtil {
      * @param endpoint The endpoint to send the request to
      * @return The response data from the gateway service
      */
-    public static String getFromGatewayService(Map<String, String> queryParams, String endpoint) {
+    public static String getFromGatewayService(ServiceContainer serviceContainer, Map<String, String> queryParams, String endpoint) {
         NetworkManager networkInstance = NetworkManager.getInstance();
-        if (UrlService.getBaseUrl().contains(Constants.HOST_NAME)) {
-            LoggerService.log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null);
+        if (serviceContainer.getBaseUrl().contains(Constants.HOST_NAME)) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null);
             return null;
         }
         try {
             RequestModel request = new RequestModel(
-                    UrlService.getBaseUrl(),
+                    serviceContainer.getBaseUrl(),
                     "GET",
                     endpoint,
                     queryParams,
                     null,
                     null,
-                    SettingsManager.getInstance().protocol,
-                    SettingsManager.getInstance().port
+                    serviceContainer.getSettingsManager().protocol,
+                    serviceContainer.getSettingsManager().port
             );
             ResponseModel response = networkInstance.get(request);
 

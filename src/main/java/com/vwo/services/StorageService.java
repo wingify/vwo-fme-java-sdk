@@ -16,11 +16,9 @@
 package com.vwo.services;
 
 import com.vwo.models.user.VWOContext;
-import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.storage.Connector;
 import com.vwo.packages.storage.Storage;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class StorageService {
@@ -31,19 +29,12 @@ public class StorageService {
      * @param context The context model containing at least an ID.
      * @return The data retrieved or an error/storage status enum.
      */
-    public Map<String, Object> getDataInStorage(String featureKey, VWOContext context) {
+    public Map<String, Object> getDataInStorage(String featureKey, VWOContext context) throws Exception {
         Object storageInstance = Storage.getInstance().getConnector();
         if (storageInstance == null) {
             return null;
         }
-        try {
-            return  (Map<String, Object>) ((Connector) storageInstance).get(featureKey, context.getId());
-        } catch (Exception e) {
-            LoggerService.log(LogLevelEnum.ERROR, "STORED_DATA_ERROR", new HashMap<String, String>() {{
-                put("err", e.toString());
-            }});
-            return null;
-        }
+        return  (Map<String, Object>) ((Connector) storageInstance).get(featureKey, context.getId());
     }
 
     /**

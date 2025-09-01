@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 package com.vwo.models;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.vwo.constants.Constants;
@@ -24,6 +25,7 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Settings {
     @JsonProperty("features")
+    @JsonDeserialize(using = EmptyObjectAsEmptyListDeserializer.class)
     private List<Feature> features;
     @JsonProperty("accountId")
     private Integer accountId;
@@ -34,11 +36,14 @@ public class Settings {
     @JsonProperty("isNBv2")
     private Boolean isNBv2 = false;
     @JsonProperty("campaigns")
+    @JsonDeserialize(using = EmptyObjectAsEmptyListDeserializer.class)
     private List<Campaign> campaigns;
     @JsonProperty("isNB")
     private Boolean isNB = false;
     @JsonProperty("sdkKey")
     private String sdkKey;
+    @JsonProperty("sdkMetaInfo")
+    private Map<String, Object> sdkMetaInfo;
 
     @JsonProperty("version")
     private Integer version;
@@ -134,5 +139,13 @@ public class Settings {
 
     public int getPollInterval() {
         return pollInterval;
+    }
+
+    public Map<String, Object> getSdkMetaInfo() {
+        return sdkMetaInfo;
+    }
+
+    public void setSdkMetaInfo(Map<String, Object> sdkMetaInfo) {
+        this.sdkMetaInfo = sdkMetaInfo;
     }
 }

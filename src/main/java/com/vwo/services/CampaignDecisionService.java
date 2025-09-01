@@ -23,6 +23,7 @@ import com.vwo.models.user.VWOContext;
 import com.vwo.packages.decision_maker.DecisionMaker;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
+import com.vwo.ServiceContainer;
 
 import java.util.*;
 
@@ -34,7 +35,7 @@ public class CampaignDecisionService {
      * @param campaign CampaignModel object containing the campaign settings.
      * @return  boolean value indicating if the user is part of the campaign.
      */
-    public boolean isUserPartOfCampaign(String userId, Campaign campaign) {
+    public boolean isUserPartOfCampaign(String userId, Campaign campaign, ServiceContainer serviceContainer) {
         if (campaign == null || userId == null) {
             return false;
         }
@@ -57,7 +58,7 @@ public class CampaignDecisionService {
         int valueAssignedToUser = new DecisionMaker().getBucketValueForUser(bucketKey);
         boolean isUserPart = valueAssignedToUser != 0 && valueAssignedToUser <= trafficAllocation;
 
-        LoggerService.log(LogLevelEnum.INFO, "USER_PART_OF_CAMPAIGN", new HashMap<String, String>() {{
+        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_PART_OF_CAMPAIGN", new HashMap<String, String>() {{
             put("userId", userId);
             put("notPart", isUserPart? "" : "not");
             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
@@ -100,7 +101,7 @@ public class CampaignDecisionService {
      * @param campaign  CampaignModel object containing the campaign settings.
      * @return  VariationModel object containing the variation allotted to the user.
      */
-    public Variation bucketUserToVariation(String userId, String accountId, Campaign campaign) {
+    public Variation bucketUserToVariation(String userId, String accountId, Campaign campaign, ServiceContainer serviceContainer) {
         if (campaign == null || userId == null) {
             return null;
         }
@@ -119,7 +120,7 @@ public class CampaignDecisionService {
         long hashValue = new DecisionMaker().generateHashValue(bucketKey);
         int bucketValue = new DecisionMaker().generateBucketValue(hashValue, Constants.MAX_TRAFFIC_VALUE, multiplier);
 
-        LoggerService.log(LogLevelEnum.DEBUG, "USER_BUCKET_TO_VARIATION", new HashMap<String, String>() {{
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "USER_BUCKET_TO_VARIATION", new HashMap<String, String>() {{
             put("userId", userId);
             put("campaignKey", campaign.getRuleKey());
             put("percentTraffic", String.valueOf(percentTraffic));
@@ -136,7 +137,7 @@ public class CampaignDecisionService {
      * @param context  VWOContext object containing the user context.
      * @return  boolean value indicating if the user passes the pre-segmentation.
      */
-    public boolean getPreSegmentationDecision(Campaign campaign, VWOContext context) {
+    public boolean getPreSegmentationDecision(Campaign campaign, VWOContext context, ServiceContainer serviceContainer) {
         String campaignType = campaign.getType();
         Map<String, Object> segments;
 
@@ -149,14 +150,14 @@ public class CampaignDecisionService {
         }
 
         if (segments.isEmpty()) {
-            LoggerService.log(LogLevelEnum.INFO, "SEGMENTATION_SKIP", new HashMap<String, String>() {{
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "SEGMENTATION_SKIP", new HashMap<String, String>() {{
                 put("userId", context.getId());
                 put("campaignKey",campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             }});
             return true;
         } else {
-            boolean preSegmentationResult = SegmentationManager.getInstance().validateSegmentation(segments, (Map<String, Object>) context.getCustomVariables());
-            LoggerService.log(LogLevelEnum.INFO, "SEGMENTATION_STATUS", new HashMap<String, String>() {{
+            boolean preSegmentationResult = serviceContainer.getSegmentationManager().validateSegmentation(segments, (Map<String, Object>) context.getCustomVariables());
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "SEGMENTATION_STATUS", new HashMap<String, String>() {{
                 put("userId", context.getId());
                 put("campaignKey",campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                 put("status", preSegmentationResult ? "passed" : "failed");
@@ -172,12 +173,12 @@ public class CampaignDecisionService {
      * @param campaign  CampaignModel object containing the campaign settings.
      * @return  VariationModel object containing the variation allotted to the user.
      */
-    public Variation getVariationAllotted(String userId, String accountId, Campaign campaign) {
-        boolean isUserPart = isUserPartOfCampaign(userId, campaign);
+    public Variation getVariationAllotted(String userId, String accountId, Campaign campaign, ServiceContainer serviceContainer) {
+        boolean isUserPart = isUserPartOfCampaign(userId, campaign, serviceContainer);
         if (Objects.equals(campaign.getType(), CampaignTypeEnum.ROLLOUT.getValue()) || Objects.equals(campaign.getType(), CampaignTypeEnum.PERSONALIZE.getValue())) {
             return isUserPart ? campaign.getVariations().get(0) : null;
         } else {
-            return isUserPart ? bucketUserToVariation(userId, accountId, campaign) : null;
+            return isUserPart ? bucketUserToVariation(userId, accountId, campaign, serviceContainer) : null;
         }
     }
 }

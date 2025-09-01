@@ -108,8 +108,6 @@ public class SettingsSchema {
 
             if (settings.getCampaigns() == null) {
                 result.addError("Settings campaigns list is null");
-            } else if (settings.getCampaigns().isEmpty()) {
-                result.addError("Settings campaigns list is empty");
             } else {
                 for (int i = 0; i < settings.getCampaigns().size(); i++) {
                     Campaign campaign = settings.getCampaigns().get(i);
