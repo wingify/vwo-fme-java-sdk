@@ -17,15 +17,15 @@ package com.vwo.utils;
 
 import com.vwo.models.Campaign;
 import com.vwo.models.Feature;
-import com.vwo.models.Settings;
 import com.vwo.models.Variation;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.LoggerService;
 import com.vwo.services.StorageService;
-
+import com.vwo.ServiceContainer;
 import java.util.HashMap;
 import java.util.Map;
+
 
 import static com.vwo.utils.DecisionUtil.checkWhitelistingAndPreSeg;
 import static com.vwo.utils.ImpressionUtil.createAndSendImpressionForVariationShown;
@@ -34,7 +34,7 @@ public class RuleEvaluationUtil {
 
     /**
      * This method is used to evaluate the rule for a given feature and campaign.
-     * @param settings  SettingsModel object containing the account settings.
+     * @param serviceContainer  ServiceContainer object containing the service container.
      * @param feature   FeatureModel object containing the feature settings.
      * @param campaign  CampaignModel object containing the campaign settings.
      * @param context   VWOContext object containing the user context.
@@ -44,7 +44,7 @@ public class RuleEvaluationUtil {
      * @return
      */
     public static Map<String, Object> evaluateRule(
-            Settings settings,
+            ServiceContainer serviceContainer,
             Feature feature,
             Campaign campaign,
             VWOContext context,
@@ -57,7 +57,7 @@ public class RuleEvaluationUtil {
         try {
             // Check if the campaign satisfies the whitelisting and pre-segmentation
             Map<String, Object> checkResult = checkWhitelistingAndPreSeg(
-                    settings,
+                    serviceContainer,
                     feature,
                     campaign,
                     context,
@@ -80,7 +80,7 @@ public class RuleEvaluationUtil {
 
                 // Send an impression for the variation shown
                 createAndSendImpressionForVariationShown(
-                        settings,
+                        serviceContainer,
                         campaign.getId(),
                         whitelistedObject.getId(),
                         context
@@ -94,7 +94,7 @@ public class RuleEvaluationUtil {
             result.put("updatedDecision", decision);
             return result;
         } catch (Exception exception) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error occurred while evaluating rule: " + exception);
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Error occurred while evaluating rule: " + exception);
             return new HashMap<>();
         }
     }

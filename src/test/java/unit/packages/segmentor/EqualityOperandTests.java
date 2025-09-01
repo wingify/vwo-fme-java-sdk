@@ -22,13 +22,26 @@ import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import com.vwo.services.LoggerService;
+import com.vwo.ServiceContainer;
+import com.vwo.models.Feature;
+import com.vwo.models.user.VWOContext;
+import com.vwo.models.Settings;
+import com.vwo.services.SettingsManager;
+import com.vwo.services.BatchEventQueue;
+
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.*;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class EqualityOperandTests {
+
   private static final String SDK_KEY = "abcd";
   private static final int ACCOUNT_ID = 1234;
+
+  private static SegmentationManager segmentationManager;
 
   @BeforeAll
   public static void initialize(){
@@ -36,6 +49,25 @@ public class EqualityOperandTests {
     vwoInitOptions.setSdkKey(SDK_KEY);
     vwoInitOptions.setAccountId(ACCOUNT_ID);
     VWO instance = VWO.init(vwoInitOptions);
+
+    LoggerService loggerService = new LoggerService(new HashMap<>());
+    segmentationManager = new SegmentationManager(loggerService, true);
+    
+    // Create mock objects for setContextualData parameters
+    SettingsManager settingsManager = mock(SettingsManager.class);
+    BatchEventQueue batchEventQueue = mock(BatchEventQueue.class);
+    Settings settings = new Settings();
+    
+    ServiceContainer serviceContainer = new ServiceContainer(loggerService, settingsManager, vwoInitOptions, batchEventQueue, settings);
+    
+    Feature feature = new Feature();
+    feature.setIsGatewayServiceRequired(false);
+    
+    VWOContext context = new VWOContext();
+    context.setId("test-user");
+    
+    // Initialize the evaluator by calling setContextualData
+    segmentationManager.setContextualData(serviceContainer, feature, context);
   }
 
   @Test
@@ -401,7 +433,6 @@ public class EqualityOperandTests {
   }
 
   public static void verifyExpectation(String dsl, Map<String, Object> customVariables) {
-    SegmentationManager.getInstance().attachEvaluator();
-    Assertions.assertEquals(SegmentationManager.getInstance().validateSegmentation(dsl, customVariables), customVariables.get("expectation"));
+    Assertions.assertEquals(segmentationManager.validateSegmentation(dsl, customVariables), customVariables.get("expectation"));
   }
 }

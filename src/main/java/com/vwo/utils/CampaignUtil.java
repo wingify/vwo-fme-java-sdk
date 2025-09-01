@@ -30,11 +30,12 @@ public class CampaignUtil {
      * If the campaign type is ROLLOUT or PERSONALIZE, it handles the campaign using `_handleRolloutCampaign`.
      * Otherwise, it assigns range values to each variation in the campaign.
      * @param campaign The campaign for which to set the variation allocation.
+     * @param loggerService The logger service.
      */
-    public static void setVariationAllocation(Campaign campaign) {
+    public static void setVariationAllocation(Campaign campaign, LoggerService loggerService) {
         // Check if the campaign type is roll out or PERSONALIZE
         if (Objects.equals(campaign.getType(), CampaignTypeEnum.ROLLOUT.getValue()) || Objects.equals(campaign.getType(), CampaignTypeEnum.PERSONALIZE.getValue())) {
-            handleRolloutCampaign(campaign);
+            handleRolloutCampaign(campaign, loggerService);
         } else {
             int currentAllocation = 0;
             // Iterate over each variation in the campaign
@@ -42,7 +43,7 @@ public class CampaignUtil {
                 // Assign range values to the variation and update the current allocation
                 int stepFactor = assignRangeValues(variation, currentAllocation);
                 currentAllocation += stepFactor;
-                LoggerService.log(LogLevelEnum.INFO, "VARIATION_RANGE_ALLOCATION", new HashMap<String, String>() {
+                loggerService.log(LogLevelEnum.INFO, "VARIATION_RANGE_ALLOCATION", new HashMap<String, String>() {
                     {
                         put("campaignKey", campaign.getKey());
                         put("variationKey", variation.getName());
@@ -169,6 +170,7 @@ public class CampaignUtil {
      * Determines if a campaign is part of a group.
      * @param settings The settings model containing group associations.
      * @param campaignId The ID of the campaign to check.
+     * @param variationId The ID of the variation to check.
      * @return An object containing the group ID and name if the campaign is part of a group, otherwise an empty object.
      */
     public static Map<String, String> getGroupDetailsIfCampaignPartOfIt(Settings settings, int campaignId, int variationId) {
@@ -339,13 +341,13 @@ public class CampaignUtil {
      * Handles the rollout campaign by setting start and end ranges for all variations.
      * @param campaign The campaign to handle.
      */
-    private static void handleRolloutCampaign(Campaign campaign) {
+    private static void handleRolloutCampaign(Campaign campaign, LoggerService loggerService) {
         // Set start and end ranges for all variations in the campaign
         for (Variation variation : campaign.getVariations()) {
             int endRange = (int) (variation.getWeight() * 100);
             variation.setStartRangeVariation(1);
             variation.setEndRangeVariation(endRange);
-            LoggerService.log(LogLevelEnum.INFO, "VARIATION_RANGE_ALLOCATION", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.INFO, "VARIATION_RANGE_ALLOCATION", new HashMap<String, String>() {
                 {
                     put("campaignKey", campaign.getKey());
                     put("variationKey", variation.getName());

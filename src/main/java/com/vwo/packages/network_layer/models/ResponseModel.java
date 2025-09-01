@@ -20,7 +20,7 @@ import java.util.Map;
 public class ResponseModel {
 
   private int statusCode;
-  private Object error;
+  private Exception error;
   private Map<String, String> headers;
   private String data;
 
@@ -36,7 +36,7 @@ public class ResponseModel {
     this.data = data;
   }
 
-  public void setError(Object error) {
+  public void setError(Exception error) {
     this.error = error;
   }
 
@@ -52,7 +52,7 @@ public class ResponseModel {
     return statusCode;
   }
 
-  public Object getError() {
+  public Exception getError() {
     return error;
   }
 }

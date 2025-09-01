@@ -16,9 +16,8 @@
 package com.vwo.utils;
 
 import com.vwo.enums.EventEnum;
-import com.vwo.models.Settings;
 import com.vwo.models.user.VWOContext;
-import com.vwo.VWO;
+import com.vwo.ServiceContainer;
 
 import java.util.Map;
 
@@ -29,25 +28,26 @@ public class ImpressionUtil {
      * This function constructs the necessary properties and payload for the event
      * and uses the NetworkUtil to send a POST API request.
      *
-     * @param settings    The settings model containing configuration.
+     * @param serviceContainer    The service container containing configuration.
      * @param campaignId  The ID of the campaign.
      * @param variationId The ID of the variation shown to the user.
      * @param context     The user context model containing user-specific data.
      */
     public static void createAndSendImpressionForVariationShown(
-            Settings settings,
+            ServiceContainer serviceContainer,
             int campaignId,
             int variationId,
             VWOContext context) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
+                serviceContainer.getSettingsManager(),
                 EventEnum.VWO_VARIATION_SHOWN.getValue(),
                 encodeURIComponent(context.getUserAgent()),
                 context.getIpAddress());
 
         // Construct payload data for tracking the user
         Map<String, Object> payload = NetworkUtil.getTrackUserPayloadData(
-                settings,
+                serviceContainer,
                 context.getId(),
                 EventEnum.VWO_VARIATION_SHOWN.getValue(),
                 campaignId,
@@ -55,16 +55,13 @@ public class ImpressionUtil {
                 context.getUserAgent(),
                 context.getIpAddress());
 
-        // Get the instance of VWO
-        VWO vwoInstance = VWO.getInstance();
-
         // Check if batch event queue is available
-        if (vwoInstance.getBatchEventQueue() != null) {
+        if (serviceContainer.getBatchEventQueue() != null) {
             // Enqueue the event to the batch queue for future processing
-            vwoInstance.getBatchEventQueue().enqueue(payload);
+            serviceContainer.getBatchEventQueue().enqueue(payload);
         } else {
             // Send the event immediately if batch event queue is not available
-            NetworkUtil.sendPostApiRequest(properties, payload, context.getUserAgent(), context.getIpAddress());
+            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context.getUserAgent(), context.getIpAddress());
         }
     }
 

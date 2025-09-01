@@ -15,13 +15,10 @@
  */
 package com.vwo.api;
 
-import com.vwo.VWO;
 import com.vwo.enums.ApiEnum;
-import com.vwo.models.Settings;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
-import com.vwo.services.HooksManager;
-import com.vwo.services.LoggerService;
+import com.vwo.ServiceContainer;
 import com.vwo.utils.FunctionUtil;
 import com.vwo.utils.NetworkUtil;
 
@@ -34,25 +31,24 @@ public class TrackEventAPI {
 
     /**
      * This method is used to track an event for the user.
-     * @param settings The settings model containing configuration.
      * @param eventName The name of the event to track.
      * @param context The user context model containing user-specific data.
      * @param eventProperties event properties for the event
-     * @param hooksManager The hooks manager instance.
+     * @param serviceContainer The service container instance.
      * @return Boolean indicating if the event was successfully tracked.
      */
-    public static Boolean track(Settings settings, String eventName, VWOContext context, Map<String, ?> eventProperties, HooksManager hooksManager) {
+    public static Boolean track(String eventName, VWOContext context, Map<String, ?> eventProperties, ServiceContainer serviceContainer) {
         try {
-            if (FunctionUtil.doesEventBelongToAnyFeature(eventName, settings)) {
-                createAndSendImpressionForTrack(settings, eventName, context, eventProperties);
+            if (FunctionUtil.doesEventBelongToAnyFeature(eventName, serviceContainer.getSettings())) {
+                createAndSendImpressionForTrack(eventName, context, eventProperties, serviceContainer);
                 Map<String, Object> objectToReturn = new HashMap<>();
                 objectToReturn.put("eventName", eventName);
                 objectToReturn.put("api", ApiEnum.TRACK.getValue());
-                hooksManager.set(objectToReturn);
-                hooksManager.execute(hooksManager.get());
+                serviceContainer.getHooksManager().set(objectToReturn);
+                serviceContainer.getHooksManager().execute(serviceContainer.getHooksManager().get());
                 return true;
             } else {
-                LoggerService.log(LogLevelEnum.ERROR, "EVENT_NOT_FOUND", new HashMap<String, String>() {
+                serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "EVENT_NOT_FOUND", new HashMap<String, String>() {
                     {
                         put("eventName", eventName);
                     }
@@ -60,7 +56,7 @@ public class TrackEventAPI {
                 return false;
             }
         } catch (Exception e) {
-            LoggerService.log(LogLevelEnum.ERROR, "Error in tracking event: " + eventName + " Error: " + e);
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Error in tracking event: " + eventName + " Error: " + e);
             return false;
         }
     }
@@ -69,20 +65,21 @@ public class TrackEventAPI {
      * Creates and sends an impression for a track event.
      * This function constructs the necessary properties and payload for the event
      * and uses the NetworkUtil to send a POST API request.
-     *
-     * @param settings   The settings model containing configuration.
      * @param eventName  The name of the event to track.
      * @param context    The user context model containing user-specific data.
      * @param eventProperties event properties for the event
+     * @param serviceContainer The service container instance.
+     * @return void
      */
     private static void createAndSendImpressionForTrack(
-            Settings settings,
             String eventName,
             VWOContext context,
-            Map<String, ?> eventProperties
+            Map<String, ?> eventProperties,
+            ServiceContainer serviceContainer
     ) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
+                serviceContainer.getSettingsManager(),
                 eventName,
                 encodeURIComponent(context.getUserAgent()),
                 context.getIpAddress()
@@ -90,23 +87,20 @@ public class TrackEventAPI {
 
         // Construct payload data for tracking the user
         Map<String, Object> payload = NetworkUtil.getTrackGoalPayloadData(
-                settings,
+                serviceContainer,
                 context.getId(),
                 eventName,
                 context,
                 eventProperties
         );
 
-        // Get the instance of VWO
-        VWO vwoInstance = VWO.getInstance();
-
         // Check if batch event queue is available
-        if (vwoInstance.getBatchEventQueue() != null) {
+        if (serviceContainer.getBatchEventQueue() != null) {
             // Enqueue the event to the batch queue for future processing
-            vwoInstance.getBatchEventQueue().enqueue(payload);
+            serviceContainer.getBatchEventQueue().enqueue(payload);
         } else {
             // Send the event immediately if batch event queue is not available
-            NetworkUtil.sendPostApiRequest(properties, payload, context.getUserAgent(), context.getIpAddress());
+            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context.getUserAgent(), context.getIpAddress());
         }
     }
 }

@@ -15,30 +15,49 @@
  */
 package com.vwo.decorators;
 
-import com.vwo.interfaces.storage.IStorageDecorator;
 import com.vwo.models.Variation;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
-import com.vwo.services.LoggerService;
 import com.vwo.services.StorageService;
+import com.vwo.ServiceContainer;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class StorageDecorator implements IStorageDecorator {
+public class StorageDecorator {
 
-    @Override
-    public Map<String, Object> getFeatureFromStorage(String featureKey, VWOContext context, StorageService storageService) {
-        return storageService.getDataInStorage(featureKey, context);
+    /**
+     * Gets the feature from storage
+     * @param featureKey The feature key
+     * @param context The context
+     * @param storageService The storage service
+     * @param serviceContainer The service container
+     * @return The feature
+     */
+    public Map<String, Object> getFeatureFromStorage(String featureKey, VWOContext context, StorageService storageService, ServiceContainer serviceContainer) {
+        try {
+            return storageService.getDataInStorage(featureKey, context);
+        } catch (Exception e) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORED_DATA_ERROR", new HashMap<String, String>() {{
+                put("err", e.toString());
+            }});
+            return null;
+        }
     }
 
-    @Override
-    public Variation setDataInStorage(Map<String, Object> data, StorageService storageService) {
+    /**
+     * Sets the data in storage
+     * @param data The data to be stored
+     * @param storageService The storage service
+     * @param serviceContainer The service container
+     * @return The variation
+     */
+    public Variation setDataInStorage(Map<String, Object> data, StorageService storageService, ServiceContainer serviceContainer) {
         String featureKey = (String) data.get("featureKey");
         String userId = data.get("userId").toString();
 
         if (featureKey == null || featureKey.isEmpty()) {
-            LoggerService.log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
                 {
                     put("key", "featureKey");
                 }
@@ -47,7 +66,7 @@ public class StorageDecorator implements IStorageDecorator {
         }
 
         if (userId == null || userId.isEmpty()) {
-            LoggerService.log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
                 {
                     put("key", "Context or Context.id");
                 }
@@ -61,7 +80,7 @@ public class StorageDecorator implements IStorageDecorator {
         Integer experimentVariationId = (Integer) data.get("experimentVariationId");
 
         if (rolloutKey != null && !rolloutKey.isEmpty() && experimentKey == null && rolloutVariationId == null) {
-            LoggerService.log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
                 {
                     put("key", "Variation:(rolloutKey, experimentKey or rolloutVariationId)");
                 }
@@ -70,7 +89,7 @@ public class StorageDecorator implements IStorageDecorator {
         }
 
         if (experimentKey != null && !experimentKey.isEmpty() && experimentVariationId == null) {
-            LoggerService.log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
                 {
                     put("key", "Variation:(experimentKey or rolloutVariationId)");
                 }

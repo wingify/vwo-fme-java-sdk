@@ -22,7 +22,6 @@ import com.vwo.models.user.VWOInitOptions;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 
-import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
 import com.vwo.packages.storage.Storage;
 import com.vwo.services.BatchEventQueue;
 import com.vwo.services.LoggerService;
@@ -37,12 +36,14 @@ import static com.vwo.utils.LogMessageUtil.*;
 
 public class VWOBuilder {
     private VWOClient vwoClient;
-    private final VWOInitOptions options;
+    public VWOInitOptions options;
     private SettingsManager settingFileManager;
     private String settings;
     private String originalSettings;
     private boolean isSettingsFetchInProgress;
     private boolean isValidPollIntervalPassedFromInit = false;
+    private LoggerService loggerService;
+    private BatchEventQueue batchEventQueue;
 
     public VWOBuilder(VWOInitOptions options) {
         this.options = options;
@@ -68,25 +69,9 @@ public class VWOBuilder {
             networkInstance.attachClient();
         }
         networkInstance.getConfig().setDevelopmentMode(false);
-        LoggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, String>() {
+        loggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, String>() {
             {
                 put("service", "Network Layer");
-            }
-        });
-        return this;
-    }
-
-    /**
-     * Sets the segmentation evaluator with the provided segmentation options.
-     * @return The instance of this builder.
-     */
-    public VWOBuilder setSegmentation() {
-        if (options!= null && options.getSegmentEvaluator() != null) {
-            SegmentationManager.getInstance().attachEvaluator(options.getSegmentEvaluator());
-        }
-        LoggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, String>() {
-            {
-                put("service", "Segmentation Evaluator");
             }
         });
         return this;
@@ -122,7 +107,7 @@ public class VWOBuilder {
             // Return the fetched settings
             return settings;
         } catch (Exception e) {
-            LoggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
                 {
                     put("err", e.toString());
                     put("accountId", options.getAccountId().toString());
@@ -166,7 +151,11 @@ public class VWOBuilder {
         if (options == null){
             return this;
         }
-        settingFileManager = new SettingsManager(options);
+        settingFileManager = new SettingsManager(options, loggerService);
+        // Set the SettingsManager reference in LogManager to avoid circular dependency
+        if (loggerService != null && loggerService.getLogManager() != null) {
+            loggerService.getLogManager().setSettingsManager(settingFileManager);
+        }
         return this;
     }
 
@@ -178,11 +167,11 @@ public class VWOBuilder {
     public VWOBuilder setLogger() {
         try {
             if (this.options == null || this.options.getLogger() == null || this.options.getLogger().isEmpty()) {
-                new LoggerService(new HashMap<>());
+                loggerService = new LoggerService(new HashMap<>());
             } else {
-                new LoggerService(this.options.getLogger());
+                loggerService = new LoggerService(this.options.getLogger());
             }
-            LoggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, String>() {
                 {
                     put("service", "Logger");
                 }
@@ -195,6 +184,30 @@ public class VWOBuilder {
     }
 
     /**
+     * This method is used to get the logger service
+     * @return LoggerService
+     */
+    public LoggerService getLoggerService() {
+        return this.loggerService;
+    }
+
+    /**
+     * This method is used to get the settings manager
+     * @return SettingsManager
+     */
+    public SettingsManager getSettingsManager() {
+        return this.settingFileManager;
+    }
+
+    /**
+     * This method is used to get the batch event queue
+     * @return BatchEventQueue
+     */
+    public BatchEventQueue getBatchEventQueue() {
+        return this.batchEventQueue;
+    }
+
+    /**
      * Initializes the polling with the provided poll interval.
      * @return The instance of this builder.
      */
@@ -202,11 +215,15 @@ public class VWOBuilder {
         if (this.options.getPollInterval() != null && DataTypeUtil.isInteger(this.options.getPollInterval()) && this.options.getPollInterval() >= 1000) {
             // this is to check if the poll_interval passed in options is valid
             isValidPollIntervalPassedFromInit = true;
-            new Thread(this::checkAndPoll).start();
+            try {
+                new Thread(this::checkAndPoll).start();
+            } catch (Exception e) {
+                loggerService.log(LogLevelEnum.ERROR, "Error occurred while initializing polling, Error: " + e.getMessage());
+            }
             return this;
         } else if (this.options.getPollInterval() != null) {
             // only log error if poll_interval is present in options
-            LoggerService.log(LogLevelEnum.ERROR, "INIT_OPTIONS_INVALID", new HashMap<String, String>(){
+            loggerService.log(LogLevelEnum.ERROR, "INIT_OPTIONS_INVALID", new HashMap<String, String>(){
                 {
                     put("key", "pollInterval");
                     put("correctType", "number");
@@ -228,14 +245,14 @@ public class VWOBuilder {
         if (!isValidPollIntervalPassedFromInit && processedSettings != null) {
             this.options.setPollInterval(processedSettings.getPollInterval());
             if (processedSettings.getPollInterval() == Constants.DEFAULT_POLL_INTERVAL) {
-                LoggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, String>(){
+                loggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, String>(){
                     {
                         put("source", "default");
                         put("pollInterval", String.valueOf(Constants.DEFAULT_POLL_INTERVAL));
                     }
                 });
             } else {
-                LoggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, String>(){
+                loggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, String>(){
                     {
                         put("source", "settings");
                         put("pollInterval", options.getPollInterval().toString());
@@ -280,27 +297,40 @@ public class VWOBuilder {
                     JsonNode latestSettingJsonNode = VWOClient.objectMapper.readTree(latestSettings);
                     JsonNode originalSettingsJsonNode = VWOClient.objectMapper.readTree(originalSettings);
                     if (!latestSettingJsonNode.equals(originalSettingsJsonNode)) {
-                        LoggerService.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null);
-                        // Update VWOClient settings
-                        if (vwoClient != null) {
-                            String updatedSettings = vwoClient.updateSettings(latestSettings);
-                            if (updatedSettings != null) {
-                                originalSettings = latestSettings;
-                                updatePollIntervalAndCheckAndPoll(originalSettings, false);
-                            }
-                        }
+                        updateSettingsOnBuilder(latestSettings);
                     } else {
-                        LoggerService.log(LogLevelEnum.INFO, "POLLING_NO_CHANGE_IN_SETTINGS", null);
+                        loggerService.log(LogLevelEnum.INFO, "POLLING_NO_CHANGE_IN_SETTINGS", null);
                     }
+                } else if ((originalSettings == null && latestSettings != null) || (originalSettings != null && latestSettings == null)) {
+                    updateSettingsOnBuilder(latestSettings);
                 }
             } catch (InterruptedException e) {
-                LoggerService.log(LogLevelEnum.ERROR, "POLLING_FETCH_SETTINGS_FAILED", null);
+                loggerService.log(LogLevelEnum.ERROR, "POLLING_FETCH_SETTINGS_FAILED", null);
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                LoggerService.log(LogLevelEnum.ERROR, "Error occurred while polling for settings, Error: " + e.getMessage() + " originalSettings: " + originalSettings + " latestSettings: " + latestSettings);
+                loggerService.log(LogLevelEnum.ERROR, "Error occurred while polling for settings, Error: " + e.getMessage() + " originalSettings: " + originalSettings + " latestSettings: " + latestSettings);
             }
         }
+    }
+
+    /**
+     * This method is used to update the settings on the VWOBuilder instance
+     * @param latestSettings The latest settings to be updated
+     */
+    private void updateSettingsOnBuilder(String latestSettings) {
+        try {
+            if (vwoClient != null) {
+                String updatedSettings = vwoClient.updateSettings(latestSettings);
+                if (updatedSettings != null) {
+                    loggerService.log(LogLevelEnum.INFO, "POLLING_SET_SETTINGS", null);
+                    originalSettings = latestSettings;
+                    updatePollIntervalAndCheckAndPoll(originalSettings, false);
+                }
+            }
+        } catch (Exception e) {
+            loggerService.log(LogLevelEnum.ERROR, "Error occurred while updating settings, Error: " + e.getMessage() + " originalSettings: " + originalSettings + " latestSettings: " + latestSettings);
+        } 
     }
 
     /**
@@ -321,8 +351,8 @@ public class VWOBuilder {
 
     public VWOBuilder initBatching() {
         // Check if gatewayService is provided and skip SDK batching if so
-        if (SettingsManager.getInstance().isGatewayServiceProvided) {
-            LoggerService.log(LogLevelEnum.WARN, "Gateway service is configured. Event batching will be handled by the gateway. SDK batching is disabled.");
+        if (settingFileManager.isGatewayServiceProvided) {
+            loggerService.log(LogLevelEnum.WARN, "Gateway service is configured. Event batching will be handled by the gateway. SDK batching is disabled.");
             return this;
         }
 
@@ -336,18 +366,18 @@ public class VWOBuilder {
 
             // Check data type and values for eventsPerRequest and requestTimeInterval
             if (!isEventsPerRequestValid && !isRequestTimeIntervalValid) {
-                LoggerService.log(LogLevelEnum.ERROR, "Values mismatch from the expectation of both parameters. Batching not initialized.");
+                loggerService.log(LogLevelEnum.ERROR, "Values mismatch from the expectation of both parameters. Batching not initialized.");
                 return this;
             }
 
             // Handle invalid data types for individual parameters
             if (!isEventsPerRequestValid) {
-                LoggerService.log(LogLevelEnum.ERROR, "Events_per_request values is invalid (should be greater than 0 and less than 5000). Using default value of events_per_request parameter : 100");
+                loggerService.log(LogLevelEnum.ERROR, "Events_per_request values is invalid (should be greater than 0 and less than 5000). Using default value of events_per_request parameter : 100");
                 eventsPerRequest = Constants.DEFAULT_EVENTS_PER_REQUEST; // Use default if invalid
             }
 
             if (!isRequestTimeIntervalValid) {
-                LoggerService.log(LogLevelEnum.ERROR, "Request_time_interval values is invalid (should be greater than 0). Using default value of request_time_interval parameter : 600");
+                loggerService.log(LogLevelEnum.ERROR, "Request_time_interval values is invalid (should be greater than 0). Using default value of request_time_interval parameter : 600");
                 requestTimeInterval = Constants.DEFAULT_REQUEST_TIME_INTERVAL; // Use default if invalid
             }
 
@@ -357,13 +387,14 @@ public class VWOBuilder {
                     requestTimeInterval,  // Cast to int since the expected type in BatchEventQueue is int
                     this.options.getBatchEventData().getFlushCallback(),
                     this.options.getAccountId(),
-                    this.options.getSdkKey()
+                    this.options.getSdkKey(),
+                    loggerService
             );
 
-            vwoClient.setBatchEventQueue(batchEventQueue); // Link to the vwoClient
-            LoggerService.log(LogLevelEnum.DEBUG, "Event Batching initialized successfully in SDK.");
+            this.batchEventQueue = batchEventQueue; // Link to the vwoClient
+                loggerService.log(LogLevelEnum.DEBUG, "Event Batching initialized successfully in SDK.");
         } else {
-            LoggerService.log(LogLevelEnum.DEBUG, "Event Batching functionality not initialized. SDK batching is disabled.");
+            loggerService.log(LogLevelEnum.DEBUG, "Event Batching functionality not initialized. SDK batching is disabled.");
         }
         return this;
     }

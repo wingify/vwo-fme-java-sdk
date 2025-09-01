@@ -15,10 +15,9 @@
  */
 package com.vwo.api;
 
-import com.vwo.VWO;
 import com.vwo.enums.EventEnum;
-import com.vwo.models.Settings;
 import com.vwo.models.user.VWOContext;
+import com.vwo.ServiceContainer;
 import com.vwo.utils.NetworkUtil;
 
 import java.util.Map;
@@ -28,30 +27,31 @@ import static com.vwo.utils.ImpressionUtil.encodeURIComponent;
 public class SetAttributeAPI {
     /**
      * This method is used to set an attribute for the user.
-     * @param settings The settings model containing configuration.
      * @param attributeMap - Map of attribute key and value to be set
      * @param context  The user context model containing user-specific data.
+     * @param serviceContainer The service container instance.
+
      */
-    public static void setAttribute(Settings settings, Map<String, Object> attributeMap, VWOContext context) {
-        createAndSendImpressionForSetAttribute(settings, attributeMap, context);
+    public static void setAttribute(Map<String, Object> attributeMap, VWOContext context, ServiceContainer serviceContainer) {
+        createAndSendImpressionForSetAttribute(attributeMap, context, serviceContainer);
     }
 
     /**
      * Creates and sends an impression for a track event.
      * This function constructs the necessary properties and payload for the event
      * and uses the NetworkUtil to send a POST API request.
-     *
-     * @param settings   The settings model containing configuration.
      * @param attributeMap - Map of attribute key and value to be set
      * @param context    The user context model containing user-specific data.
+     * @param serviceContainer The service container instance.
      */
     private static void createAndSendImpressionForSetAttribute(
-            Settings settings,
             Map<String, Object> attributeMap,
-            VWOContext context
+            VWOContext context,
+            ServiceContainer serviceContainer
     ) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
+                serviceContainer.getSettingsManager(),
                 EventEnum.VWO_SYNC_VISITOR_PROP.getValue(),
                 encodeURIComponent(context.getUserAgent()),
                 context.getIpAddress()
@@ -59,22 +59,19 @@ public class SetAttributeAPI {
 
         // Construct payload data for tracking the user
         Map<String, Object> payload = NetworkUtil.getAttributePayloadData(
-                settings,
+                serviceContainer,
                 context.getId(),
                 EventEnum.VWO_SYNC_VISITOR_PROP.getValue(),
                 attributeMap
         );
 
-        // Get the instance of VWO
-        VWO vwoInstance = VWO.getInstance();
-
         // Check if batch event queue is available
-        if (vwoInstance.getBatchEventQueue() != null) {
+        if (serviceContainer.getBatchEventQueue() != null) {
             // Enqueue the event to the batch queue for future processing
-            vwoInstance.getBatchEventQueue().enqueue(payload);
+            serviceContainer.getBatchEventQueue().enqueue(payload);
         } else {
             // Send the event immediately if batch event queue is not available
-            NetworkUtil.sendPostApiRequest(properties, payload, context.getUserAgent(), context.getIpAddress());
+            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context.getUserAgent(), context.getIpAddress());
         }
     }
 
