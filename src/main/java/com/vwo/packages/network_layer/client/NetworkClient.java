@@ -20,7 +20,11 @@ import com.vwo.interfaces.networking.NetworkClientInterface;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -29,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 public class NetworkClient implements NetworkClientInterface {
 
@@ -39,6 +44,40 @@ public class NetworkClient implements NetworkClientInterface {
         hostname += ":" + networkOptions.get("port");
     }
     return networkOptions.get("scheme").toString().toLowerCase() + "://" + hostname + path;
+  }
+
+  /**
+   * Magic Number Detection - Check first two bytes for gzip signature (0x1f, 0x8b)
+   * This is the most reliable method as it checks the actual content
+   */
+  private boolean isGzippedByMagicNumber(InputStream inputStream) throws IOException {
+    if (!inputStream.markSupported()) {
+      return false;
+    }
+    
+    inputStream.mark(2);
+    int byte1 = inputStream.read();
+    int byte2 = inputStream.read();
+    inputStream.reset();
+    
+    return (byte1 == 0x1f && byte2 == 0x8b);
+  }
+
+  /**
+   * This method is used to get the input stream from the connection
+   * @param connection The HttpURLConnection object
+   * @return The InputStream object
+   * @throws IOException If an I/O error occurs
+   */
+  private InputStream getInputStream(HttpURLConnection connection) throws IOException {
+    InputStream rawInputStream = connection.getInputStream();
+  
+    BufferedInputStream bufferedStream = new BufferedInputStream(rawInputStream);
+    if (isGzippedByMagicNumber(bufferedStream)) {
+      return new GZIPInputStream(bufferedStream);
+    }
+    
+    return bufferedStream;
   }
 
   /**
@@ -71,7 +110,12 @@ public class NetworkClient implements NetworkClientInterface {
         return responseModel;
       }
 
-      BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+      // Use the comprehensive gzip detection method
+      InputStream inputStream = getInputStream(connection);
+      if (inputStream instanceof GZIPInputStream) {
+        responseModel.setIsGzipped(true);
+      }
+      BufferedReader in = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
       String inputLine;
       StringBuilder response = new StringBuilder();
 

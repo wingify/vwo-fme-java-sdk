@@ -23,6 +23,7 @@ public class ResponseModel {
   private Exception error;
   private Map<String, String> headers;
   private String data;
+  private boolean isGzipped;
 
   public void setStatusCode(int statusCode) {
     this.statusCode = statusCode;
@@ -54,5 +55,13 @@ public class ResponseModel {
 
   public Exception getError() {
     return error;
+  }
+
+  public void setIsGzipped(boolean isGzipped) {
+    this.isGzipped = isGzipped;
+  }
+
+  public boolean getIsGzipped() {
+    return isGzipped;
   }
 }

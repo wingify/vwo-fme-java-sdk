@@ -29,6 +29,7 @@ import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
+import com.vwo.utils.LogMessageUtil;
 import com.vwo.utils.NetworkUtil;
 
 // public class SettingsManager implements ISettingsManager {
@@ -149,6 +150,11 @@ public class SettingsManager {
                     }
                 });
                 return null;
+            }
+            if (response.getIsGzipped()) {
+                try {
+                    LogMessageUtil.sendLogToVWO("Got Gzip response from the server for v2-settings", LogLevelEnum.DEBUG.name(), this);
+                } catch (Exception e) {}
             }
             this.settingsFetchTime = System.currentTimeMillis() - startTime;
             return response.getData();
