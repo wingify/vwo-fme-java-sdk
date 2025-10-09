@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package unit.packages.settings;
+package unit.settings;
 
 import com.vwo.VWOClient;
 import com.vwo.models.Settings;
