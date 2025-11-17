@@ -43,7 +43,7 @@ public class CampaignUtil {
                 // Assign range values to the variation and update the current allocation
                 int stepFactor = assignRangeValues(variation, currentAllocation);
                 currentAllocation += stepFactor;
-                loggerService.log(LogLevelEnum.INFO, "VARIATION_RANGE_ALLOCATION", new HashMap<String, String>() {
+                loggerService.log(LogLevelEnum.INFO, "VARIATION_RANGE_ALLOCATION", new HashMap<String, Object>() {
                     {
                         put("campaignKey", campaign.getKey());
                         put("variationKey", variation.getName());
@@ -347,7 +347,7 @@ public class CampaignUtil {
             int endRange = (int) (variation.getWeight() * 100);
             variation.setStartRangeVariation(1);
             variation.setEndRangeVariation(endRange);
-            loggerService.log(LogLevelEnum.INFO, "VARIATION_RANGE_ALLOCATION", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.INFO, "VARIATION_RANGE_ALLOCATION", new HashMap<String, Object>() {
                 {
                     put("campaignKey", campaign.getKey());
                     put("variationKey", variation.getName());
@@ -357,5 +357,50 @@ public class CampaignUtil {
                 }
             });
         }
+    }
+
+    /**
+     * Retrieves the campaign key from a campaign ID.
+     * @param settings The settings model containing all campaigns.
+     * @param campaignId The ID of the campaign.
+     * @return The campaign key if found, otherwise an empty string.
+     */
+    public static String getCampaignKeyFromCampaignId(Settings settings, int campaignId) {
+        return settings.getCampaigns().stream()
+                .filter(campaign -> campaign.getId() == campaignId)
+                .map(Campaign::getKey)
+                .findFirst()
+                .orElse("");
+    }
+
+    /**
+     * Retrieves the variation name from a campaign ID and variation ID.
+     * @param settings The settings model containing all campaigns.
+     * @param campaignId The ID of the campaign.
+     * @param variationId The ID of the variation.
+     * @return The variation name if found, otherwise an empty string.
+     */
+    public static String getVariationNameFromCampaignIdAndVariationId(Settings settings, int campaignId, int variationId) {
+        return settings.getCampaigns().stream()
+                .filter(campaign -> campaign.getId() == campaignId)
+                .flatMap(campaign -> campaign.getVariations().stream())
+                .filter(variation -> variation.getId() == variationId)
+                .map(Variation::getName)
+                .findFirst()
+                .orElse("");
+    }
+
+    /**
+     * Retrieves the campaign type from a campaign ID.
+     * @param settings The settings model containing all campaigns.
+     * @param campaignId The ID of the campaign.
+     * @return The campaign type if found, otherwise an empty string.
+     */
+    public static String getCampaignTypeFromCampaignId(Settings settings, int campaignId) {
+        return settings.getCampaigns().stream()
+                .filter(campaign -> campaign.getId() == campaignId)
+                .map(Campaign::getType)
+                .findFirst()
+                .orElse("");
     }
 }

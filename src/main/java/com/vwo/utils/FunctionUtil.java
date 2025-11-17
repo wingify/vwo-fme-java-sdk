@@ -38,12 +38,11 @@ public class FunctionUtil {
     }
 
     /**
-     * Retrieves the current Unix timestamp in seconds.
-     * @return  The current Unix timestamp in seconds.
+     * Generates a session ID.
+     * @return  The session ID.
      */
-    public static long getCurrentUnixTimestamp() {
-        // Convert the current date to Unix timestamp in seconds
-        return System.currentTimeMillis() / 1000L;
+    public static long generateSessionId() {
+        return System.currentTimeMillis() / 1000;
     }
 
     /**

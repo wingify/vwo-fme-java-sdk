@@ -65,12 +65,12 @@ public class VWO extends VWOClient {
 
     public static VWO init(VWOInitOptions options) {
         if (options == null || options.getSdkKey() == null || options.getSdkKey().isEmpty()) {
-            String message = LogMessageUtil.buildMessage("SDK key is required to initialize VWO. Please provide the sdkKey in the options.", null);
+            String message = LogMessageUtil.buildMessage("INVALID_SDK_KEY_IN_OPTIONS", null);
             System.err.println(message);
         }
 
         if (options == null || options.getAccountId() == null || options.getAccountId().toString().isEmpty()) {
-            String message = LogMessageUtil.buildMessage("Account ID is required to initialize VWO. Please provide the accountId in the options.", null);
+            String message = LogMessageUtil.buildMessage("INVALID_ACCOUNT_ID_IN_OPTIONS", null);
             System.err.println(message);
         }
         //start timer

@@ -8,7 +8,10 @@
 
   "USER_BUCKET_TO_VARIATION": "User ID: {userId} for experiment: {campaignKey} having percent traffic: {percentTraffic} got bucket-value as {bucketValue} and hash-value as {hashValue}",
 
+  "IMPACT_ANALYSIS": "Sending data for Impact Campaign for the user {userId}",
+  
   "IMPRESSION_FOR_TRACK_USER": "Impression built for vwo_variationShown event for Account ID:{accountId}, User ID:{userId}, and experiment ID:{campaignId}",
   "IMPRESSION_FOR_TRACK_GOAL": "Impression built for {eventName} event for Account ID:{accountId}, and user ID:{userId}",
-  "IMPRESSION_FOR_SYNC_VISITOR_PROP": "Impression built for {eventName} event for Account ID:{accountId}, and user ID:{userId}"
+  "IMPRESSION_FOR_SYNC_VISITOR_PROP": "Impression built for {eventName} event for Account ID:{accountId}, and user ID:{userId}",
+  "NETWORK_CALL_SUCCESS": "Impression successfully sent for {eventName} event for Account ID:{accountId}, and user ID:{userId}"
 }

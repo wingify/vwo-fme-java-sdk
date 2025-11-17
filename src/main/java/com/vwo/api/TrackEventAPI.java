@@ -21,6 +21,7 @@ import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.ServiceContainer;
 import com.vwo.utils.FunctionUtil;
 import com.vwo.utils.NetworkUtil;
+import com.vwo.models.request.EventArchPayload;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,25 +39,32 @@ public class TrackEventAPI {
      * @return Boolean indicating if the event was successfully tracked.
      */
     public static Boolean track(String eventName, VWOContext context, Map<String, ?> eventProperties, ServiceContainer serviceContainer) {
+        serviceContainer.getDebuggerService().addStandardDebugProp("an", ApiEnum.TRACK_EVENT.getValue());
         try {
             if (FunctionUtil.doesEventBelongToAnyFeature(eventName, serviceContainer.getSettings())) {
                 createAndSendImpressionForTrack(eventName, context, eventProperties, serviceContainer);
                 Map<String, Object> objectToReturn = new HashMap<>();
                 objectToReturn.put("eventName", eventName);
-                objectToReturn.put("api", ApiEnum.TRACK.getValue());
+                objectToReturn.put("api", ApiEnum.TRACK_EVENT.getValue());
                 serviceContainer.getHooksManager().set(objectToReturn);
                 serviceContainer.getHooksManager().execute(serviceContainer.getHooksManager().get());
                 return true;
             } else {
-                serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "EVENT_NOT_FOUND", new HashMap<String, String>() {
+                serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "EVENT_NOT_FOUND", new HashMap<String, Object>() {
                     {
                         put("eventName", eventName);
+                        putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
                     }
                 });
                 return false;
             }
         } catch (Exception e) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Error in tracking event: " + eventName + " Error: " + e);
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "EXECUTION_FAILED", new HashMap<String, Object>() {
+                {
+                    put("err", e.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
             return false;
         }
     }
@@ -86,7 +94,7 @@ public class TrackEventAPI {
         );
 
         // Construct payload data for tracking the user
-        Map<String, Object> payload = NetworkUtil.getTrackGoalPayloadData(
+        EventArchPayload payload = NetworkUtil.getTrackGoalPayloadData(
                 serviceContainer,
                 context.getId(),
                 eventName,
@@ -100,7 +108,7 @@ public class TrackEventAPI {
             serviceContainer.getBatchEventQueue().enqueue(payload);
         } else {
             // Send the event immediately if batch event queue is not available
-            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context.getUserAgent(), context.getIpAddress());
+            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context, null);
         }
     }
 }

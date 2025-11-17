@@ -38,8 +38,9 @@ public class StorageDecorator {
         try {
             return storageService.getDataInStorage(featureKey, context);
         } catch (Exception e) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORED_DATA_ERROR", new HashMap<String, String>() {{
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_READING_DATA_FROM_STORAGE", new HashMap<String, Object>() {{
                 put("err", e.toString());
+                putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
             }});
             return null;
         }
@@ -57,18 +58,20 @@ public class StorageDecorator {
         String userId = data.get("userId").toString();
 
         if (featureKey == null || featureKey.isEmpty()) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, Object>(){
                 {
                     put("key", "featureKey");
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
                 }
             });
             return null;
         }
 
         if (userId == null || userId.isEmpty()) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, Object>(){
                 {
                     put("key", "Context or Context.id");
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
                 }
             });
             return null;
@@ -80,18 +83,20 @@ public class StorageDecorator {
         Integer experimentVariationId = (Integer) data.get("experimentVariationId");
 
         if (rolloutKey != null && !rolloutKey.isEmpty() && experimentKey == null && rolloutVariationId == null) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, Object>(){
                 {
                     put("key", "Variation:(rolloutKey, experimentKey or rolloutVariationId)");
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
                 }
             });
             return null;
         }
 
         if (experimentKey != null && !experimentKey.isEmpty() && experimentVariationId == null) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, String>(){
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORING_DATA_ERROR", new HashMap<String, Object>(){
                 {
                     put("key", "Variation:(experimentKey or rolloutVariationId)");
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
                 }
             });
             return null;

@@ -87,7 +87,10 @@ public class SegmentationManager {
         GatewayService gatewayServiceModel = VWOClient.objectMapper.readValue(_vwo, GatewayService.class);
         context.setVwo(gatewayServiceModel);
       } catch (Exception err) {
-        loggerService.log(LogLevelEnum.ERROR, "Error in setting contextual data for segmentation. Got error: " + err);
+        loggerService.log(LogLevelEnum.ERROR, "ERROR_SETTING_SEGMENTATION_CONTEXT", new HashMap<String, Object>() {{
+          put("err", err.getMessage());
+          putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+        }});
       }
     }
   }
@@ -103,7 +106,10 @@ public class SegmentationManager {
       JsonNode dslNodes = dsl instanceof String ? VWOClient.objectMapper.readValue(dsl.toString(), JsonNode.class) : VWOClient.objectMapper.valueToTree(dsl);
       return evaluator.isSegmentationValid(dslNodes, properties);
     } catch (Exception exception) {
-      loggerService.log(LogLevelEnum.ERROR, "Exception occurred validate segmentation " + exception.getMessage());
+      loggerService.log(LogLevelEnum.ERROR, "ERROR_VALIDATING_SEGMENTATION", new HashMap<String, Object>() {{
+        put("err", exception.getMessage());
+        putAll(evaluator.serviceContainer.getDebuggerService().getStandardDebugProps());
+      }});
       return false;
     }
   }

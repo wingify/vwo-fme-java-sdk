@@ -20,8 +20,6 @@ import com.vwo.interfaces.logger.LogTransport;
 import com.vwo.packages.logger.Logger;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.logger.transports.ConsoleTransport;
-import com.vwo.utils.LogMessageUtil;
-import com.vwo.services.SettingsManager;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -35,7 +33,6 @@ public class LogManager extends Logger implements ILogManager {
   private String prefix;
   private SimpleDateFormat dateTimeFormat;
   private List<Map<String, Object>> transports = new ArrayList<>();
-  private SettingsManager settingsManager;
 
   public LogManager(Map<String, Object> config) {
     this.config = config;
@@ -62,10 +59,6 @@ public class LogManager extends Logger implements ILogManager {
         defaultTransportMap.put("defaultTransport", defaultTransport);
       addTransport(defaultTransportMap);
     }
-  }
-
-  public void setSettingsManager(SettingsManager settingsManager) {
-    this.settingsManager = settingsManager;
   }
 
   public void addTransport(Map<String, Object> transport) {
@@ -147,12 +140,5 @@ public class LogManager extends Logger implements ILogManager {
   @Override
   public void error(String message) {
     transportManager.error(message);
-    if (settingsManager != null) {
-      try {
-        LogMessageUtil.sendLogToVWO(message, LogLevelEnum.ERROR.name(), settingsManager);
-      } catch (Exception exception) {
-        transportManager.error("Exception occurred while sending log to VWO: " + exception.getMessage());
-      }
-    }
   }
 }

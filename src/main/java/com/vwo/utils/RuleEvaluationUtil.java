@@ -94,7 +94,12 @@ public class RuleEvaluationUtil {
             result.put("updatedDecision", decision);
             return result;
         } catch (Exception exception) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Error occurred while evaluating rule: " + exception);
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_EVALUATING_RULE", new HashMap<String, Object>() {
+                {
+                    put("err", exception.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
             return new HashMap<>();
         }
     }

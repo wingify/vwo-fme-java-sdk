@@ -147,7 +147,12 @@ public class SegmentEvaluator {
                     boolean uaParserResult = checkUserAgentParser(uaParserMap);
                     return uaParserResult;
                 } catch (Exception err) {
-                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Failed to validate User Agent. Error: " + err);
+                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "USER_AGENT_VALIDATION_ERROR", new HashMap<String, Object>() {
+                        {
+                            put("err", err.getMessage());
+                            putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                        }
+                    });
                 }
             }
 
@@ -219,7 +224,11 @@ public class SegmentEvaluator {
     public boolean checkLocationPreSegmentation(Map<String, Object> locationMap) {
         // Ensure user's IP address is available
         if (context == null || context.getIpAddress() == null || context.getIpAddress().isEmpty()) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "To evaluate location pre Segment, please pass ipAddress in context object");
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_USER_AGENT_IN_CONTEXT_FOR_PRE_SEGMENTATION", new HashMap<String, Object>() {
+                {
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
             return false;
         }
         // Check if location data is available and matches the expected values
@@ -237,7 +246,11 @@ public class SegmentEvaluator {
     public boolean checkUserAgentParser(Map<String, List<String>> uaParserMap) {
         // Ensure user's user agent is available
         if (context == null || context.getUserAgent() == null || context.getUserAgent().isEmpty()) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "To evaluate user agent related segments, please pass userAgent in context object");
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_USER_AGENT_IN_CONTEXT_FOR_PRE_SEGMENTATION", new HashMap<String, Object>() {
+                {
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
             return false;
         }
         // Check if user agent data is available and matches the expected values
@@ -263,7 +276,12 @@ public class SegmentEvaluator {
 
             return storedData != null && storedDataMap.size() > 1;
         } catch (Exception exception) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Error in checking feature in user storage. Got error: " + exception);
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_CHECKING_FEATURE_IN_USER_STORAGE", new HashMap<String, Object>() {
+                {
+                    put("err", exception.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
             return false;
         }
     }

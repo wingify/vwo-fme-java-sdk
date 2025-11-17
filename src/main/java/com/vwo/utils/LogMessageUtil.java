@@ -39,7 +39,7 @@ public class LogMessageUtil {
      * @param data     An object containing keys and values used to replace the placeholders in the template.
      * @return The constructed message with all placeholders replaced by their corresponding values from the data object.
      */
-    public static String buildMessage(String template, Map<String, String> data) {
+    public static String buildMessage(String template, Map<String, Object> data) {
         if (template == null || data == null) {
             return template;
         }

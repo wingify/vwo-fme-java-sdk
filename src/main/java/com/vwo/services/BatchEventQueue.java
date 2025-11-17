@@ -15,8 +15,10 @@
  */
 package com.vwo.services;
 
+import com.vwo.VWOClient;
 import com.vwo.constants.Constants;
 import com.vwo.models.FlushInterface;
+import com.vwo.enums.ApiEnum;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.LoggerService;
 import com.vwo.utils.NetworkUtil;
@@ -25,6 +27,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import com.vwo.models.Settings;
+import com.vwo.models.request.EventArchPayload;
 
 public class BatchEventQueue {
     private Queue<Map<String, Object>> batchQueue = new LinkedList<>();
@@ -62,9 +65,10 @@ public class BatchEventQueue {
      * Enqueues an event data into the batch queue.
      * @param eventData The event data to be enqueued.
      */
-    public void enqueue(Map<String, Object> eventData) {
+    public void enqueue(EventArchPayload eventData) {
         synchronized (LockObject) {
-            batchQueue.add(eventData);
+            Map<String, Object> payload = VWOClient.objectMapper.convertValue(eventData, Map.class);
+            batchQueue.add(payload);
             loggerService.log(LogLevelEnum.DEBUG, "Event added to queue. Current queue size: " + batchQueue.size());
 
             // If batch size reaches the limit, trigger flush
@@ -136,7 +140,10 @@ public class BatchEventQueue {
                             // Re-enqueue events in case of failure for retry logic
                             batchQueue.addAll(eventsToSend);
                             loggerService.log(LogLevelEnum.ERROR,
-                                    "Failed to send batch events. Re-enqueuing events for retry.");
+                                    "BATCH_FLUSH_FAILED", new HashMap<String, Object>() {{
+                                        put("an", ApiEnum.FLUSH_EVENTS.getValue());
+                                        put("accountId", accountId);
+                                    }});
                         }
                     } catch (Exception ex) {
                         loggerService.log(LogLevelEnum.ERROR, "Error during batch flush: " + ex.getMessage());

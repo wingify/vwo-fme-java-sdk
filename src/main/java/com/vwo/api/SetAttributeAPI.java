@@ -15,9 +15,11 @@
  */
 package com.vwo.api;
 
+import com.vwo.enums.ApiEnum;
 import com.vwo.enums.EventEnum;
 import com.vwo.models.user.VWOContext;
 import com.vwo.ServiceContainer;
+import com.vwo.models.request.EventArchPayload;
 import com.vwo.utils.NetworkUtil;
 
 import java.util.Map;
@@ -49,6 +51,8 @@ public class SetAttributeAPI {
             VWOContext context,
             ServiceContainer serviceContainer
     ) {
+        
+        serviceContainer.getDebuggerService().addStandardDebugProp("an", ApiEnum.SET_ATTRIBUTE.getValue());
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
                 serviceContainer.getSettingsManager(),
@@ -58,7 +62,7 @@ public class SetAttributeAPI {
         );
 
         // Construct payload data for tracking the user
-        Map<String, Object> payload = NetworkUtil.getAttributePayloadData(
+        EventArchPayload payload = NetworkUtil.getAttributePayloadData(
                 serviceContainer,
                 context.getId(),
                 EventEnum.VWO_SYNC_VISITOR_PROP.getValue(),
@@ -71,7 +75,7 @@ public class SetAttributeAPI {
             serviceContainer.getBatchEventQueue().enqueue(payload);
         } else {
             // Send the event immediately if batch event queue is not available
-            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context.getUserAgent(), context.getIpAddress());
+            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context, null);
         }
     }
 

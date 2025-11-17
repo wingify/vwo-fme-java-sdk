@@ -23,6 +23,9 @@ import com.vwo.models.Settings;
 import com.vwo.models.user.VWOInitOptions;
 import com.vwo.services.BatchEventQueue;
 import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
+import com.vwo.services.DebuggerService;
+import com.vwo.utils.UUIDUtils;
+import com.vwo.utils.FunctionUtil;
 
 public class ServiceContainer {
     private LoggerService loggerService;
@@ -32,6 +35,9 @@ public class ServiceContainer {
     private BatchEventQueue batchEventQueue;
     private SegmentationManager segmentationManager;
     private Settings settings;
+    private DebuggerService debuggerService;
+    private String uuid;
+    private Long sessionId;
 
     /**
      * Initializes the ServiceContainer
@@ -41,7 +47,7 @@ public class ServiceContainer {
      * @param batchEventQueue BatchEventQueue instance
      * @param settings Settings instance
      */
-    public ServiceContainer(LoggerService loggerService, SettingsManager settingsManager, VWOInitOptions options, BatchEventQueue batchEventQueue, Settings settings) {
+    public ServiceContainer(String userId, LoggerService loggerService, SettingsManager settingsManager, VWOInitOptions options, BatchEventQueue batchEventQueue, Settings settings) {
         this.loggerService = loggerService;
         this.settingsManager = settingsManager;
         this.hooksManager = new HooksManager(options.getIntegrations());
@@ -49,6 +55,9 @@ public class ServiceContainer {
         this.batchEventQueue = batchEventQueue;
         this.segmentationManager = new SegmentationManager(loggerService);
         this.settings = settings;
+        this.uuid = UUIDUtils.getUUID(userId, options.getAccountId().toString());
+        this.sessionId = FunctionUtil.generateSessionId();
+        this.debuggerService = new DebuggerService(uuid, sessionId);
     }
 
     /**
@@ -122,5 +131,29 @@ public class ServiceContainer {
         }
 
         return baseUrl;
+    }
+
+    /**
+     * Returns the DebuggerService instance
+     * @return DebuggerService instance
+     */
+    public DebuggerService getDebuggerService() {
+        return debuggerService;
+    }
+
+    /**
+     * Returns the UUID instance
+     * @return UUID instance
+     */
+    public String getUuid() {
+        return uuid;
+    }
+
+    /**
+     * Returns the SessionId instance
+     * @return SessionId instance
+     */
+    public Long getSessionId() {
+        return sessionId;
     }
 }

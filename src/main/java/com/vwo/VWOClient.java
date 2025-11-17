@@ -31,6 +31,7 @@ import com.vwo.utils.SettingsUtil;
 import com.vwo.services.BatchEventQueue;
 import com.vwo.utils.EventUtil;
 import com.vwo.enums.EventEnum;
+import com.vwo.enums.ApiEnum;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -87,8 +88,9 @@ public class VWOClient {
                 }
             }
         } catch (Exception exception) {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SDK_INIT_EVENT_FAILED", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SDK_INIT_EVENT_FAILED", new HashMap<String, Object>() {{
                 put("err", exception.getMessage());
+                put("an", ApiEnum.INIT.getValue());
             }});
         }
     }
@@ -103,11 +105,10 @@ public class VWOClient {
         String apiName = "getFlag";
         GetFlag getFlag = new GetFlag();
         try {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
             }});
-            // create Service Container instance
-            ServiceContainer serviceContainer = new ServiceContainer(this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
+
             if (context == null || context.getId() == null || context.getId().isEmpty()) {
                 getFlag.setIsEnabled(false);
                 throw new IllegalArgumentException("User ID is required");
@@ -118,16 +119,20 @@ public class VWOClient {
                 throw new IllegalArgumentException("Feature Key is required");
             }
 
-            if (!this.validateSettings(this.processedSettings)) {
+            if (!this.validateSettings(this.processedSettings, ApiEnum.GET_FLAG)) {
                 getFlag.setIsEnabled(false);
                 return getFlag;
             }
 
+            // create Service Container instance
+            ServiceContainer serviceContainer = new ServiceContainer(context.getId(), this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
+
             return GetFlagAPI.getFlag(featureKey, context, serviceContainer);
         } catch (Exception exception) {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "API_THROW_ERROR", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "EXECUTION_FAILED", new HashMap<String, Object>() {{
                 put("apiName", "getFlag");
                 put("err", exception.getMessage());
+                put("an", ApiEnum.GET_FLAG.getValue());
             }});
             getFlag.setIsEnabled(false);
             return getFlag;
@@ -145,13 +150,12 @@ public class VWOClient {
         String apiName = "trackEvent";
         Map<String, Boolean> resultMap = new HashMap<>();
         try {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
             }});
-            // create Service Container instance
-            ServiceContainer serviceContainer = new ServiceContainer(this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
+            
             if (!DataTypeUtil.isString(eventName)) {
-                vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "API_INVALID_PARAM", new HashMap<String, String>() {{
+                vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_PARAM", new HashMap<String, Object>() {{
                     put("apiName", apiName);
                     put("key", "eventName");
                     put("type", DataTypeUtil.getType(eventName));
@@ -164,10 +168,13 @@ public class VWOClient {
                 throw new IllegalArgumentException("User ID is required");
             }
 
-            if (!this.validateSettings(this.processedSettings)) {
+            if (!this.validateSettings(this.processedSettings, ApiEnum.TRACK_EVENT)) {
                 resultMap.put(eventName, false);
                 return resultMap;
             }
+
+            // create Service Container instance
+            ServiceContainer serviceContainer = new ServiceContainer(context.getId(), this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
 
             Boolean result = TrackEventAPI.track(eventName, context, eventProperties, serviceContainer);
             if (result) {
@@ -177,9 +184,10 @@ public class VWOClient {
             }
             return resultMap;
         } catch (Exception exception) {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "API_THROW_ERROR", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "EXECUTION_FAILED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
                 put("err", exception.getMessage());
+                put("an", ApiEnum.TRACK_EVENT.getValue());
             }});
             resultMap.put(eventName, false);
             return resultMap;
@@ -219,7 +227,7 @@ public class VWOClient {
     public void setAttribute(Map<String, Object> attributeMap, VWOContext context) {
         String apiName = "setAttribute";
         try {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
             }});
             if (attributeMap == null || attributeMap.isEmpty()) {
@@ -230,12 +238,12 @@ public class VWOClient {
             for (Map.Entry<String, Object> entry : attributeMap.entrySet()) {
                 Object value = entry.getValue();
                 if (!(value instanceof String || value instanceof Number || value instanceof Boolean)) {
-                    vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "API_INVALID_PARAM", new HashMap<String, String>() {{
+                    vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_PARAM", new HashMap<String, Object>() {{
                         put("apiName", apiName);
                         put("key", "attributeValue");
                         put("type", value != null ? value.getClass().getSimpleName() : "null");
                         put("correctType", "String, Number, or Boolean");
-                    }});
+                    }}, false);
                     throw new IllegalArgumentException("TypeError: Attribute value must be a String, Number, or Boolean");
                 }
             }
@@ -244,18 +252,19 @@ public class VWOClient {
                 throw new IllegalArgumentException("User ID is required");
             }
 
-            if (!this.validateSettings(this.processedSettings)) {
+            if (!this.validateSettings(this.processedSettings, ApiEnum.SET_ATTRIBUTE)) {
                 return;
             }
 
             // create Service Container instance
-            ServiceContainer serviceContainer = new ServiceContainer(this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
+            ServiceContainer serviceContainer = new ServiceContainer(context.getId(), this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
 
             SetAttributeAPI.setAttribute(attributeMap, context, serviceContainer);
         } catch (Exception exception) {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "API_THROW_ERROR", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "EXECUTION_FAILED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
                 put("err", exception.getMessage());
+                put("an", ApiEnum.SET_ATTRIBUTE.getValue());
             }});
         }
     }
@@ -286,10 +295,10 @@ public class VWOClient {
             // Call flushAndClearInterval to clear the queue and flush events
             return this.batchEventQueue.flushAndClearInterval();
         } else {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, String.format(
-                "Cannot flush events. Batching is not initialized for accountId: %d",
-                accountId
-            ));
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "BATCHING_NOT_ENABLED", new HashMap<String, Object>() {{
+                put("an", ApiEnum.FLUSH_EVENTS.getValue());
+                put("accountId", accountId);
+            }});
             return false;
         }
     }
@@ -308,7 +317,7 @@ public class VWOClient {
             this.processedSettings = objectMapper.readValue(newSettings, Settings.class);
             // Check if the new settings are valid
             this.settings = newSettings;
-            if (this.validateSettings(this.processedSettings)) {
+            if (this.validateSettings(this.processedSettings, ApiEnum.UPDATE_SETTINGS)) {
                 // Process the new settings and update the client instance
                 SettingsUtil.processSettings(this.processedSettings, this.vwoBuilder.getLoggerService());
             }
@@ -331,32 +340,34 @@ public class VWOClient {
     public String updateSettings(String settings) {
         String apiName = "updateSettings";
         try {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
             }});
 
             if (settings == null || settings.isEmpty()) {
-                vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_SETTINGS_SCHEMA", new HashMap<String, Object>() {{
                     put("errors", "Settings object is null");
                     put("accountId", options.getAccountId().toString());
                     put("sdkKey", options.getSdkKey());
                     put("settings", "null");
+                    put("an", ApiEnum.UPDATE_SETTINGS.getValue());
                 }});
                 return null;
             }
             
             // Update the settings on the VWOClient instance
             this.updateSettingsOnVWOClient(settings);
-            vwoBuilder.getLoggerService().log(LogLevelEnum.INFO, "SETTINGS_UPDATED", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.INFO, "SETTINGS_UPDATED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
                 put("isViaWebhook", "false");
             }});
             return settings;
         } catch (Exception exception) {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SETTINGS_FETCH_FAILED", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "UPDATING_CLIENT_INSTANCE_FAILED_WHEN_WEBHOOK_TRIGGERED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
                 put("err", exception.getMessage());
                 put("isViaWebhook", "false");
+                put("an", ApiEnum.UPDATE_SETTINGS.getValue());
             }});
             return null;
         }
@@ -373,10 +384,11 @@ public class VWOClient {
             this.settings = this.vwoBuilder.getSettingsManager().fetchSettings(isViaWebhook);
             return this.updateSettings(this.settings);
         } catch (Exception exception) {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SETTINGS_FETCH_FAILED", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "UPDATING_CLIENT_INSTANCE_FAILED_WHEN_WEBHOOK_TRIGGERED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
                 put("isViaWebhook", isViaWebhook.toString());
                 put("err", exception.getMessage());
+                put("an", ApiEnum.UPDATE_SETTINGS.getValue());
             }});
             return null;
         }
@@ -388,34 +400,37 @@ public class VWOClient {
      * @param settings Settings to be validated
      * @return Boolean value indicating if the settings are valid
      */
-    private Boolean validateSettings(Settings processedSettings) {
+    private Boolean validateSettings(Settings processedSettings, ApiEnum apiEnum) {
         try {
             if (processedSettings == null) {
-                vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_SETTINGS_SCHEMA", new HashMap<String, Object>() {{
                     put("errors", "Settings object is null");
                     put("accountId", options.getAccountId().toString());
                     put("sdkKey", options.getSdkKey());
                     put("settings", "null");
+                    put("an", apiEnum.getValue());
                 }});
                 return false;
             }
             SettingsSchema validationResult = new SettingsSchema().validateSettings(processedSettings);
             if (!validationResult.isValid()) {
-                vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_SETTINGS_SCHEMA", new HashMap<String, Object>() {{
                     put("errors", validationResult.getErrorsAsString());
                     put("accountId", options.getAccountId().toString());
                     put("sdkKey", options.getSdkKey());
                     put("settings", settings);
+                    put("an", apiEnum.getValue());
                 }});
                 return false;
             }
             return true;
         } catch (Exception exception) {
-            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_SETTINGS_SCHEMA", new HashMap<String, Object>() {{
                 put("errors", exception.getMessage());
                 put("accountId", options.getAccountId().toString());
                 put("sdkKey", options.getSdkKey());
                 put("settings", settings);
+                put("an", apiEnum.getValue());
             }});
             return false;
         }

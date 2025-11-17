@@ -39,7 +39,11 @@ public class GatewayServiceUtil {
     public static String getFromGatewayService(ServiceContainer serviceContainer, Map<String, String> queryParams, String endpoint) {
         NetworkManager networkInstance = NetworkManager.getInstance();
         if (serviceContainer.getBaseUrl().contains(Constants.HOST_NAME)) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "GATEWAY_URL_ERROR", null);
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_GATEWAY_URL", new HashMap<String, Object>() {
+                {
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
             return null;
         }
         try {
@@ -57,6 +61,12 @@ public class GatewayServiceUtil {
 
             return response.getData();
         } catch (Exception e) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_FETCHING_DATA_FROM_GATEWAY", new HashMap<String, Object>() {
+                {
+                    put("err", e.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
             return null;
         }
     }

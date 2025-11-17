@@ -59,7 +59,7 @@ public class AndOperatorTests {
     BatchEventQueue batchEventQueue = mock(BatchEventQueue.class);
     Settings settings = new Settings();
     
-    ServiceContainer serviceContainer = new ServiceContainer(loggerService, settingsManager, vwoInitOptions, batchEventQueue, settings);
+    ServiceContainer serviceContainer = new ServiceContainer("test-user", loggerService, settingsManager, vwoInitOptions, batchEventQueue, settings);
     
     Feature feature = new Feature();
     feature.setIsGatewayServiceRequired(false);

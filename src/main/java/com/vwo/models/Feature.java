@@ -45,6 +45,8 @@ public class Feature {
     private Boolean isGatewayServiceRequired = false;
     @JsonProperty("variables")
     private List<Variable> variables;
+    @JsonProperty("isDebuggerEnabled")
+    private Boolean isDebuggerEnabled = false;
 
 
     public String getKey() {
@@ -133,5 +135,13 @@ public class Feature {
 
     public void setVariables(List<Variable> variables) {
         this.variables = variables;
+    }
+
+    public Boolean getIsDebuggerEnabled() {
+        return isDebuggerEnabled;
+    }
+
+    public void setIsDebuggerEnabled(Boolean isDebuggerEnabled) {
+        this.isDebuggerEnabled = isDebuggerEnabled;
     }
 }

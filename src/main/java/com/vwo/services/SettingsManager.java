@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.vwo.VWOClient;
+import com.vwo.enums.ApiEnum;
 import com.vwo.models.Settings;
 import com.vwo.models.schemas.SettingsSchema;
 import com.vwo.models.user.VWOInitOptions;
@@ -29,7 +30,10 @@ import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
+import com.vwo.enums.DebuggerCategoryEnum;
+import com.vwo.utils.DebuggerServiceUtil;
 import com.vwo.utils.NetworkUtil;
+import static com.vwo.utils.LogMessageUtil.buildMessage;
 
 // public class SettingsManager implements ISettingsManager {
 public class SettingsManager {
@@ -74,7 +78,12 @@ public class SettingsManager {
                     this.port = Integer.parseInt(gatewayServicePort.toString());
                 }
             } catch (Exception e) {
-                loggerService.log(LogLevelEnum.ERROR, "Error occurred while parsing gateway service URL: " + e.getMessage());
+                loggerService.log(LogLevelEnum.ERROR, "ERROR_PARSING_GATEWAY_URL", new HashMap<String, Object>() {{
+                    put("err", e.getMessage());
+                    put("accountId", accountId.toString());
+                    put("sdkKey", sdkKey);
+                    put("an", ApiEnum.INIT.getValue());
+                }});
                 this.hostname = Constants.HOST_NAME;
             }
         } else {
@@ -97,11 +106,12 @@ public class SettingsManager {
         try {
             return fetchSettings(false);
         } catch (Exception e) {
-            loggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.ERROR, "ERROR_FETCHING_SETTINGS", new HashMap<String, Object>() {
                 {
                     put("err", e.toString());
                     put("accountId", accountId.toString());
                     put("sdkKey", sdkKey);
+                    put("an", ApiEnum.INIT.getValue());
                 }
             });
         }
@@ -127,11 +137,7 @@ public class SettingsManager {
             options.put("s", "prod");
         }
 
-        String endpoint = Constants.SETTINGS_ENDPOINT;
-        if (isViaWebhook) {
-            endpoint = Constants.WEBHOOK_SETTINGS_ENDPOINT;
-        }
-
+        String endpoint = isViaWebhook ? Constants.WEBHOOK_SETTINGS_ENDPOINT : Constants.SETTINGS_ENDPOINT;
         try {
             // Set fetch time
             long startTime = System.currentTimeMillis();
@@ -141,25 +147,62 @@ public class SettingsManager {
 
             ResponseModel response = networkInstance.get(request);
             if (response.getStatusCode() != 200){
-                loggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
+                // create debug event props
+                Map<String, Object> debugEventProps = new HashMap<String, Object>() {
                     {
-                        put("err", response.getError().toString());
+                        put("cg", DebuggerCategoryEnum.NETWORK.getValue());
+                        put("tRa", 0);
+                        put("err", response.getError().getMessage());
+                        put("an", isViaWebhook ? ApiEnum.UPDATE_SETTINGS.getValue() : ApiEnum.INIT.getValue());
+                        put("msg_t", Constants.NETWORK_CALL_EXCEPTION);
+                        put("sc", response.getStatusCode());
+                        put("lt", LogLevelEnum.ERROR.toString());
+                        put("msg", buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_EXCEPTION"), new HashMap<String, Object>() {{
+                            put("extraData", endpoint);
+                            put("accountId", accountId.toString());
+                            put("err", response.getError().getMessage());
+                        }}));
+                    }
+                };
+                // send debug event to VWO
+                DebuggerServiceUtil.sendDebugEventToVWO(this, debugEventProps);
+                loggerService.log(LogLevelEnum.ERROR, "ERROR_FETCHING_SETTINGS", new HashMap<String, Object>() {
+                    {
+                        put("err", response.getError().getMessage());
                         put("accountId", accountId.toString());
                         put("sdkKey", sdkKey);
                     }
-                });
+                }, false);
                 return null;
             }
             this.settingsFetchTime = System.currentTimeMillis() - startTime;
             return response.getData();
         } catch (Exception e) {
-            loggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
+            // create debug event props
+            Map<String, Object> debugEventProps = new HashMap<String, Object>() {
+                {
+                    put("cg", DebuggerCategoryEnum.NETWORK.getValue());
+                    put("err", e.getMessage());
+                    put("tRa", 0);
+                    put("msg_t", Constants.NETWORK_CALL_EXCEPTION);
+                    put("an", isViaWebhook ? ApiEnum.UPDATE_SETTINGS.getValue() : ApiEnum.INIT.getValue());
+                    put("lt", LogLevelEnum.ERROR.toString());
+                    put("msg", buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_EXCEPTION"), new HashMap<String, Object>() {{
+                        put("extraData", endpoint);
+                        put("accountId", accountId.toString());
+                        put("err", e.toString());
+                    }}));
+                }
+            };
+            // send debug event to VWO
+            DebuggerServiceUtil.sendDebugEventToVWO(this, debugEventProps);
+            loggerService.log(LogLevelEnum.ERROR, "ERROR_FETCHING_SETTINGS", new HashMap<String, Object>() {
                 {
                     put("err", e.toString());
                     put("accountId", accountId.toString());
                     put("sdkKey", sdkKey);
                 }
-            });
+            }, false);
             return null;
         }
     }
@@ -176,12 +219,13 @@ public class SettingsManager {
             try {
                 String settings = fetchSettingsAndCacheInStorage();
                 if (settings == null) {
-                    loggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                    loggerService.log(LogLevelEnum.ERROR, "INVALID_SETTINGS_SCHEMA", new HashMap<String, Object>() {{
                         put("errors", "Settings is null");
                         put("accountId", accountId.toString());
                         put("sdkKey", sdkKey);
                         put("settings", "null");
-                    }});
+                        put("an", forceFetch ? Constants.POLLING : ApiEnum.INIT.getValue());
+                    }}, false);
                     return null;
                 }
                 SettingsSchema validationResult = new SettingsSchema().validateSettings(VWOClient.objectMapper.readValue(settings, Settings.class));
@@ -189,20 +233,22 @@ public class SettingsManager {
                     this.isSettingsValidOnInit = true;
                     return settings;
                 } else {
-                    loggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                    loggerService.log(LogLevelEnum.ERROR, "INVALID_SETTINGS_SCHEMA", new HashMap<String, Object>() {{
                         put("errors", validationResult.getErrorsAsString());
                         put("accountId", accountId.toString());
                         put("sdkKey", sdkKey);
                         put("settings", settings);
+                        put("an", forceFetch ? Constants.POLLING : ApiEnum.INIT.getValue());
                     }});
                     return settings;
                 }
             } catch (Exception e) {
-                loggerService.log(LogLevelEnum.ERROR, "SETTINGS_SCHEMA_INVALID", new HashMap<String, String>() {{
+                loggerService.log(LogLevelEnum.ERROR, "INVALID_SETTINGS_SCHEMA", new HashMap<String, Object>() {{
                     put("errors", "Exception during validation: " + e.getMessage());
                     put("accountId", accountId.toString());
                     put("sdkKey", sdkKey);
                     put("settings", "null");
+                    put("an", forceFetch ? Constants.POLLING : ApiEnum.INIT.getValue());
                 }});
                 return null;
             }

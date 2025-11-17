@@ -28,7 +28,7 @@ public class Constants {
   public static final int DEFAULT_REQUEST_TIME_INTERVAL = 600; // 10 * 60(secs) = 600 secs i.e. 10 minutes
   public static final int DEFAULT_EVENTS_PER_REQUEST = 100;
   public static final String SDK_NAME = "vwo-fme-java-sdk";
-  public static final String SDK_VERSION = "1.12.0";
+  public static final String SDK_VERSION = "1.13.0";
   public static final long SETTINGS_EXPIRY = 10000000;
   public static final long SETTINGS_TIMEOUT = 50000;
 
@@ -44,4 +44,10 @@ public class Constants {
 
   public static final int DEFAULT_POLL_INTERVAL = 600000; // 10 minutes
   public static final String FME = "fme";
+
+  public static final String POLLING = "polling";
+  public static final String FLAG_DECISION = "FLAG_DECISION";
+  public static final String NETWORK_CALL_EXCEPTION = "NETWORK_CALL_EXCEPTION";
+
+  public static final String IMPACT_ANALYSIS = "IMPACT_ANALYSIS";
 }

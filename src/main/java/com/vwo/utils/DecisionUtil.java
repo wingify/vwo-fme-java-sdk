@@ -81,7 +81,7 @@ public class DecisionUtil {
                     }};
                 }
             } else {
-                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, String>() {{
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, Object>() {{
                     put("userId", context.getId());
                     put("campaignKey", campaign.getRuleKey());
                 }});
@@ -134,7 +134,7 @@ public class DecisionUtil {
                     String storageMapAsString = VWOClient.objectMapper.writeValueAsString(storedDataMap);
                     Storage storedData = VWOClient.objectMapper.readValue(storageMapAsString, Storage.class);
                     if (storedData != null && storedData.getExperimentId() != null && storedData.getExperimentKey() != null) {
-                        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_CAMPAIGN_FOUND_IN_STORAGE", new HashMap<String, String>(){
+                        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_CAMPAIGN_FOUND_IN_STORAGE", new HashMap<String, Object>(){
                             {
                                 put("campaignKey", storedData.getExperimentKey());
                                 put("userId", context.getId());
@@ -177,8 +177,9 @@ public class DecisionUtil {
                         }};
                     }
                 } catch (Exception e) {
-                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "STORED_DATA_ERROR", new HashMap<String, String>() {{
+                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_READING_DATA_FROM_STORAGE", new HashMap<String, Object>() {{
                         put("err", e.toString());
+                        putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
                     }});
                 }
             }
@@ -262,7 +263,7 @@ public class DecisionUtil {
         // Get the variation allotted to the user
         Variation variation = new CampaignDecisionService().getVariationAllotted(userId, serviceContainer.getVWOInitOptions().getAccountId().toString(), campaign, serviceContainer);
         if (variation == null) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, String>() {{
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, Object>() {{
                 put("userId", userId);
                 put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                 put("status", "did not get any variation");
@@ -270,7 +271,7 @@ public class DecisionUtil {
             return null;
         }
 
-        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, String>() {{
+        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, Object>() {{
             put("userId", userId);
             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             put("status", "got variation: " + variation.getName());
@@ -288,7 +289,7 @@ public class DecisionUtil {
         Map<String, Object> whitelistingResult = evaluateWhitelisting(campaign, context, serviceContainer);
         StatusEnum status = whitelistingResult != null ? StatusEnum.PASSED : StatusEnum.FAILED;
         String variationString = whitelistingResult != null ? (String) whitelistingResult.get("variationName") : "";
-        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_STATUS", new HashMap<String, String>() {{
+        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_STATUS", new HashMap<String, Object>() {{
             put("userId", context.getId());
             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             put("status", status.getStatus());
@@ -308,7 +309,7 @@ public class DecisionUtil {
 
         for (Variation variation : campaign.getVariations()) {
             if (variation.getSegments() != null && variation.getSegments().isEmpty()) {
-                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, String>() {{
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, Object>() {{
                     put("userId", context.getId());
                     put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                     put("variation", !variation.getName().isEmpty() ? "for variation: " + variation.getName() : "");

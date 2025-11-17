@@ -158,7 +158,7 @@ public class MegUtil {
         }
 
         // no rollout rule, evaluate experiments
-        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS", new HashMap<String, String>(){
+        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_SKIP_ROLLOUT_EVALUATE_EXPERIMENTS", new HashMap<String, Object>(){
             {
                 put("featureKey", feature.getKey());
             }
@@ -193,7 +193,7 @@ public class MegUtil {
                          if (storedData.getExperimentKey() != null && !storedData.getExperimentKey().isEmpty() && storedData.getExperimentKey().equals(campaign.getKey())) {
                              Variation variation = getVariationFromCampaignKey(serviceContainer.getSettings(), storedData.getExperimentKey(), storedData.getExperimentVariationId());
                              if (variation != null) {
-                                 serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_CAMPAIGN_FOUND_IN_STORAGE", new HashMap<String, String>(){
+                                 serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_CAMPAIGN_FOUND_IN_STORAGE", new HashMap<String, Object>(){
                                      {
                                          put("campaignKey", storedData.getExperimentKey());
                                          put("userId", context.getId());
@@ -212,7 +212,7 @@ public class MegUtil {
                 // Check if user is eligible for the campaign
                 if (new CampaignDecisionService().getPreSegmentationDecision(campaign, context, serviceContainer) &&
                         new CampaignDecisionService().isUserPartOfCampaign(context.getId(), campaign, serviceContainer)) {
-                    serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_CAMPAIGN_ELIGIBLE", new HashMap<String, String>(){
+                    serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_CAMPAIGN_ELIGIBLE", new HashMap<String, Object>(){
                         {
                             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                             put("userId", context.getId());
@@ -264,7 +264,7 @@ public class MegUtil {
                     throw new RuntimeException(e);
                 }
                 Variation finalWinnerCampaign = winnerCampaign;
-                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, Object>(){
                     {
                         put("campaignKey", finalWinnerCampaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? finalWinnerCampaign.getKey() : finalWinnerCampaign.getName() + "_" + finalWinnerCampaign.getRuleKey());
                         put("groupId", String.valueOf(groupId));
@@ -286,7 +286,7 @@ public class MegUtil {
                         throw new RuntimeException(e);
                     }
                     Variation finalWinnerCampaign1 = winnerCampaign;
-                    serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
+                    serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, Object>(){
                         {
                             put("campaignKey", finalWinnerCampaign1.getType().equals(CampaignTypeEnum.AB.getValue()) ? finalWinnerCampaign1.getKey() : finalWinnerCampaign1.getName() + "_" + finalWinnerCampaign1.getRuleKey());
                             put("groupId", String.valueOf(groupId));
@@ -301,7 +301,13 @@ public class MegUtil {
                 }
             }
         } catch (Exception exception) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "MEG: error inside findWinnerCampaignAmongEligibleCampaigns" + exception);
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_FINDING_WINNER_CAMPAIGN", new HashMap<String, Object>() {
+                {
+                    put("method", "findWinnerCampaignAmongEligibleCampaigns");
+                    put("err", exception.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
         }
         return winnerCampaign;
     }
@@ -339,7 +345,7 @@ public class MegUtil {
             );
 
             if (winnerVariation != null) {
-                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, Object>(){
                     {
                         put("campaignKey", winnerVariation.getType().equals(CampaignTypeEnum.AB.getValue()) ? winnerVariation.getKey() : winnerVariation.getName() + "_" + winnerVariation.getRuleKey());
                         put("groupId", String.valueOf(groupId));
@@ -364,7 +370,13 @@ public class MegUtil {
             }
 
         } catch (Exception exception) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "MEG: error inside normalizeWeightsAndFindWinningCampaign");
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_FINDING_WINNER_CAMPAIGN", new HashMap<String, Object>() {
+                {
+                    put("method", "normalizeWeightsAndFindWinningCampaign");
+                    put("err", exception.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
         }
         return null;
     }
@@ -443,7 +455,7 @@ public class MegUtil {
 
 
             if (winnerCampaign != null) {
-                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, String>(){
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_WINNER_CAMPAIGN", new HashMap<String, Object>(){
                     {
                         put("campaignKey", finalWinnerCampaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? finalWinnerCampaign.getKey() : finalWinnerCampaign.getName() + "_" + finalWinnerCampaign.getRuleKey());
                         put("groupId", String.valueOf(groupId));
@@ -467,7 +479,13 @@ public class MegUtil {
                 serviceContainer.getLoggerService().log(LogLevelEnum.INFO,"No winner campaign found for MEG group: " + groupId);
             }
         } catch (Exception exception) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "MEG: error inside getCampaignUsingAdvancedAlgo " + exception.getMessage());
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_FINDING_WINNER_CAMPAIGN", new HashMap<String, Object>() {
+                {
+                    put("method", "getCampaignUsingAdvancedAlgo");
+                    put("err", exception.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
         }
 
         return null;

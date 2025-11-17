@@ -18,6 +18,9 @@ package com.vwo.utils;
 import com.vwo.enums.EventEnum;
 import com.vwo.models.user.VWOContext;
 import com.vwo.ServiceContainer;
+import com.vwo.models.request.EventArchPayload;
+import com.vwo.constants.Constants;
+import java.util.HashMap;
 
 import java.util.Map;
 
@@ -46,7 +49,7 @@ public class ImpressionUtil {
                 context.getIpAddress());
 
         // Construct payload data for tracking the user
-        Map<String, Object> payload = NetworkUtil.getTrackUserPayloadData(
+        EventArchPayload payload = NetworkUtil.getTrackUserPayloadData(
                 serviceContainer,
                 context.getId(),
                 EventEnum.VWO_VARIATION_SHOWN.getValue(),
@@ -55,13 +58,32 @@ public class ImpressionUtil {
                 context.getUserAgent(),
                 context.getIpAddress());
 
+        String campaignKeyWithFeatureName = CampaignUtil.getCampaignKeyFromCampaignId(serviceContainer.getSettings(), campaignId);
+        String variationName = CampaignUtil.getVariationNameFromCampaignIdAndVariationId(serviceContainer.getSettings(), campaignId, variationId);
+        String campaignType = CampaignUtil.getCampaignTypeFromCampaignId(serviceContainer.getSettings(), campaignId);
+
+        String featureKey = (String) serviceContainer.getDebuggerService().getStandardDebugProps().get("fk");
+        String campaignKey = "";
+        if (featureKey.equals(campaignKeyWithFeatureName)) {
+            campaignKey = Constants.IMPACT_ANALYSIS;
+        } else {
+            // split campaignKeyWithFeatureName with featureKey_ to get the campaignKey
+            campaignKey = campaignKeyWithFeatureName.split(featureKey + "_")[1];
+        }
+
+        Map<String, Object> featureInfo = new HashMap<>();
+        featureInfo.put("featureKey", featureKey);
+        featureInfo.put("campaignKey", campaignKey);
+        featureInfo.put("campaignType", campaignType);
+        featureInfo.put("variationName", variationName);
+
         // Check if batch event queue is available
         if (serviceContainer.getBatchEventQueue() != null) {
             // Enqueue the event to the batch queue for future processing
             serviceContainer.getBatchEventQueue().enqueue(payload);
         } else {
             // Send the event immediately if batch event queue is not available
-            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context.getUserAgent(), context.getIpAddress());
+            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context, featureInfo);
         }
     }
 

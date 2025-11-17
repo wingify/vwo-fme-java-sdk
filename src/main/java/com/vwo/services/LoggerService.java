@@ -16,6 +16,9 @@
 package com.vwo.services;
 
 import com.vwo.VWOClient;
+import com.vwo.enums.DebuggerCategoryEnum;
+import com.vwo.services.SettingsManager;
+import com.vwo.utils.DebuggerServiceUtil;
 import com.vwo.packages.logger.core.LogManager;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 
@@ -31,14 +34,26 @@ public class LoggerService {
     public static Map<String, String> warningMessages;
     public static Map<String, String> traceMessages;
     private LogManager logManager;
+    private SettingsManager settingsManager;
+
+    /**
+     * Overloaded method to log a message to the log manager
+     * @param level The level of the message
+     * @param key The key of the message
+     * @param map The map of the message
+     */
+    public void log(LogLevelEnum level, String key, Map<String, Object> map) {
+        log(level, key, map, true);
+    }
 
     /**
      * Logs a message to the log manager
      * @param level The level of the message
      * @param key The key of the message
      * @param map The map of the message
+     * @param shouldLogToVWO Whether to log to VWO
      */
-    public void log(LogLevelEnum level, String key, Map<String, String> map) {
+    public void log(LogLevelEnum level, String key, Map<String, Object> map, Boolean shouldLogToVWO) {
         switch (level) {
             case DEBUG:
                 logManager.debug(buildMessage(debugMessages.get(key), map));
@@ -53,7 +68,11 @@ public class LoggerService {
                 logManager.warn(buildMessage(warningMessages.get(key), map));
                 break;
             default:
-                logManager.error(buildMessage(errorMessages.get(key), map));
+                String message = buildMessage(errorMessages.get(key), map);
+                logManager.error(message);
+                if (shouldLogToVWO) {
+                    errorLogToVWO(key, message, map);
+                }
         }
     }
 
@@ -79,6 +98,14 @@ public class LoggerService {
             default:
                 logManager.error(message);
         }
+    }
+
+    /**
+     * Sets the settings manager
+     * @param settingsManager The settings manager
+     */
+    public void setSettingsManager(SettingsManager settingsManager) {
+        this.settingsManager = settingsManager;
     }
 
     /**
@@ -117,5 +144,20 @@ public class LoggerService {
         }
 
         return new HashMap<>();
+    }
+
+    /**
+     * This method is used to send and error event to VWO.
+     * @param template The template of the message.
+     * @param debugProps The map of the debug props.
+     */
+    private void errorLogToVWO(String template, String message, Map<String, Object> debugProps) {
+        debugProps.put("msg_t", template);
+        debugProps.put("msg", message);
+        debugProps.put("lt", LogLevelEnum.ERROR.toString());
+        debugProps.put("cg", DebuggerCategoryEnum.ERROR.getValue());
+
+        // send debug event to VWO
+        DebuggerServiceUtil.sendDebugEventToVWO(settingsManager, debugProps);
     }
 }

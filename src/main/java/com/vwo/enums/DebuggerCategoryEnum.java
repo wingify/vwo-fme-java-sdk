@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.vwo.enums;
 
-public enum ApiEnum {
-    INIT("init"),
-    GET_FLAG("getFlag"),
-    TRACK_EVENT("trackEvent"),
-    SET_ATTRIBUTE("setAttribute"),
-    FLUSH_EVENTS("flushEvents"),
-    UPDATE_SETTINGS("updateSettings");
-
+public enum DebuggerCategoryEnum {
+    DECISION("decision"),
+    NETWORK("network"),
+    RETRY("retry"),
+    ERROR("error");
 
     private final String value;
 
-    ApiEnum(String value) {
+    DebuggerCategoryEnum(String value) {
         this.value = value;
     }
 

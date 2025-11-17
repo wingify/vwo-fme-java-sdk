@@ -57,7 +57,11 @@ public class SegmentOperandEvaluator {
             Pattern listIdPattern = Pattern.compile("inlist\\(([^)]+)\\)");
             Matcher matcher = listIdPattern.matcher(operandValue);
             if (!matcher.find()) {
-                serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Invalid 'inList' operand format");
+                serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_ATTRIBUTE_LIST_FORMAT", new HashMap<String, Object>() {
+                    {
+                        putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                    }
+                });
                 return false;
             }
             String listId = matcher.group(1);
@@ -158,7 +162,11 @@ public class SegmentOperandEvaluator {
 
     public boolean evaluateUserAgentDSL(String dslOperandValue, VWOContext context) {
         if (context == null || context.getUserAgent() == null) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "To Evaluate UserAgent segmentation, please provide userAgent in context");
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_USER_AGENT_IN_CONTEXT_FOR_PRE_SEGMENTATION", new HashMap<String, Object>() {
+                {
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
             return false;
         }
         String tagValue = java.net.URLDecoder.decode(context.getUserAgent());

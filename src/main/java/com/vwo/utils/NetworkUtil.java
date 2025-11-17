@@ -42,6 +42,10 @@ import com.vwo.ServiceContainer;
 import com.vwo.services.SettingsManager;
 
 import com.vwo.enums.EventEnum;
+import com.vwo.utils.FunctionUtil;
+import com.vwo.utils.DebuggerServiceUtil;
+import com.vwo.enums.ApiEnum;
+import com.vwo.enums.DebuggerCategoryEnum;
 
 public class NetworkUtil {
 
@@ -89,7 +93,7 @@ public class NetworkUtil {
         EventArchData eventArchData = new EventArchData();
         eventArchData.setMsgId(generateMsgId(uuid));
         eventArchData.setVisId(uuid);
-        eventArchData.setSessionId(generateSessionId());
+        eventArchData.setSessionId(FunctionUtil.generateSessionId());
         setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress);
 
         Event event = createEvent(settingsManager.sdkKey, eventName);
@@ -171,7 +175,7 @@ public class NetworkUtil {
      * @param ipAddress  The IP address of the user.
      * @return
      */
-    public static Map<String, Object> getTrackUserPayloadData(ServiceContainer serviceContainer, String userId, String eventName, Integer campaignId, Integer variationId, String visitorUserAgent, String ipAddress) {
+    public static EventArchPayload getTrackUserPayloadData(ServiceContainer serviceContainer, String userId, String eventName, Integer campaignId, Integer variationId, String visitorUserAgent, String ipAddress) {
         EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, visitorUserAgent, ipAddress);
         properties.getD().getEvent().getProps().setId(campaignId);
         properties.getD().getEvent().getProps().setVariation(variationId.toString());
@@ -181,15 +185,14 @@ public class NetworkUtil {
             properties.getD().getEvent().getProps().setVwoMeta(UsageStatsUtil.getInstance().getUsageStats());
         }
 
-        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_USER", new HashMap<String, String>() {
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_USER", new HashMap<String, Object>() {
             {
                 put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                 put("userId", userId);
                 put("campaignId", campaignId.toString());
             }
         });
-        Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
-        return removeNullValues(payload);
+        return properties;
     }
 
     /**
@@ -201,19 +204,18 @@ public class NetworkUtil {
      * @param eventProperties event properties for the event
      * @return  Map containing the payload data.
      */
-    public static Map<String, Object> getTrackGoalPayloadData(ServiceContainer serviceContainer, String userId, String eventName, VWOContext context, Map<String, ?> eventProperties) {
+    public static EventArchPayload getTrackGoalPayloadData(ServiceContainer serviceContainer, String userId, String eventName, VWOContext context, Map<String, ?> eventProperties) {
         EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, context.getUserAgent(), context.getIpAddress());
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
         addCustomEventProperties(properties, (Map<String, Object>) eventProperties);
-        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_GOAL", new HashMap<String, String>() {
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_GOAL", new HashMap<String, Object>() {
             {
                 put("eventName", eventName);
                 put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                 put("userId", userId);
             }
         });
-        Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
-        return removeNullValues(payload);
+        return properties;
     }
 
     /**
@@ -235,19 +237,18 @@ public class NetworkUtil {
      * @param attributeMap - Map of attribute key and value to be set
      * @return
      */
-    public static Map<String, Object> getAttributePayloadData(ServiceContainer serviceContainer, String userId, String eventName, Map<String, Object> attributeMap) {
+    public static EventArchPayload getAttributePayloadData(ServiceContainer serviceContainer, String userId, String eventName, Map<String, Object> attributeMap) {
         EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, null, null);
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
         properties.getD().getVisitor().getProps().putAll(attributeMap);
-        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_SYNC_VISITOR_PROP", new HashMap<String, String>() {
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_SYNC_VISITOR_PROP", new HashMap<String, Object>() {
             {
                 put("eventName", eventName);
                 put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                 put("userId", userId);
             }
         });
-        Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
-        return removeNullValues(payload);
+        return properties;
     }
 
     /**
@@ -286,46 +287,64 @@ public class NetworkUtil {
      * Sends a POST request to the VWO server.
      * @param properties The properties required for the request.
      * @param payload  The payload data for the request.
-     * @param userAgent The user agent of the user.
-     * @param ipAddress The IP address of the user.
+     * @param context The user context model containing user-specific data.
+     * @param featureInfo The feature information.
      */
-    public static void sendPostApiRequest(ServiceContainer serviceContainer, Map<String, String> properties, Map<String, Object> payload, String userAgent, String ipAddress) {
+    public static void sendPostApiRequest(ServiceContainer serviceContainer, Map<String, String> properties, EventArchPayload payload, VWOContext context, Map<String, Object> featureInfo) {
         try {
             NetworkManager.getInstance().attachClient();
             String eventName = properties.get("en");
-            Map<String, String> headers = createHeaders(userAgent, ipAddress);
-            RequestModel request = new RequestModel(serviceContainer.getBaseUrl(), "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, serviceContainer.getSettingsManager().protocol, serviceContainer.getSettingsManager().port);
+            Map<String, String> headers = createHeaders(context.getUserAgent(), context.getIpAddress());
+
+            Map<String, Object> payloadMap = VWOClient.objectMapper.convertValue(payload, Map.class);
+            RequestModel request = new RequestModel(serviceContainer.getBaseUrl(), "POST", UrlEnum.EVENTS.getUrl(), properties, payloadMap, headers, serviceContainer.getSettingsManager().protocol, serviceContainer.getSettingsManager().port);
             NetworkManager.getInstance().getExecutorService().submit(() -> {
                 try {
                     ResponseModel response = NetworkManager.getInstance().post(request, null);
                     if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
                         UsageStatsUtil.getInstance().clearUsageStats();
-                    } else {
-                        serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, String>() {
+                        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "NETWORK_CALL_SUCCESS", new HashMap<String, Object>() {
                             {
-                                put("event", eventName);
-                                put("endPoint", UrlEnum.EVENTS.getUrl());
+                                put("eventName", eventName);
+                                put("accountId", serviceContainer.getSettingsManager().accountId.toString());
+                                put("userId", context.getId());
+                            }
+                        });
+                    } else {
+                        // create debug event props
+                        Map<String, Object> debugEventProps = DebuggerServiceUtil.createNetworkDebugEvent(payload, featureInfo, serviceContainer.getSettingsManager().accountId, response.getError().getMessage());
+                        // send debug event to VWO
+                        DebuggerServiceUtil.sendDebugEventToVWO(serviceContainer.getSettingsManager(), debugEventProps);
+                        serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
+                            {
+                                put("extraData", "event: " + eventName);
                                 put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                                 put("err", response.getError().getMessage());
                             }
-                        });
-                    }   
+                        }, false);
+                    }
                 } catch (Exception exception) {
-                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, String>() {
+                    // create debug event props
+                    Map<String, Object> debugEventProps = DebuggerServiceUtil.createNetworkDebugEvent(payload, featureInfo, serviceContainer.getSettingsManager().accountId, exception.getMessage());
+                    debugEventProps.put("err", exception.getMessage());
+                    // send debug event to VWO
+                    DebuggerServiceUtil.sendDebugEventToVWO(serviceContainer.getSettingsManager(), debugEventProps);
+                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
                         {
-                            put("event", eventName);
-                            put("endPoint", UrlEnum.EVENTS.getUrl());
+                            put("extraData", "event: " + eventName);
                             put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                             put("err", exception.getMessage());
                         }
-                    });
+                    }, false);
                 }
             });
         } catch (Exception exception) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_FAILED", new HashMap<String, String>() {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
                 {
-                    put("method", "POST");
+                    put("extraData", "event: " + payload.getD().getEvent().getName());
+                    put("accountId", serviceContainer.getSettingsManager().accountId.toString());
                     put("err", exception.toString());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
                 }
             });
         }
@@ -391,11 +410,10 @@ public class NetworkUtil {
                 if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
                     UsageStatsUtil.getInstance().clearUsageStats();
                 } else {
-                    if (!eventName.equals(EventEnum.VWO_ERROR.getValue())) {
-                        settingsManager.loggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, String>() {
+                    if (!eventName.equals(EventEnum.VWO_ERROR.getValue()) && !eventName.equals(EventEnum.VWO_DEBUGGER_EVENT.getValue())) {
+                        settingsManager.loggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
                             {
-                                put("event", eventName);
-                                put("endPoint", UrlEnum.EVENTS.getUrl());
+                                put("extraData", "event: " + eventName);
                                 put("accountId", settingsManager.accountId.toString());
                                 put("err", response.getError().getMessage());
                             }
@@ -403,11 +421,10 @@ public class NetworkUtil {
                     }
                 }
             } catch (Exception exception) {
-                if (!eventName.equals(EventEnum.VWO_ERROR.getValue())) {
-                    settingsManager.loggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, String>() {
+                if (!eventName.equals(EventEnum.VWO_ERROR.getValue()) && !eventName.equals(EventEnum.VWO_DEBUGGER_EVENT.getValue())) {
+                    settingsManager.loggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
                         {
-                            put("event", eventName);
-                        put("endPoint", UrlEnum.EVENTS.getUrl());
+                            put("extraData", "event: " + eventName);
                         put("accountId", settingsManager.accountId.toString());
                         put("err", exception.getMessage());
                         }
@@ -453,15 +470,7 @@ public class NetworkUtil {
      * @return The message ID.
      */
     private static String generateMsgId(String uuid) {
-        return uuid + "-" + Calendar.getInstance().getTimeInMillis();
-    }
-
-    /**
-     * Generates a session ID for the event.
-     * @return The session ID.
-     */
-    private static long generateSessionId() {
-        return Calendar.getInstance().getTimeInMillis() / 1000;
+        return uuid + "-" + FunctionUtil.getCurrentUnixTimestampInMillis();
     }
 
     /**
@@ -507,6 +516,46 @@ public class NetworkUtil {
         // Convert to Map and return
         Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
         return removeNullValues(payload);
+    }
+
+    /**
+     * Constructs the payload for debugger event.
+     * @param settingsManager The settings manager containing configuration.
+     * @param eventProps The properties for the event.
+     * @return The constructed payload with required fields.
+     */
+    public static Map<String, Object> getDebuggerEventPayload(SettingsManager settingsManager, Map<String, Object> eventProps) {
+        String userId = UUIDUtils.getUUID(settingsManager.accountId.toString() + "_" + settingsManager.sdkKey, settingsManager.sdkKey);
+        // Get settings and create user ID
+        EventArchPayload payload = getEventBasePayload(settingsManager, userId, EventEnum.VWO_DEBUGGER_EVENT.getValue(), null, null);
+        if (eventProps.containsKey("uuid")) {
+            String uuid = (String) eventProps.get("uuid");
+            payload.getD().setMsgId(generateMsgId(uuid));
+            payload.getD().setVisId(uuid);
+        } else {
+            eventProps.put("uuid", userId);
+        }
+
+        if (eventProps.containsKey("sId")) {
+            Long sessionId = (Long) eventProps.get("sId");
+            payload.getD().setSessionId(sessionId);
+        } else {
+            eventProps.put("sId", payload.getD().getSessionId());
+        }
+
+        eventProps.put("a", settingsManager.accountId.toString());
+        eventProps.put("product", Constants.FME);
+        eventProps.put("sn", Constants.SDK_NAME);
+        eventProps.put("sv", Constants.SDK_VERSION);
+        eventProps.put("eventId", UUIDUtils.getRandomUUID(settingsManager.sdkKey));
+
+        Props props = new Props();
+        props.setVwoMeta(eventProps);
+        payload.getD().getEvent().setProps(props);
+
+        // Convert to Map and return
+        Map<String, Object> payloadMap = VWOClient.objectMapper.convertValue(payload, Map.class);
+        return removeNullValues(payloadMap);
     }
 
 }

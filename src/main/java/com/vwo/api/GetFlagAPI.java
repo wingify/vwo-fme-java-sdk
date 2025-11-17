@@ -20,11 +20,14 @@ import com.vwo.ServiceContainer;
 import com.vwo.decorators.StorageDecorator;
 import com.vwo.enums.ApiEnum;
 import com.vwo.enums.CampaignTypeEnum;
+import com.vwo.enums.DebuggerCategoryEnum;
+import com.vwo.constants.Constants;
 import com.vwo.models.*;
 import com.vwo.models.user.GetFlag;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.StorageService;
+import com.vwo.utils.DebuggerServiceUtil;
 import com.vwo.utils.RuleEvaluationUtil;
 
 import java.util.*;
@@ -63,6 +66,14 @@ public class GetFlagAPI {
         decision.put("userId", context != null ? context.getId() : null);
         decision.put("api", ApiEnum.GET_FLAG);
 
+        // create debug event props
+        Map<String, Object> standardDebugProps = new HashMap<>();
+        standardDebugProps.put("an", ApiEnum.GET_FLAG.getValue());
+        standardDebugProps.put("fk", featureKey);
+
+        // add standard debug props to the debugger service
+        serviceContainer.getDebuggerService().addStandardDebugProps(standardDebugProps);
+
         StorageService storageService = new StorageService();
         Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(featureKey, context, storageService, serviceContainer);
 
@@ -77,7 +88,7 @@ public class GetFlagAPI {
                     Variation variation = getVariationFromCampaignKey(serviceContainer.getSettings(), storedData.getExperimentKey(), storedData.getExperimentVariationId());
                     // If variation is found in settings, return the variation
                     if (variation != null) {
-                        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "STORED_VARIATION_FOUND", new HashMap<String, String>() {
+                        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "STORED_VARIATION_FOUND", new HashMap<String, Object>() {
                             {
                                 put("variationKey", variation.getName());
                                 put("userId", context.getId());
@@ -94,7 +105,7 @@ public class GetFlagAPI {
                 Variation variation = getVariationFromCampaignKey(serviceContainer.getSettings(), storedData.getRolloutKey(), storedData.getRolloutVariationId());
                 // If variation is found in settings, evaluate experiment rules
                 if (variation != null) {
-                    serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "STORED_VARIATION_FOUND", new HashMap<String, String>() {
+                    serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "STORED_VARIATION_FOUND", new HashMap<String, Object>() {
                         {
                             put("variationKey", variation.getName());
                             put("userId", context.getId());
@@ -103,7 +114,7 @@ public class GetFlagAPI {
                         }
                     });
 
-                    serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "EXPERIMENTS_EVALUATION_WHEN_ROLLOUT_PASSED", new HashMap<String, String>() {
+                    serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "EXPERIMENTS_EVALUATION_WHEN_ROLLOUT_PASSED", new HashMap<String, Object>() {
                         {
                             put("userId", context.getId());
                         }
@@ -120,15 +131,21 @@ public class GetFlagAPI {
                 }
             }
         } catch (Exception e) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "Error parsing stored data: " + e.getMessage());
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_PARSING_STORED_DATA", new HashMap<String, Object>() {
+                {
+                    put("err", e.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
         }
 
         /**
          * if feature is not found, return false
          */
         if (feature == null) {
-            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "FEATURE_NOT_FOUND", new HashMap<String, String>() {{
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "FEATURE_NOT_FOUND", new HashMap<String, Object>() {{
                 put("featureKey", featureKey);
+                putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
             }});
             getFlag.setIsEnabled(false);
             return getFlag;
@@ -231,12 +248,18 @@ public class GetFlagAPI {
         serviceContainer.getHooksManager().set(decision);
         serviceContainer.getHooksManager().execute(serviceContainer.getHooksManager().get());
 
+        // if debugger is enabled, update the debug event props
+        if (feature.getIsDebuggerEnabled()) {
+            _updateDebugEventProps(serviceContainer, decision);
+            DebuggerServiceUtil.sendDebugEventToVWO(serviceContainer.getSettingsManager(), serviceContainer.getDebuggerService().getDebugEventProps(DebuggerCategoryEnum.DECISION.getValue()));
+        }
+
         /**
          * If the feature has an impact campaign, send an impression for the variation shown
          * If flag enabled - variation 2, else - variation 1
          */
         if (feature.getImpactCampaign() != null && feature.getImpactCampaign().getCampaignId() != null && !feature.getImpactCampaign().getCampaignId().toString().isEmpty()){
-            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "IMPACT_ANALYSIS", new HashMap<String, String>() {
+            serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPACT_ANALYSIS", new HashMap<String, Object>() {
                 {
                     put("userId", context.getId());
                     put("featureKey", featureKey);
@@ -271,6 +294,37 @@ public class GetFlagAPI {
             passedRulesInformation.put("experimentVariationId", variation.getId());
         }
         decision.putAll(passedRulesInformation);
+    }
+
+    /**
+     * This method is used to update the debug event props with the decision keys.
+     * @param serviceContainer  ServiceContainer object containing the debugger service.
+     * @param decision  Map containing the decision object.
+     */
+    private static void _updateDebugEventProps(ServiceContainer serviceContainer, Map<String,Object> decision) {
+        Map<String, Object> decisionKeys = DebuggerServiceUtil.extractDecisionKeys(decision);
+        String featureKey = decision.get("featureKey").toString();
+        String message = "Flag decision given for feature:" + decision.get("featureKey") + ".";
+        if (decision.get("rolloutKey") != null && !decision.get("rolloutKey").toString().isEmpty() && decision.get("rolloutVariationId") != null && !decision.get("rolloutVariationId").toString().isEmpty()) {
+            String rolloutKey = decision.get("rolloutKey").toString();
+            // Split rollout key to extract just the rollout part (remove featureKey_ prefix)
+            if (rolloutKey.startsWith(featureKey + "_")) {
+                rolloutKey = rolloutKey.substring(featureKey.length() + 1);
+            }
+            message += " Got Rollout:" + rolloutKey + "." + " Rollout variation id:" + decision.get("rolloutVariationId") + ".";
+        }
+        if (decision.get("experimentKey") != null && !decision.get("experimentKey").toString().isEmpty() && decision.get("experimentVariationId") != null && !decision.get("experimentVariationId").toString().isEmpty()) {
+            String experimentKey = decision.get("experimentKey").toString();
+            // Split experiment key to extract just the experiment part (remove featureKey_ prefix)
+            if (experimentKey.startsWith(featureKey + "_")) {
+                experimentKey = experimentKey.substring(featureKey.length() + 1);
+            }
+            message += " Got Experiment:" + experimentKey + "." + " Experiment variation id:" + decision.get("experimentVariationId") + ".";
+        }
+        decisionKeys.put("msg", message);
+        decisionKeys.put("msg_t", Constants.FLAG_DECISION);
+        decisionKeys.put("lt", LogLevelEnum.INFO.toString());
+        serviceContainer.getDebuggerService().addCategoryDebugProps(DebuggerCategoryEnum.DECISION.getValue(), decisionKeys);
     }
 }
 

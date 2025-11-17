@@ -19,7 +19,8 @@ public enum EventEnum {
     VWO_VARIATION_SHOWN("vwo_variationShown"),
     VWO_SYNC_VISITOR_PROP("vwo_syncVisitorProp"),
     VWO_SDK_INIT_EVENT("vwo_fmeSdkInit"),
-    VWO_ERROR("vwo_log");
+    VWO_ERROR("vwo_log"),
+    VWO_DEBUGGER_EVENT("vwo_sdkDebug");
 
     private final String value;
 

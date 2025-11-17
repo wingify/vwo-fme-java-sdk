@@ -17,6 +17,7 @@ package com.vwo;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vwo.constants.Constants;
+import com.vwo.enums.ApiEnum;
 import com.vwo.models.Settings;
 import com.vwo.models.user.VWOInitOptions;
 import com.vwo.packages.logger.enums.LogLevelEnum;
@@ -69,9 +70,10 @@ public class VWOBuilder {
             networkInstance.attachClient();
         }
         networkInstance.getConfig().setDevelopmentMode(false);
-        loggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, String>() {
+        loggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, Object>() {
             {
                 put("service", "Network Layer");
+                put("an", ApiEnum.INIT.getValue());
             }
         });
         return this;
@@ -107,7 +109,7 @@ public class VWOBuilder {
             // Return the fetched settings
             return settings;
         } catch (Exception e) {
-            loggerService.log(LogLevelEnum.ERROR, "SETTINGS_FETCH_ERROR", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.ERROR, "ERROR_FETCHING_SETTINGS", new HashMap<String, Object>() {
                 {
                     put("err", e.toString());
                     put("accountId", options.getAccountId().toString());
@@ -153,8 +155,8 @@ public class VWOBuilder {
         }
         settingFileManager = new SettingsManager(options, loggerService);
         // Set the SettingsManager reference in LogManager to avoid circular dependency
-        if (loggerService != null && loggerService.getLogManager() != null) {
-            loggerService.getLogManager().setSettingsManager(settingFileManager);
+        if (loggerService != null) {
+            loggerService.setSettingsManager(settingFileManager);
         }
         return this;
     }
@@ -171,7 +173,7 @@ public class VWOBuilder {
             } else {
                 loggerService = new LoggerService(this.options.getLogger());
             }
-            loggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, String>() {
+            loggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, Object>() {
                 {
                     put("service", "Logger");
                 }
@@ -223,10 +225,11 @@ public class VWOBuilder {
             return this;
         } else if (this.options.getPollInterval() != null) {
             // only log error if poll_interval is present in options
-            loggerService.log(LogLevelEnum.ERROR, "INIT_OPTIONS_INVALID", new HashMap<String, String>(){
+            loggerService.log(LogLevelEnum.ERROR, "INVALID_POLLING_CONFIGURATION", new HashMap<String, Object>() {
                 {
                     put("key", "pollInterval");
                     put("correctType", "number");
+                    put("an", ApiEnum.INIT.getValue());
                 }
             });
             return this;
@@ -245,14 +248,14 @@ public class VWOBuilder {
         if (!isValidPollIntervalPassedFromInit && processedSettings != null) {
             this.options.setPollInterval(processedSettings.getPollInterval());
             if (processedSettings.getPollInterval() == Constants.DEFAULT_POLL_INTERVAL) {
-                loggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, String>(){
+                loggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, Object>() {
                     {
                         put("source", "default");
                         put("pollInterval", String.valueOf(Constants.DEFAULT_POLL_INTERVAL));
                     }
                 });
             } else {
-                loggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, String>(){
+                loggerService.log(LogLevelEnum.DEBUG, "USING_POLL_INTERVAL_FROM_SETTINGS", new HashMap<String, Object>() {
                     {
                         put("source", "settings");
                         put("pollInterval", options.getPollInterval().toString());
@@ -305,11 +308,27 @@ public class VWOBuilder {
                     updateSettingsOnBuilder(latestSettings);
                 }
             } catch (InterruptedException e) {
-                loggerService.log(LogLevelEnum.ERROR, "POLLING_FETCH_SETTINGS_FAILED", null);
+                final String finalLatestSettings = latestSettings;
+                loggerService.log(LogLevelEnum.ERROR, "ERROR_UPDATING_SETTINGS", new HashMap<String, Object>() {
+                    {
+                        put("err", e.getMessage());
+                        put("an", Constants.POLLING);
+                        put("originalSettings", originalSettings);
+                        put("latestSettings", finalLatestSettings);
+                    }
+                });
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                loggerService.log(LogLevelEnum.ERROR, "Error occurred while polling for settings, Error: " + e.getMessage() + " originalSettings: " + originalSettings + " latestSettings: " + latestSettings);
+                final String finalLatestSettings = latestSettings;
+                loggerService.log(LogLevelEnum.ERROR, "ERROR_UPDATING_SETTINGS", new HashMap<String, Object>() {
+                    {
+                        put("err", e.getMessage());
+                        put("an", Constants.POLLING);
+                        put("originalSettings", originalSettings);
+                        put("latestSettings", finalLatestSettings);
+                    }
+                });
             }
         }
     }
@@ -329,7 +348,14 @@ public class VWOBuilder {
                 }
             }
         } catch (Exception e) {
-            loggerService.log(LogLevelEnum.ERROR, "Error occurred while updating settings, Error: " + e.getMessage() + " originalSettings: " + originalSettings + " latestSettings: " + latestSettings);
+            loggerService.log(LogLevelEnum.ERROR, "ERROR_UPDATING_SETTINGS", new HashMap<String, Object>() {
+                {
+                    put("err", e.getMessage());
+                    put("originalSettings", originalSettings);
+                    put("latestSettings", latestSettings);
+                    put("an", Constants.POLLING);
+                }
+            });
         } 
     }
 
@@ -366,18 +392,30 @@ public class VWOBuilder {
 
             // Check data type and values for eventsPerRequest and requestTimeInterval
             if (!isEventsPerRequestValid && !isRequestTimeIntervalValid) {
-                loggerService.log(LogLevelEnum.ERROR, "Values mismatch from the expectation of both parameters. Batching not initialized.");
+                loggerService.log(LogLevelEnum.ERROR, "VALUES_MISMATCH_BATCHING_NOT_ENABLED", new HashMap<String, Object>() {
+                    {
+                        put("an", ApiEnum.INIT.getValue());
+                    }
+                });
                 return this;
             }
 
             // Handle invalid data types for individual parameters
             if (!isEventsPerRequestValid) {
-                loggerService.log(LogLevelEnum.ERROR, "Events_per_request values is invalid (should be greater than 0 and less than 5000). Using default value of events_per_request parameter : 100");
+                loggerService.log(LogLevelEnum.ERROR, "INVALID_EVENTS_PER_REQUEST_VALUE", new HashMap<String, Object>() {
+                    {
+                        put("an", ApiEnum.INIT.getValue());
+                    }
+                });
                 eventsPerRequest = Constants.DEFAULT_EVENTS_PER_REQUEST; // Use default if invalid
             }
 
             if (!isRequestTimeIntervalValid) {
-                loggerService.log(LogLevelEnum.ERROR, "Request_time_interval values is invalid (should be greater than 0). Using default value of request_time_interval parameter : 600");
+                loggerService.log(LogLevelEnum.ERROR, "INVALID_REQUEST_TIME_INTERVAL_VALUE", new HashMap<String, Object>() {
+                    {
+                        put("an", ApiEnum.INIT.getValue());
+                    }
+                });
                 requestTimeInterval = Constants.DEFAULT_REQUEST_TIME_INTERVAL; // Use default if invalid
             }
 
