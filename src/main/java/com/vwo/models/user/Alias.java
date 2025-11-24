@@ -13,25 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.vwo.enums;
 
-public enum ApiEnum {
-    INIT("init"),
-    GET_FLAG("getFlag"),
-    TRACK_EVENT("trackEvent"),
-    SET_ATTRIBUTE("setAttribute"),
-    FLUSH_EVENTS("flushEvents"),
-    UPDATE_SETTINGS("updateSettings"),
-    SET_ALIAS("setAlias");
+package com.vwo.models.user;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-    private final String value;
-
-    ApiEnum(String value) {
-        this.value = value;
+public class Alias {
+    @JsonProperty("aliasId")
+    private String aliasId;
+    @JsonProperty("userId")
+    private String userId;
+    
+    public String getAliasId() {
+        return aliasId;
     }
 
-    public String getValue() {
-        return value;
+    public void setAliasId(String aliasId) {
+        this.aliasId = aliasId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 }

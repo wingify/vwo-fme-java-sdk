@@ -38,6 +38,7 @@ public class GatewayServiceUtil {
      */
     public static String getFromGatewayService(ServiceContainer serviceContainer, Map<String, String> queryParams, String endpoint) {
         NetworkManager networkInstance = NetworkManager.getInstance();
+        // if the base url contains the host name, this means the gateway service is not configured
         if (serviceContainer.getBaseUrl().contains(Constants.HOST_NAME)) {
             serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_GATEWAY_URL", new HashMap<String, Object>() {
                 {
@@ -62,6 +63,51 @@ public class GatewayServiceUtil {
             return response.getData();
         } catch (Exception e) {
             serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_FETCHING_DATA_FROM_GATEWAY", new HashMap<String, Object>() {
+                {
+                    put("err", e.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
+            return null;
+        }
+    }
+
+     /**
+     * Sends data to the gateway service
+     * @param queryParams The query parameters to send with the request
+     * @param payload The payload to send with the request
+     * @param endpoint The endpoint to send the request to
+     * @return The response data from the gateway service
+     */
+    public static String postToGatewayService(ServiceContainer serviceContainer, Map<String, String> queryParams, Map<String, Object> payload, String endpoint) {
+        // get the network instance
+        NetworkManager networkInstance = NetworkManager.getInstance();
+        // if the base url contains the host name, this means the gateway service is not configured
+        if (serviceContainer.getBaseUrl().contains(Constants.HOST_NAME)) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_GATEWAY_URL", new HashMap<String, Object>() {
+                {
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
+            return null;
+        }
+        try {
+            // create the request
+            RequestModel request = new RequestModel(
+                    serviceContainer.getBaseUrl(),
+                    "POST",
+                    endpoint,
+                    queryParams,
+                    payload,
+                    null,
+                    serviceContainer.getSettingsManager().protocol,
+                    serviceContainer.getSettingsManager().port
+            );
+            // send the request
+            ResponseModel response = networkInstance.post(request, null);
+            return response.getData();
+        } catch (Exception e) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_SENDING_DATA_TO_GATEWAY", new HashMap<String, Object>() {
                 {
                     put("err", e.getMessage());
                     putAll(serviceContainer.getDebuggerService().getStandardDebugProps());

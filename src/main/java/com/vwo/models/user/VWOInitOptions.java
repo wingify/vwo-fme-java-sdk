@@ -27,8 +27,8 @@ import java.util.Map;
 
 
 public class VWOInitOptions {
-    private String sdkKey;
-    private Integer accountId;
+    private String sdkKey = "";
+    private Integer accountId = 0;
     private IntegrationCallback integrations;
     private Map<String, Object> logger = new HashMap<>();
     private NetworkClientInterface networkClientInterface;
@@ -42,6 +42,7 @@ public class VWOInitOptions {
     private Map<String, Object> gatewayService = new HashMap<>();
     private Boolean isUsageStatsDisabled = false;
     private Map<String, Object> _vwo_meta = new HashMap<>();
+    private Boolean isAliasingEnabled = false;
 
     public Map<String, Object> getVwoMetaData() {
         return _vwo_meta;
@@ -145,5 +146,13 @@ public class VWOInitOptions {
 
     public void setIsUsageStatsDisabled(Boolean isUsageStatsDisabled) {
         this.isUsageStatsDisabled = isUsageStatsDisabled;
+    }
+
+    public Boolean getIsAliasingEnabled() {
+        return isAliasingEnabled;
+    }
+
+    public void setIsAliasingEnabled(Boolean isAliasingEnabled) {
+        this.isAliasingEnabled = isAliasingEnabled;
     }
 }

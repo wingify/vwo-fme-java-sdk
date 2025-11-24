@@ -1,9 +1,10 @@
 
 {
-  "INVALID_OPTIONS": "[ERROR]: VWO-SDK {date} Options should be of type object",
-  "INVALID_SDK_KEY_IN_OPTIONS": "[ERROR]: VWO-SDK {date} Please provide the sdkKey in the options and should be a of type string",
-  "INVALID_ACCOUNT_ID_IN_OPTIONS": "[ERROR]: VWO-SDK {date} Please provide VWO account ID in the options and should be a of type string|number",
-
+  "INVALID_OPTIONS": "[ERROR]: VWO-SDK Options should be of type object",
+  "INVALID_SDK_KEY_IN_OPTIONS": "[ERROR]: VWO-SDK Please provide the sdkKey in the options and should be a of type string",
+  "INVALID_ACCOUNT_ID_IN_OPTIONS": "[ERROR]: VWO-SDK Please provide VWO account ID in the options and should be a of type string|number",
+  "INVALID_GATEWAY_SERVICE_WHEN_ALIASING_ENABLED": "[ERROR]: VWO-SDK Please provide a valid gateway service url in the options when aliasing is enabled",
+  
   "INVALID_POLLING_CONFIGURATION": "Invalid {key} passed in options. Should be of type: {correctType} and greater than equal to 1000",
 
   "ERROR_FETCHING_SETTINGS": "Settings could not be fetched for account ID: {accountId} and SDK key: {sdkKey}. Error: {err}",
@@ -33,6 +34,7 @@
   "INVALID_USER_AGENT_IN_CONTEXT_FOR_PRE_SEGMENTATION": "userAgent is required in context to evaluate user-agent pre-segmentation",
   "INVALID_ATTRIBUTE_LIST_FORMAT": "Invalid inList operand format",
   "ERROR_FETCHING_DATA_FROM_GATEWAY": "Error while fetching data from gateway. Error: {err}",
+  "ERROR_SENDING_DATA_TO_GATEWAY": "Error while sending data to gateway. Error: {err}",
 
   "ATTRIBUTES_MAP_ERROR": "Attributes map must contain atleast 1 key-value pair",
   "ATTRIBUTES_MAP_INVALID": "Attributes should be an object containing key-value pairs",
@@ -48,5 +50,8 @@
 
   "ERROR_EVALUATING_RULE": "Error occurred while evaluating rule. Error: {err}",
   "BATCH_FLUSH_FAILED": "Failed to send batch events. Re-enqueuing events for retry.",
-  "ERROR_PARSING_GATEWAY_URL": "Error occurred while parsing gateway service URL: {err}"
+  "ERROR_PARSING_GATEWAY_URL": "Error occurred while parsing gateway service URL: {err}",
+
+  "ERROR_SETTING_ALIAS": "Alias failed to set on gateway service for user ID: {userId}.",
+  "ERROR_GETTING_ALIAS": "Error while getting alias from gateway service for user ID: {userId}. Error: {err}"
 }

@@ -16,6 +16,7 @@
 package com.vwo;
 
 import com.vwo.packages.logger.enums.LogLevelEnum;
+import com.vwo.services.LoggerService;
 import com.vwo.models.user.VWOInitOptions;
 import com.vwo.utils.LogMessageUtil;
 
@@ -65,12 +66,17 @@ public class VWO extends VWOClient {
 
     public static VWO init(VWOInitOptions options) {
         if (options == null || options.getSdkKey() == null || options.getSdkKey().isEmpty()) {
-            String message = LogMessageUtil.buildMessage("INVALID_SDK_KEY_IN_OPTIONS", null);
+            String message = LogMessageUtil.buildMessage(LoggerService.errorMessages.get("INVALID_SDK_KEY_IN_OPTIONS"), null);
             System.err.println(message);
         }
 
         if (options == null || options.getAccountId() == null || options.getAccountId().toString().isEmpty()) {
-            String message = LogMessageUtil.buildMessage("INVALID_ACCOUNT_ID_IN_OPTIONS", null);
+            String message = LogMessageUtil.buildMessage(LoggerService.errorMessages.get("INVALID_ACCOUNT_ID_IN_OPTIONS"), null);
+            System.err.println(message);
+        }
+
+        if (options.getIsAliasingEnabled() && (options.getGatewayService() == null || options.getGatewayService().isEmpty())) {
+            String message = LogMessageUtil.buildMessage(LoggerService.errorMessages.get("INVALID_GATEWAY_SERVICE_WHEN_ALIASING_ENABLED"), null);
             System.err.println(message);
         }
         //start timer

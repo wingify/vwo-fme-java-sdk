@@ -26,12 +26,14 @@ import com.vwo.models.user.GetFlag;
 import com.vwo.models.Settings;
 import com.vwo.models.user.VWOInitOptions;
 import com.vwo.packages.logger.enums.LogLevelEnum;
+import com.vwo.utils.AliasingUtil;
 import com.vwo.utils.DataTypeUtil;
 import com.vwo.utils.SettingsUtil;
 import com.vwo.services.BatchEventQueue;
 import com.vwo.utils.EventUtil;
 import com.vwo.enums.EventEnum;
 import com.vwo.enums.ApiEnum;
+import com.vwo.utils.UserIdUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -127,6 +129,12 @@ public class VWOClient {
             // create Service Container instance
             ServiceContainer serviceContainer = new ServiceContainer(context.getId(), this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
 
+            // get userId from gateway service
+            if (this.options.getIsAliasingEnabled()) {
+                context.setId(UserIdUtil.getUserId(context.getId(), serviceContainer));
+                serviceContainer.setUuid(context.getId());
+            }
+
             return GetFlagAPI.getFlag(featureKey, context, serviceContainer);
         } catch (Exception exception) {
             vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "EXECUTION_FAILED", new HashMap<String, Object>() {{
@@ -175,6 +183,12 @@ public class VWOClient {
 
             // create Service Container instance
             ServiceContainer serviceContainer = new ServiceContainer(context.getId(), this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
+
+            // get userId from gateway service
+            if (this.options.getIsAliasingEnabled()) {
+                context.setId(UserIdUtil.getUserId(context.getId(), serviceContainer));
+                serviceContainer.setUuid(context.getId());
+            }
 
             Boolean result = TrackEventAPI.track(eventName, context, eventProperties, serviceContainer);
             if (result) {
@@ -258,6 +272,12 @@ public class VWOClient {
 
             // create Service Container instance
             ServiceContainer serviceContainer = new ServiceContainer(context.getId(), this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
+
+            // get userId from gateway service
+            if (this.options.getIsAliasingEnabled()) {
+                context.setId(UserIdUtil.getUserId(context.getId(), serviceContainer));
+                serviceContainer.setUuid(context.getId());
+            }
 
             SetAttributeAPI.setAttribute(attributeMap, context, serviceContainer);
         } catch (Exception exception) {
@@ -434,5 +454,74 @@ public class VWOClient {
             }});
             return false;
         }
+    }
+
+    /**
+     * This method is used to set the alias for a given user id
+     * @param userId User id to be aliased
+     * @param aliasId Alias id to be set for the user id
+     * @return Boolean value indicating if the alias was set successfully
+     */
+    public Boolean setAlias(String userId, String aliasId) {
+        String apiName = "setAlias";
+        try {
+            vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
+                put("apiName", apiName);
+            }});
+
+            // check if aliasing is enabled
+            if (!this.options.getIsAliasingEnabled()) {
+                throw new IllegalArgumentException("Aliasing is not enabled");
+            }
+
+            // check if gateway service is provided
+            if (!vwoBuilder.getSettingsManager().isGatewayServiceProvided) {
+                throw new IllegalArgumentException("Gateway service is not provided");
+            }
+
+            // check if user id is provided
+            if (userId == null || userId.isEmpty()) {
+                throw new IllegalArgumentException("User ID is required");
+            }
+
+            // check if alias id is provided
+            if (aliasId == null || aliasId.isEmpty() || aliasId.trim().isEmpty()) {
+                throw new IllegalArgumentException("Alias ID is required");
+            }
+
+            // remove whitespaces from alias id
+            aliasId = aliasId.trim().replaceAll("\\s+", "");
+
+            // trim userId
+            userId = userId.trim();
+
+            // check if user id and alias id are the same
+            if (userId.equals(aliasId)) {
+                throw new IllegalArgumentException("User ID and Alias ID cannot be the same");
+            }
+
+            // create Service Container instance
+            ServiceContainer serviceContainer = new ServiceContainer(userId, this.vwoBuilder.getLoggerService(), this.vwoBuilder.getSettingsManager(), this.options, vwoBuilder.getBatchEventQueue(), this.processedSettings);
+
+            // set alias on gateway service
+            return AliasingUtil.setAlias(userId, aliasId, serviceContainer);
+        } catch (Exception exception) {
+            vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "EXECUTION_FAILED", new HashMap<String, Object>() {{
+                put("apiName", apiName);
+                put("err", exception.getMessage());
+                put("an", ApiEnum.SET_ALIAS.getValue());
+            }});
+            return false;
+        }
+    }
+
+    /**
+     * This overloaded method is used to set the alias for a given user id
+     * @param context User context
+     * @param aliasId Alias id to be set for the user id
+     * @return Boolean value indicating if the alias was set successfully
+     */
+    public Boolean setAlias(VWOContext context, String aliasId) {
+        return setAlias(context.getId(), aliasId);
     }
 }   

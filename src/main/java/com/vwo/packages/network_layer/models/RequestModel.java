@@ -135,6 +135,8 @@ public class RequestModel {
     }
     if (headers != null) {
       options.put("headers", headers);
+    } else {
+      headers = new HashMap<>();
     }
 
     if (method != null) {

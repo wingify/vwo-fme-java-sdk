@@ -90,6 +90,7 @@ To customize the SDK further, additional parameters can be passed to the `init()
 | `setStorage`                    | Custom storage connector for persisting user decisions and campaign data. data.                                                                                   | No           | Object   | See [Storage](#storage) section |
 | `setLogger`                     | Toggle log levels for more insights or for debugging purposes. You can also customize your own transport in order to have better control over log messages. | No           | Object   | See [Logger](#logger) section   |
 | `setIntegrations`               | Callback function for integrating with third-party analytics services.                                                                                      | No           | Function | See [Integrations](#integrations) section |
+| `setIsAliasingEnabled`         | Enable user aliasing functionality. Requires gateway service to be configured.                                                                              | No           | Boolean  | see [UserAliasing](#UserAliasing) section                        |
 
 Refer to the [official VWO documentation](https://developers.vwo.com/v2/docs/fme-java-install) for additional parameter details.
 
@@ -233,6 +234,51 @@ VWO vwoInstance = VWO.init(vwoInitOptions);
 ```
 
 Refer to the [Gateway Documentation](https://developers.vwo.com/v2/docs/gateway-service) for further details.
+
+### UserAliasing
+
+User aliasing allows you to create consistent user experiences across different user identifiers. This is particularly useful when users can be identified by multiple IDs (e.g., anonymous ID, authenticated ID, email, etc.) and you want to maintain consistent feature flag decisions across these different identifiers.
+
+#### Prerequisites
+
+User aliasing requires:
+
+1. **Gateway Service**: Must be configured and running. see [Gateway](#gateway) section for more details.
+2. **Aliasing Enabled**: Must be set to `true` in initialization options
+
+#### Configuration
+
+To enable user aliasing, you need to configure both the gateway service and the aliasing flag:
+
+```java
+VWOInitOptions vwoInitOptions = new VWOInitOptions();
+
+vwoInitOptions.setSdkKey("sdk-key");
+vwoInitOptions.setAccountId(1234);
+
+// set gateway service
+Map<String, Object> gatewayService = new HashMap<>();
+gatewayService.put("url", "http://custom.gateway.com");
+vwoInitOptions.setGatewayService(gatewayService);
+
+// set aliasing flag in vwoInitOptions
+vwoInitOptions.setIsAliasingEnabled(true);
+VWO instance = VWO.init(vwoInitOptions);
+```
+
+#### Setting User Alias
+
+Use the `setAlias()` method to create an alias relationship between a user ID and an alias ID:
+
+```java
+// Method 1: Using user ID and alias ID directly
+Boolean isAliasSet = vwoInstance.setAlias("user-123", "alias-456");
+
+// Method 2: Using VWOContext and alias ID
+VWOContext context = new VWOContext();
+context.setId("user-123");
+Boolean isAliasSet = vwoInstance.setAlias(context, "alias-456");
+```
 
 ### Storage
 

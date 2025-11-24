@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2025-11-24
+
+### Added
+- Add support for user aliasing (will work after gateway has been setup)
+
+  ```java
+  VWOInitOptions vwoInitOptions = new VWOInitOptions();
+
+  vwoInitOptions.setSdkKey("sdk-key");
+  vwoInitOptions.setAccountId(1234);
+
+  // set gateway service
+  Map<String, Object> gatewayService = new HashMap<>();
+  gatewayService.put("url", "http://custom.gateway.com");
+  vwoInitOptions.setGatewayService(gatewayService);
+
+  // set aliasing flag in vwoInitOptions
+  vwoInitOptions.setIsAliasingEnabled(true);
+  VWO instance = VWO.init(vwoInitOptions);
+  ```
+
+  You can also call `setAlias` for a given `userId` and `aliasId`
+  
+  ```java
+  Boolean isAliasSet = instance.setAlias("user-id-1", "alias-id-1");
+  ```
+
 ## [1.13.0] - 2025-11-17
 
 ### Added

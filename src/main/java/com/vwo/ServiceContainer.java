@@ -156,4 +156,9 @@ public class ServiceContainer {
     public Long getSessionId() {
         return sessionId;
     }
+
+    public void setUuid(String userId) {
+        this.uuid = UUIDUtils.getUUID(userId, this.options.getAccountId().toString());
+        this.debuggerService = new DebuggerService(uuid, sessionId);
+    }
 }
