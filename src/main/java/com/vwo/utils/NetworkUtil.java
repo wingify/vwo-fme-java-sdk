@@ -80,6 +80,26 @@ public class NetworkUtil {
     }
 
     /**
+     * Creates the base properties for the event arch APIs.
+     * This is used for usage stats events.
+     * @param eventName  The name of the event.
+     * @param visitorUserAgent  The user agent of the user.
+     * @param ipAddress  The IP address of the user.
+     * @param usageStatsAccountId  The account ID of the usage stats account.
+     * @return
+     */
+    public static Map<String, String> getEventsBaseProperties(String eventName, String visitorUserAgent, String ipAddress, Integer usageStatsAccountId) {
+        RequestQueryParams requestQueryParams = new RequestQueryParams(
+            eventName,
+            usageStatsAccountId.toString(),
+            "",
+            visitorUserAgent,
+            ipAddress
+        );
+        return requestQueryParams.getQueryParams();
+    }
+
+    /**
      * Creates the base payload for the event arch APIs.
      * @param settingsManager The settings manager containing configuration.
      * @param userId  The ID of the user.
@@ -101,6 +121,33 @@ public class NetworkUtil {
 
         Visitor visitor = createVisitor(settingsManager.sdkKey);
         eventArchData.setVisitor(visitor);
+
+        EventArchPayload eventArchPayload = new EventArchPayload();
+        eventArchPayload.setD(eventArchData);
+        return eventArchPayload;
+    }
+
+    /**
+     * Creates the base payload for the event arch APIs.
+     * This is used for usage stats events.
+     * @param settingsManager The settings manager containing configuration.
+     * @param userId  The ID of the user.
+     * @param eventName The name of the event.
+     * @param visitorUserAgent The user agent of the user.
+     * @param ipAddress The IP address of the user.
+     * @param usageStatsAccountId The account ID of the usage stats account.
+     * @return
+     */
+    public static EventArchPayload getEventBasePayload(SettingsManager settingsManager, String userId, String eventName, String visitorUserAgent, String ipAddress, Integer usageStatsAccountId) {
+        String uuid = UUIDUtils.getUUID(userId, usageStatsAccountId.toString());
+        EventArchData eventArchData = new EventArchData();
+        eventArchData.setMsgId(generateMsgId(uuid));
+        eventArchData.setVisId(uuid);
+        eventArchData.setSessionId(FunctionUtil.generateSessionId());
+        setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress);
+
+        Event event = createEvent(settingsManager.sdkKey, eventName);
+        eventArchData.setEvent(event);
 
         EventArchPayload eventArchPayload = new EventArchPayload();
         eventArchPayload.setD(eventArchData);
@@ -297,6 +344,7 @@ public class NetworkUtil {
             Map<String, String> headers = createHeaders(context.getUserAgent(), context.getIpAddress());
 
             Map<String, Object> payloadMap = VWOClient.objectMapper.convertValue(payload, Map.class);
+            payloadMap = removeNullValues(payloadMap);
             RequestModel request = new RequestModel(serviceContainer.getBaseUrl(), "POST", UrlEnum.EVENTS.getUrl(), properties, payloadMap, headers, serviceContainer.getSettingsManager().protocol, serviceContainer.getSettingsManager().port);
             NetworkManager.getInstance().getExecutorService().submit(() -> {
                 try {
@@ -401,8 +449,14 @@ public class NetworkUtil {
     public static void sendEventDirectlyToDacdn(SettingsManager settingsManager, Map<String, String> properties, Map<String, Object> payload, String eventName) {
         NetworkManager.getInstance().attachClient();
         Map<String, String> headers = createHeaders(null, null);
-        
-        RequestModel request = new RequestModel(Constants.HOST_NAME, "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, Constants.HTTPS_PROTOCOL, 0);
+        String url = Constants.HOST_NAME;
+
+        if (!DataTypeUtil.isNull(settingsManager.collectionPrefix) && !settingsManager.collectionPrefix.isEmpty()) {
+            url = url + "/" + settingsManager.collectionPrefix;
+        }
+        payload = removeNullValues(payload);
+
+        RequestModel request = new RequestModel(url, "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, Constants.HTTPS_PROTOCOL, 0);
         
         NetworkManager.getInstance().getExecutorService().submit(() -> {
             try {
@@ -558,4 +612,22 @@ public class NetworkUtil {
         return removeNullValues(payloadMap);
     }
 
+    /**
+     * Constructs the payload for usage stats called event.
+     * @param eventName The name of the event.
+     * @param usageStatsAccountId The account ID of the usage stats account.
+     * @return The constructed payload with required fields.
+     */
+    public static Map<String, Object> getUsageStatsPayloadData(SettingsManager settingsManager, String eventName, Integer usageStatsAccountId) {
+        // Get settings and create user ID
+        String userId = settingsManager.accountId.toString() + "_" + settingsManager.sdkKey;
+        EventArchPayload properties = getEventBasePayload(settingsManager, userId, eventName, null, null, usageStatsAccountId);
+        // Set the required fields as specified
+        properties.getD().getEvent().getProps().setProduct(Constants.FME);
+        properties.getD().getEvent().getProps().setVwoMeta(UsageStatsUtil.getInstance().getUsageStats());
+
+        // Convert to Map and return
+        Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
+        return removeNullValues(payload);
+    }
 }

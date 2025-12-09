@@ -68,6 +68,7 @@ public class BatchEventQueue {
     public void enqueue(EventArchPayload eventData) {
         synchronized (LockObject) {
             Map<String, Object> payload = VWOClient.objectMapper.convertValue(eventData, Map.class);
+            payload = NetworkUtil.removeNullValues(payload);
             batchQueue.add(payload);
             loggerService.log(LogLevelEnum.DEBUG, "Event added to queue. Current queue size: " + batchQueue.size());
 

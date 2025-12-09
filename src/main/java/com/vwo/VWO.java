@@ -84,8 +84,7 @@ public class VWO extends VWOClient {
         VWO instance = VWO.setInstance(options);
         long initTime = System.currentTimeMillis() - initStartTime;
         // send sdk init event
-        instance.sendSdkInitEvent(initTime);
+        instance.sendSdkInitAndUsageStatsEvent(initTime);
         return instance;
     }
 }
-

@@ -48,6 +48,7 @@ public class SettingsManager {
     public boolean isSettingsValidOnInit = false;
     public Long settingsFetchTime;
     public LoggerService loggerService;
+    public String collectionPrefix = "";
 
     public SettingsManager(VWOInitOptions options, LoggerService loggerService) {
         this.loggerService = loggerService;

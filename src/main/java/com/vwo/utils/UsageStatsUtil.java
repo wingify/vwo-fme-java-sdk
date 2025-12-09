@@ -108,6 +108,10 @@ public class UsageStatsUtil {
         // Get Java version
         data.put("lv", System.getProperty("java.version"));
 
+        // check if the batch event data is not null
+        if (options.getBatchEventData() != null) {
+            data.put("eb", 1);
+        }
         this.usageStatsData = data;
     }
 

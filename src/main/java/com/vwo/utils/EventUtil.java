@@ -16,6 +16,7 @@
 package com.vwo.utils;
 
 import com.vwo.services.SettingsManager;
+import com.vwo.enums.EventEnum;
 
 import java.util.Map;
 
@@ -51,5 +52,31 @@ public class EventUtil {
 
          // Send the event immediately
          NetworkUtil.sendEventDirectlyToDacdn(settingsManager, properties, payload, eventName);
+    }
+
+     /**
+     * Sends usage stats event
+     * This event is triggered when the usage stats is called.
+     * 
+     * @param usageStatsAccountId The account ID of the usage stats account.
+     */
+     public static void sendUsageStatsEvent(SettingsManager settingsManager, Integer usageStatsAccountId) {
+        // Create event properties
+        Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
+            EventEnum.VWO_USAGE_STATS.getValue(),
+            null,
+            null,
+            usageStatsAccountId
+        );
+
+        // Create payload for usage stats event
+        Map<String, Object> payload = NetworkUtil.getUsageStatsPayloadData(
+            settingsManager,
+            EventEnum.VWO_USAGE_STATS.getValue(),
+            usageStatsAccountId
+        );
+
+        // Send the event immediately
+        NetworkUtil.sendEventDirectlyToDacdn(settingsManager, properties, payload, EventEnum.VWO_USAGE_STATS.getValue());
     }
 } 

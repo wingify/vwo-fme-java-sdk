@@ -63,6 +63,9 @@ public class VWOClient {
             if (vwoBuilder.getBatchEventQueue() != null) {
                 vwoBuilder.getBatchEventQueue().setSettings(this.processedSettings);
             }
+            if (!DataTypeUtil.isNull(this.processedSettings.getCollectionPrefix()) && !this.processedSettings.getCollectionPrefix().isEmpty()) {
+                this.vwoBuilder.getSettingsManager().collectionPrefix = this.processedSettings.getCollectionPrefix();
+            }
             SettingsUtil.processSettings(this.processedSettings, this.vwoBuilder.getLoggerService());
         } catch (Exception exception) {
            System.err.println("exception occurred while parsing settings " + exception.getMessage());
@@ -73,7 +76,7 @@ public class VWOClient {
      * This method is used to send the sdk init event
      * @param settingsInitTime The time taken to initialize the settings
      */
-    protected void sendSdkInitEvent(long settingsInitTime) {
+    protected void sendSdkInitAndUsageStatsEvent(long settingsInitTime) {
         try {
             if ( this.processedSettings == null ) {
                 throw new IllegalStateException("processedSettings is null");
@@ -88,6 +91,12 @@ public class VWOClient {
                     // send the sdk init event
                     EventUtil.sendSdkInitEvent(this.vwoBuilder.getSettingsManager(), this.vwoBuilder.getSettingsManager().settingsFetchTime, settingsInitTime, EventEnum.VWO_SDK_INIT_EVENT.getValue());
                 }
+            }
+
+            // get usage stats account id from settings
+            Integer usageStatsAccountId = this.processedSettings.getUsageStatsAccountId();
+            if (!DataTypeUtil.isNull(usageStatsAccountId) && usageStatsAccountId != 0) {
+                EventUtil.sendUsageStatsEvent(this.vwoBuilder.getSettingsManager(), usageStatsAccountId);
             }
         } catch (Exception exception) {
             vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "SDK_INIT_EVENT_FAILED", new HashMap<String, Object>() {{

@@ -29,6 +29,8 @@ public class Settings {
     private List<Feature> features;
     @JsonProperty("accountId")
     private Integer accountId;
+    @JsonProperty("usageStatsAccountId")
+    private Integer usageStatsAccountId;
     @JsonProperty("groups")
     private Map<String, Groups> groups;
     @JsonProperty("campaignGroups")
@@ -67,6 +69,14 @@ public class Settings {
 
     public void setAccountId(Integer accountId) {
         this.accountId = accountId;
+    }
+
+    public Integer getUsageStatsAccountId() {
+        return usageStatsAccountId;
+    }
+
+    public void setUsageStatsAccountId(Integer usageStatsAccountId) {
+        this.usageStatsAccountId = usageStatsAccountId;
     }
 
     public Map<String, Groups> getGroups() {

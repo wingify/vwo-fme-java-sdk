@@ -53,5 +53,6 @@
   "ERROR_PARSING_GATEWAY_URL": "Error occurred while parsing gateway service URL: {err}",
 
   "ERROR_SETTING_ALIAS": "Alias failed to set on gateway service for user ID: {userId}.",
-  "ERROR_GETTING_ALIAS": "Error while getting alias from gateway service for user ID: {userId}. Error: {err}"
+  "ERROR_GETTING_ALIAS": "Error while getting alias from gateway service for user ID: {userId}. Error: {err}",
+  "USAGE_STATS_EVENT_FAILED": "Error while sending usage stats event. Error: {err}"
 }
