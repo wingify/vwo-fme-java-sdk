@@ -345,7 +345,7 @@ public class NetworkUtil {
 
             Map<String, Object> payloadMap = VWOClient.objectMapper.convertValue(payload, Map.class);
             payloadMap = removeNullValues(payloadMap);
-            RequestModel request = new RequestModel(serviceContainer.getBaseUrl(), "POST", UrlEnum.EVENTS.getUrl(), properties, payloadMap, headers, serviceContainer.getSettingsManager().protocol, serviceContainer.getSettingsManager().port);
+            RequestModel request = new RequestModel(serviceContainer.getSettingsManager().hostname, "POST", serviceContainer.getEndpointWithCollectionPrefix(UrlEnum.EVENTS.getUrl()), properties, payloadMap, headers, serviceContainer.getSettingsManager().protocol, serviceContainer.getSettingsManager().port);
             NetworkManager.getInstance().getExecutorService().submit(() -> {
                 try {
                     ResponseModel response = NetworkManager.getInstance().post(request, null);
@@ -405,7 +405,7 @@ public class NetworkUtil {
      * @param accountId The account ID to associate with the request, used as a query parameter.
      * @param sdkKey    The API key to authenticate the request in the headers.
      */
-    public static Boolean sendPostBatchRequest(Settings settings, Object payload, int accountId, String sdkKey, FlushInterface flushCallback) {
+    public static Boolean sendPostBatchRequest(SettingsManager settingsManager, Object payload, int accountId, String sdkKey, FlushInterface flushCallback) {
         // Create the batch payload
         Map<String, Object> batchPayload = new HashMap<>();
         batchPayload.put("ev", payload);
@@ -415,30 +415,34 @@ public class NetworkUtil {
         query.put("a", String.valueOf(accountId));
         query.put("env", sdkKey);
 
-        String url = Constants.HOST_NAME;
-        if (settings.getCollectionPrefix() != null && !settings.getCollectionPrefix().isEmpty()) {
-            url = url + "/" + settings.getCollectionPrefix();
+        String endpoint = UrlEnum.BATCH_EVENTS.getUrl();
+        if (settingsManager.collectionPrefix != null && !settingsManager.collectionPrefix.isEmpty()) {
+            endpoint = "/" + settingsManager.collectionPrefix + "/" + endpoint;
         }
 
         // Create the request model
         RequestModel requestModel = new RequestModel(
-                url,
+                settingsManager.hostname,
                 "POST",
-                UrlEnum.BATCH_EVENTS.getUrl(),
+                endpoint,
                 query,
                 batchPayload,
                 new HashMap<String, String>() {{
                     put("Authorization", sdkKey);
                     put("Content-Type", "application/json");
                 }},
-                Constants.HTTPS_PROTOCOL,
-                0
+                settingsManager.protocol,
+                settingsManager.port
         );
 
         // Send the request asynchronously
-        NetworkManager.getInstance().post(requestModel, flushCallback);  // Return the result of postAsync 
-        return true;
-    }    
+        ResponseModel response = NetworkManager.getInstance().post(requestModel, flushCallback);  // Return the result of postAsync 
+        if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     /**
      * Sends a messaging event to the VWO server.
@@ -449,14 +453,14 @@ public class NetworkUtil {
     public static void sendEventDirectlyToDacdn(SettingsManager settingsManager, Map<String, String> properties, Map<String, Object> payload, String eventName) {
         NetworkManager.getInstance().attachClient();
         Map<String, String> headers = createHeaders(null, null);
-        String url = Constants.HOST_NAME;
-
-        if (!DataTypeUtil.isNull(settingsManager.collectionPrefix) && !settingsManager.collectionPrefix.isEmpty()) {
-            url = url + "/" + settingsManager.collectionPrefix;
-        }
         payload = removeNullValues(payload);
 
-        RequestModel request = new RequestModel(url, "POST", UrlEnum.EVENTS.getUrl(), properties, payload, headers, Constants.HTTPS_PROTOCOL, 0);
+        String endpoint = UrlEnum.EVENTS.getUrl();
+        if (settingsManager.collectionPrefix != null && !settingsManager.collectionPrefix.isEmpty()) {
+            endpoint = "/" + settingsManager.collectionPrefix + "/" + endpoint;
+        }
+
+        RequestModel request = new RequestModel(settingsManager.hostname, "POST", endpoint, properties, payload, headers, settingsManager.protocol, settingsManager.port);
         
         NetworkManager.getInstance().getExecutorService().submit(() -> {
             try {
@@ -464,7 +468,7 @@ public class NetworkUtil {
                 if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
                     UsageStatsUtil.getInstance().clearUsageStats();
                 } else {
-                    if (!eventName.equals(EventEnum.VWO_ERROR.getValue()) && !eventName.equals(EventEnum.VWO_DEBUGGER_EVENT.getValue())) {
+                    if (!eventName.equals(EventEnum.VWO_DEBUGGER_EVENT.getValue())) {
                         settingsManager.loggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
                             {
                                 put("extraData", "event: " + eventName);
@@ -475,7 +479,7 @@ public class NetworkUtil {
                     }
                 }
             } catch (Exception exception) {
-                if (!eventName.equals(EventEnum.VWO_ERROR.getValue()) && !eventName.equals(EventEnum.VWO_DEBUGGER_EVENT.getValue())) {
+                if (!eventName.equals(EventEnum.VWO_DEBUGGER_EVENT.getValue())) {
                     settingsManager.loggerService.log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
                         {
                             put("extraData", "event: " + eventName);

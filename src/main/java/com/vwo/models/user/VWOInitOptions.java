@@ -43,6 +43,7 @@ public class VWOInitOptions {
     private Boolean isUsageStatsDisabled = false;
     private Map<String, Object> _vwo_meta = new HashMap<>();
     private Boolean isAliasingEnabled = false;
+    private String proxyUrl = "";
 
     public Map<String, Object> getVwoMetaData() {
         return _vwo_meta;
@@ -154,5 +155,13 @@ public class VWOInitOptions {
 
     public void setIsAliasingEnabled(Boolean isAliasingEnabled) {
         this.isAliasingEnabled = isAliasingEnabled;
+    }
+
+    public String getProxyUrl() {
+        return proxyUrl;
+    }
+
+    public void setProxyUrl(String proxyUrl) {
+        this.proxyUrl = proxyUrl;
     }
 }

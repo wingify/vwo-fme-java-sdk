@@ -91,6 +91,7 @@ To customize the SDK further, additional parameters can be passed to the `init()
 | `setLogger`                     | Toggle log levels for more insights or for debugging purposes. You can also customize your own transport in order to have better control over log messages. | No           | Object   | See [Logger](#logger) section   |
 | `setIntegrations`               | Callback function for integrating with third-party analytics services.                                                                                      | No           | Function | See [Integrations](#integrations) section |
 | `setIsAliasingEnabled`         | Enable user aliasing functionality. Requires gateway service to be configured.                                                                              | No           | Boolean  | see [UserAliasing](#UserAliasing) section                        |
+| `setProxyUrl`                  | Custom proxy URL for redirecting all SDK network requests (settings, tracking, etc.) through your own proxy server.                                        | No           | String   | see [Proxy](#proxy) section                        |
 
 Refer to the [official VWO documentation](https://developers.vwo.com/v2/docs/fme-java-install) for additional parameter details.
 
@@ -204,6 +205,20 @@ VWOInitOptions vwoInitOptions = new VWOInitOptions();
 vwoInitOptions.setPollInterval(60000); // Set the poll interval to 60 seconds
 
 VWO vwoInstance = VWO.init(vwoInitOptions);
+```
+
+### Proxy
+
+The `setProxyUrl` parameter allows you to redirect all SDK network calls through a custom proxy URL. This feature enables you to route all SDK network requests (settings, tracking, etc.) through your own proxy server, providing better control over network traffic and security.
+
+```java
+VWOInitOptions vwoInitOptions = new VWOInitOptions();
+
+vwoInitOptions.setSdkKey("32-alpha-numeric-sdk-key");
+vwoInitOptions.setAccountId(123456);
+vwoInitOptions.setProxyUrl("http://custom.proxy.com");
+
+VWO instance = VWO.init(vwoInitOptions);
 ```
 
 ### Gateway

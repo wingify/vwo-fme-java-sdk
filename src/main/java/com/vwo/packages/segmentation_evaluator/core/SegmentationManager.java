@@ -68,7 +68,7 @@ public class SegmentationManager {
     }
 
     // If gateway service is required and the base URL is not the default one, fetch the data from the gateway service
-    if (feature.getIsGatewayServiceRequired() && !serviceContainer.getBaseUrl().contains(Constants.HOST_NAME) && (context.getVwo() == null)) {
+    if (feature.getIsGatewayServiceRequired() && serviceContainer.getSettingsManager().isGatewayServiceProvided && (context.getVwo() == null)) {
       Map<String, String> queryParams = new HashMap<>();
       if ( (context.getUserAgent() == null || context.getUserAgent().isEmpty() ) && (context.getIpAddress() == null || context.getIpAddress().isEmpty())) {
         return;

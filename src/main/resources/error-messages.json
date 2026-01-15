@@ -51,6 +51,7 @@
   "ERROR_EVALUATING_RULE": "Error occurred while evaluating rule. Error: {err}",
   "BATCH_FLUSH_FAILED": "Failed to send batch events. Re-enqueuing events for retry.",
   "ERROR_PARSING_GATEWAY_URL": "Error occurred while parsing gateway service URL: {err}",
+  "ERROR_PARSING_PROXY_URL": "Error occurred while parsing proxy URL: {err}",
 
   "ERROR_SETTING_ALIAS": "Alias failed to set on gateway service for user ID: {userId}.",
   "ERROR_GETTING_ALIAS": "Error while getting alias from gateway service for user ID: {userId}. Error: {err}",

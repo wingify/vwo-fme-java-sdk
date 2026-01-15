@@ -426,7 +426,8 @@ public class VWOBuilder {
                     this.options.getBatchEventData().getFlushCallback(),
                     this.options.getAccountId(),
                     this.options.getSdkKey(),
-                    loggerService
+                    loggerService,
+                    settingFileManager
             );
 
             this.batchEventQueue = batchEventQueue; // Link to the vwoClient

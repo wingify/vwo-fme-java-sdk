@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-01-15
+
+- Added support for redirecting all network calls through a custom proxy URL. This feature allows users to route all SDK network requests (settings, tracking, etc.) through their own proxy server.
+
+```java
+VWOInitOptions vwoInitOptions = new VWOInitOptions();
+
+vwoInitOptions.setSdkKey("32-alpha-numeric-sdk-key");
+vwoInitOptions.setAccountId(123456);
+vwoInitOptions.setProxyUrl("http://custom.proxy.com");
+
+// set aliasing flag in vwoInitOptions
+vwoInitOptions.setIsAliasingEnabled(true);
+VWO instance = VWO.init(vwoInitOptions);
+```
+
 ## [1.15.0] - 2025-12-08
 ### Added
 

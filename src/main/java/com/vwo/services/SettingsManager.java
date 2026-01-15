@@ -41,14 +41,16 @@ public class SettingsManager {
     public Integer accountId;
     public int expiry;
     public int networkTimeout;
-    public String hostname;
+    public String hostname = Constants.HOST_NAME;
     public int port;
-    public String protocol = "https";
+    public String protocol = Constants.HTTPS_PROTOCOL;
     public boolean isGatewayServiceProvided = false;
     public boolean isSettingsValidOnInit = false;
     public Long settingsFetchTime;
     public LoggerService loggerService;
     public String collectionPrefix = "";
+    public Boolean isProxyUrlProvided = false;
+    public String proxyUrl = "";
 
     public SettingsManager(VWOInitOptions options, LoggerService loggerService) {
         this.loggerService = loggerService;
@@ -56,6 +58,37 @@ public class SettingsManager {
         this.accountId = options.getAccountId();
         this.expiry = (int) Constants.SETTINGS_EXPIRY;
         this.networkTimeout = (int) Constants.SETTINGS_TIMEOUT;
+
+        // check if proxy url is provided and gateway service is also provided
+        if ((options.getProxyUrl() != null && !options.getProxyUrl().isEmpty()) && (options.getGatewayService() != null && !options.getGatewayService().isEmpty())) {
+            loggerService.log(LogLevelEnum.INFO, "PROXY_AND_GATEWAY_SERVICE_PROVIDED", new HashMap<String, Object>() {{
+                put("accountId", accountId.toString());
+                put("sdkKey", sdkKey);
+                put("an", ApiEnum.INIT.getValue());
+            }});
+            this.isGatewayServiceProvided = true;
+        }
+
+        // check if proxy url is provided and gateway service is not provided
+        if (options.getProxyUrl() != null && !options.getProxyUrl().isEmpty() && !this.isGatewayServiceProvided) {
+            this.isProxyUrlProvided = true;
+            try {
+                URL parsedUrl = new URL(options.getProxyUrl());
+                this.hostname = parsedUrl.getHost();
+                this.protocol = parsedUrl.getProtocol();
+                if (parsedUrl.getPort() != -1){
+                    this.port = parsedUrl.getPort();
+                }
+            } catch (Exception e) {
+                loggerService.log(LogLevelEnum.ERROR, "ERROR_PARSING_PROXY_URL", new HashMap<String, Object>() {{
+                    put("err", e.getMessage());
+                    put("accountId", accountId.toString());
+                    put("sdkKey", sdkKey);
+                    put("an", ApiEnum.INIT.getValue());
+                }});
+                this.hostname = Constants.HOST_NAME;
+            }
+        }
 
         if (options.getGatewayService() != null && !options.getGatewayService().isEmpty()) {
             isGatewayServiceProvided = true;
@@ -87,8 +120,6 @@ public class SettingsManager {
                 }});
                 this.hostname = Constants.HOST_NAME;
             }
-        } else {
-            this.hostname = Constants.HOST_NAME;
         }
     }
 
@@ -137,8 +168,9 @@ public class SettingsManager {
         if (!networkInstance.getConfig().getDevelopmentMode()) {
             options.put("s", "prod");
         }
-
-        String endpoint = isViaWebhook ? Constants.WEBHOOK_SETTINGS_ENDPOINT : Constants.SETTINGS_ENDPOINT;
+        
+        // if the webhook is triggered and the gateway service is not provided, use the v2-pull endpoint
+        String endpoint = isViaWebhook && !isGatewayServiceProvided ? Constants.WEBHOOK_SETTINGS_ENDPOINT : Constants.SETTINGS_ENDPOINT;
         try {
             // Set fetch time
             long startTime = System.currentTimeMillis();

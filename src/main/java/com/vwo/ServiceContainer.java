@@ -117,20 +117,16 @@ public class ServiceContainer {
     }
 
     /**
-     * Returns the base URL for the API requests
+     * Returns the endpoint with the collection prefix
+     * @param endpoint The endpoint to return
+     * @return The endpoint with the collection prefix
      */
-    public String getBaseUrl() {
-        String baseUrl = this.settingsManager.hostname;
-
-        if (this.settingsManager.isGatewayServiceProvided) {
-            return baseUrl;
+    public String getEndpointWithCollectionPrefix(String endpoint) {
+        if (this.settingsManager.collectionPrefix != null && !this.settingsManager.collectionPrefix.isEmpty()) {
+            return "/" + this.settingsManager.collectionPrefix + "/" + endpoint;
         }
 
-        if (this.settings.getCollectionPrefix() != null && !this.settings.getCollectionPrefix().isEmpty()) {
-            return baseUrl + "/" + this.settings.getCollectionPrefix();
-        }
-
-        return baseUrl;
+        return endpoint;
     }
 
     /**

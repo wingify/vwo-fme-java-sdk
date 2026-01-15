@@ -60,9 +60,6 @@ public class VWOClient {
             }
             this.settings = settings;
             this.processedSettings = objectMapper.readValue(settings, Settings.class);
-            if (vwoBuilder.getBatchEventQueue() != null) {
-                vwoBuilder.getBatchEventQueue().setSettings(this.processedSettings);
-            }
             if (!DataTypeUtil.isNull(this.processedSettings.getCollectionPrefix()) && !this.processedSettings.getCollectionPrefix().isEmpty()) {
                 this.vwoBuilder.getSettingsManager().collectionPrefix = this.processedSettings.getCollectionPrefix();
             }
@@ -365,8 +362,19 @@ public class VWOClient {
     /**
      * This method is used to update the settings with provided settings string
      * @param settings New settings to be updated
+     * @return String value containing the updated settings
      */
     public String updateSettings(String settings) {
+        return this.updateSettings(settings, false);
+    }
+
+    /**
+     * This method is used to update the settings with provided settings string and isViaWebhook flag
+     * @param settings New settings to be updated
+     * @param isViaWebhook Boolean value to indicate if the settings are being fetched via webhook
+     * @return String value containing the updated settings
+     */
+    private String updateSettings(String settings, Boolean isViaWebhook) {
         String apiName = "updateSettings";
         try {
             vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
@@ -388,14 +396,14 @@ public class VWOClient {
             this.updateSettingsOnVWOClient(settings);
             vwoBuilder.getLoggerService().log(LogLevelEnum.INFO, "SETTINGS_UPDATED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
-                put("isViaWebhook", "false");
+                put("isViaWebhook", isViaWebhook.toString());
             }});
             return settings;
         } catch (Exception exception) {
             vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "UPDATING_CLIENT_INSTANCE_FAILED_WHEN_WEBHOOK_TRIGGERED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
                 put("err", exception.getMessage());
-                put("isViaWebhook", "false");
+                put("isViaWebhook", isViaWebhook.toString());
                 put("an", ApiEnum.UPDATE_SETTINGS.getValue());
             }});
             return null;
@@ -411,7 +419,7 @@ public class VWOClient {
         try {
             // Fetch the new settings from the server
             this.settings = this.vwoBuilder.getSettingsManager().fetchSettings(isViaWebhook);
-            return this.updateSettings(this.settings);
+            return this.updateSettings(this.settings, isViaWebhook);
         } catch (Exception exception) {
             vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "UPDATING_CLIENT_INSTANCE_FAILED_WHEN_WEBHOOK_TRIGGERED", new HashMap<String, Object>() {{
                 put("apiName", apiName);

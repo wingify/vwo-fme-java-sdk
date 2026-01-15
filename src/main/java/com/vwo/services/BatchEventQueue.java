@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import com.vwo.models.Settings;
 import com.vwo.models.request.EventArchPayload;
+import com.vwo.services.SettingsManager;
 
 public class BatchEventQueue {
     private Queue<Map<String, Object>> batchQueue = new LinkedList<>();
@@ -40,25 +41,18 @@ public class BatchEventQueue {
     private static final Object LockObject = new Object();
     private FlushInterface flushCallback;
     private LoggerService loggerService;
-    private Settings settings;
+    private SettingsManager settingsManager;
 
-    public BatchEventQueue(int eventsPerRequest, int requestTimeInterval, FlushInterface flushCallback, int accountId, String sdkKey, LoggerService loggerService) {
+    public BatchEventQueue(int eventsPerRequest, int requestTimeInterval, FlushInterface flushCallback, int accountId, String sdkKey, LoggerService loggerService, SettingsManager settingsManager) {
         this.eventsPerRequest = eventsPerRequest;
         this.requestTimeInterval = requestTimeInterval;
         this.flushCallback = flushCallback;
         this.accountId = accountId;
         this.sdkKey = sdkKey;
         this.loggerService = loggerService;
+        this.settingsManager = settingsManager;
         createNewBatchTimer();
         loggerService.log(LogLevelEnum.DEBUG, "BatchEventQueue initialized with eventsPerRequest: " + eventsPerRequest + " and requestTimeInterval: " + requestTimeInterval);
-    }
-
-    /**
-     * Sets the settings for the batch event queue.
-     * @param settings The settings to be set.
-     */
-    public void setSettings(Settings settings) {
-        this.settings = settings;
     }
 
     /**
@@ -124,17 +118,13 @@ public class BatchEventQueue {
                 // Log before sending batch events
                 loggerService.log(LogLevelEnum.DEBUG, "Flushing " + eventsToSend.size() + " events.");
 
-                // Send the batch events
-                // Flag to track success or failure asynchronously
-                final boolean[] isSentSuccessfully = { false };
-
                 // Use ExecutorService to handle background task (better than Thread)
                 ExecutorService executorService = Executors.newSingleThreadExecutor(); // Use a single-thread pool
                 executorService.submit(() -> {
                     try {
                         // Send the batch events and handle the result
-                        isSentSuccessfully[0] = sendBatchEvents(eventsToSend);
-                        if (isSentSuccessfully[0]) {
+                        boolean isSentSuccessfully = sendBatchEvents(eventsToSend);
+                        if (isSentSuccessfully) {
                             loggerService.log(LogLevelEnum.INFO,
                                     "Batch flush successful. Sent " + eventsToSend.size() + " events.");
                         } else {
@@ -158,7 +148,7 @@ public class BatchEventQueue {
                     }
                 });
 
-                return isSentSuccessfully[0];
+                return true;
         }
     }
 
@@ -166,7 +156,7 @@ public class BatchEventQueue {
     private boolean sendBatchEvents(List<Map<String, Object>> events) {
         try {
             // Call sendPostBatchRequest and capture the return value (success or failure)
-            boolean isSentSuccessfully = NetworkUtil.sendPostBatchRequest(settings, events, accountId, sdkKey, this.flushCallback);
+            boolean isSentSuccessfully = NetworkUtil.sendPostBatchRequest(settingsManager, events, accountId, sdkKey, this.flushCallback);
             if (this.flushCallback != null) {   
                 this.flushCallback.onFlush(null, events.toString());
             }

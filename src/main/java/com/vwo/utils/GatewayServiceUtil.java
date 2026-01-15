@@ -39,7 +39,7 @@ public class GatewayServiceUtil {
     public static String getFromGatewayService(ServiceContainer serviceContainer, Map<String, String> queryParams, String endpoint) {
         NetworkManager networkInstance = NetworkManager.getInstance();
         // if the base url contains the host name, this means the gateway service is not configured
-        if (serviceContainer.getBaseUrl().contains(Constants.HOST_NAME)) {
+        if (!serviceContainer.getSettingsManager().isGatewayServiceProvided) {
             serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_GATEWAY_URL", new HashMap<String, Object>() {
                 {
                     putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
@@ -49,9 +49,9 @@ public class GatewayServiceUtil {
         }
         try {
             RequestModel request = new RequestModel(
-                    serviceContainer.getBaseUrl(),
+                    serviceContainer.getSettingsManager().hostname,
                     "GET",
-                    endpoint,
+                    serviceContainer.getEndpointWithCollectionPrefix(endpoint),
                     queryParams,
                     null,
                     null,
@@ -83,7 +83,7 @@ public class GatewayServiceUtil {
         // get the network instance
         NetworkManager networkInstance = NetworkManager.getInstance();
         // if the base url contains the host name, this means the gateway service is not configured
-        if (serviceContainer.getBaseUrl().contains(Constants.HOST_NAME)) {
+        if (!serviceContainer.getSettingsManager().isGatewayServiceProvided) {
             serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_GATEWAY_URL", new HashMap<String, Object>() {
                 {
                     putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
@@ -94,9 +94,9 @@ public class GatewayServiceUtil {
         try {
             // create the request
             RequestModel request = new RequestModel(
-                    serviceContainer.getBaseUrl(),
+                    serviceContainer.getSettingsManager().hostname,
                     "POST",
-                    endpoint,
+                    serviceContainer.getEndpointWithCollectionPrefix(endpoint),
                     queryParams,
                     payload,
                     null,
