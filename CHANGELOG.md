@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2025-01-19
+
+### Added
+
+- Implemented impression batching for `getFlag` API to reduce network latency
+  - Collects all impression payloads (rollout, experiment, whitelisting, impact campaign) during evaluation
+  - Sends all impressions in a single async batch request at the end of `getFlag`
+  - Reduces from 3 sequential network calls to 1 batch call
+  - Maintains immediate send behavior when gateway service is configured
+
 ## [1.16.0] - 2026-01-15
 
 - Added support for redirecting all network calls through a custom proxy URL. This feature allows users to route all SDK network requests (settings, tracking, etc.) through their own proxy server.

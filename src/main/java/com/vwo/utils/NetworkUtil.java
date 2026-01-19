@@ -417,7 +417,7 @@ public class NetworkUtil {
 
         String endpoint = UrlEnum.BATCH_EVENTS.getUrl();
         if (settingsManager.collectionPrefix != null && !settingsManager.collectionPrefix.isEmpty()) {
-            endpoint = "/" + settingsManager.collectionPrefix + "/" + endpoint;
+            endpoint = "/" + settingsManager.collectionPrefix + endpoint;
         }
 
         // Create the request model
@@ -457,7 +457,7 @@ public class NetworkUtil {
 
         String endpoint = UrlEnum.EVENTS.getUrl();
         if (settingsManager.collectionPrefix != null && !settingsManager.collectionPrefix.isEmpty()) {
-            endpoint = "/" + settingsManager.collectionPrefix + "/" + endpoint;
+            endpoint = "/" + settingsManager.collectionPrefix + endpoint;
         }
 
         RequestModel request = new RequestModel(settingsManager.hostname, "POST", endpoint, properties, payload, headers, settingsManager.protocol, settingsManager.port);

@@ -21,13 +21,16 @@ import com.vwo.decorators.StorageDecorator;
 import com.vwo.enums.ApiEnum;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.enums.DebuggerCategoryEnum;
+import com.vwo.enums.EventEnum;
 import com.vwo.constants.Constants;
 import com.vwo.models.*;
+import com.vwo.models.request.EventArchPayload;
 import com.vwo.models.user.GetFlag;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.StorageService;
 import com.vwo.utils.DebuggerServiceUtil;
+import com.vwo.utils.NetworkUtil;
 import com.vwo.utils.RuleEvaluationUtil;
 
 import java.util.*;
@@ -35,7 +38,8 @@ import java.util.*;
 import static com.vwo.utils.CampaignUtil.getVariationFromCampaignKey;
 import static com.vwo.utils.DecisionUtil.evaluateTrafficAndGetVariation;
 import static com.vwo.utils.FunctionUtil.*;
-import static com.vwo.utils.ImpressionUtil.createAndSendImpressionForVariationShown;
+import static com.vwo.utils.ImpressionUtil.sendImpressionForVariationShown;
+import static com.vwo.utils.ImpressionUtil.sendImpressionForVariationShownInBatch;
 
 public class GetFlagAPI {
 
@@ -52,6 +56,7 @@ public class GetFlagAPI {
 
         Map<String, Object> passedRulesInformation = new HashMap<>();
         Map<String, Object> evaluatedFeatureMap = new HashMap<>();
+        List<EventArchPayload> batchPayloads = new ArrayList<>();
 
         // get feature object from feature key
         Feature feature = getFeatureFromKey(serviceContainer.getSettings(), featureKey);
@@ -184,7 +189,24 @@ public class GetFlagAPI {
                     getFlag.setVariables(variation.getVariables());
                     shouldCheckForExperimentsRules = true;
                     updateIntegrationsDecisionObject(passedRolloutCampaign, variation, passedRulesInformation, decision);
-                    createAndSendImpressionForVariationShown(serviceContainer, passedRolloutCampaign.getId(), variation.getId(), context);
+
+                    // Create payload for sending
+                    EventArchPayload payload = NetworkUtil.getTrackUserPayloadData(
+                            serviceContainer,
+                            context.getId(),
+                            EventEnum.VWO_VARIATION_SHOWN.getValue(),
+                            passedRolloutCampaign.getId(),
+                            variation.getId(),
+                            context.getUserAgent(),
+                            context.getIpAddress()
+                    );
+                    if (serviceContainer.getSettingsManager().isGatewayServiceProvided && payload != null) {
+                        // Gateway service: send immediately
+                        sendImpressionForVariationShown(serviceContainer, passedRolloutCampaign.getId(), variation.getId(), context, payload);
+                    } else if (payload != null) {
+                        // Non-gateway: add to batch
+                        batchPayloads.add(payload);
+                    }
                 }
             }
         } else if (!shouldCheckForExperimentsRules) {
@@ -212,12 +234,24 @@ public class GetFlagAPI {
                     if (whitelistedObject == null) {
                         experimentRulesToEvaluate.add(rule);
                     } else {
-                        // If whitelisted object is not null, update the decision object and send an impression
+                        // If whitelisted object is not null, update the decision object and handle payload
                         getFlag.setIsEnabled(true);
                         getFlag.setVariables(whitelistedObject.getVariables());
                         passedRulesInformation.put("experimentId", rule.getId());
                         passedRulesInformation.put("experimentKey", rule.getKey());
                         passedRulesInformation.put("experimentVariationId", whitelistedObject.getId());
+  
+                        // Handle whitelisting payload
+                        EventArchPayload whitelistPayload = (EventArchPayload) evaluateRuleResult.get("payload");
+                        if (whitelistPayload != null) {
+                            if (serviceContainer.getSettingsManager().isGatewayServiceProvided) {
+                                // Gateway service: send immediately
+                                sendImpressionForVariationShown(serviceContainer, rule.getId(), whitelistedObject.getId(), context, whitelistPayload);
+                            } else {
+                                // Non-gateway: add to batch
+                                batchPayloads.add(whitelistPayload);
+                            }
+                        }
                     }
                     break;
                 }
@@ -231,7 +265,24 @@ public class GetFlagAPI {
                     getFlag.setIsEnabled(true);
                     getFlag.setVariables(variation.getVariables());
                     updateIntegrationsDecisionObject(campaign, variation, passedRulesInformation, decision);
-                    createAndSendImpressionForVariationShown(serviceContainer, campaign.getId(), variation.getId(), context);
+
+                    // Create payload for sending
+                    EventArchPayload payload = NetworkUtil.getTrackUserPayloadData(
+                            serviceContainer,
+                            context.getId(),
+                            EventEnum.VWO_VARIATION_SHOWN.getValue(),
+                            campaign.getId(),
+                            variation.getId(),
+                            context.getUserAgent(),
+                            context.getIpAddress()
+                    );
+                    if (serviceContainer.getSettingsManager().isGatewayServiceProvided && payload != null) {
+                        // Gateway service: send immediately
+                        sendImpressionForVariationShown(serviceContainer, campaign.getId(), variation.getId(), context, payload);
+                    } else if (payload != null) {
+                        // Non-gateway: add to batch
+                        batchPayloads.add(payload);
+                    }
                 }
             }
         }
@@ -266,13 +317,37 @@ public class GetFlagAPI {
                     put("status", getFlag.isEnabled() ? "enabled": "disabled");
                 }
             });
-            createAndSendImpressionForVariationShown(
+
+            // Create payload for impact campaign
+            EventArchPayload impactPayload = NetworkUtil.getTrackUserPayloadData(
                     serviceContainer,
+                    context.getId(),
+                    EventEnum.VWO_VARIATION_SHOWN.getValue(),
                     feature.getImpactCampaign().getCampaignId(),
                     getFlag.isEnabled() ? 2 : 1,
-                    context
+                    context.getUserAgent(),
+                    context.getIpAddress()
             );
+            if (serviceContainer.getSettingsManager().isGatewayServiceProvided && impactPayload != null) {
+                // Gateway service: send immediately
+                sendImpressionForVariationShown(
+                        serviceContainer,
+                        feature.getImpactCampaign().getCampaignId(),
+                        getFlag.isEnabled() ? 2 : 1,
+                        context,
+                        impactPayload
+                );
+            } else if (impactPayload != null) {
+                // Non-gateway: add to batch
+                batchPayloads.add(impactPayload);
+            }
         }
+
+        // Send all collected payloads in a single batch request
+        if (!batchPayloads.isEmpty() && !serviceContainer.getSettingsManager().isGatewayServiceProvided) {
+            sendImpressionForVariationShownInBatch(batchPayloads, serviceContainer);
+        }
+
         return getFlag;
     }
 

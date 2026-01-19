@@ -15,47 +15,43 @@
  */
 package com.vwo.utils;
 
+import com.vwo.VWOClient;
 import com.vwo.enums.EventEnum;
 import com.vwo.models.user.VWOContext;
 import com.vwo.ServiceContainer;
 import com.vwo.models.request.EventArchPayload;
 import com.vwo.constants.Constants;
+import com.vwo.packages.logger.enums.LogLevelEnum;
+import com.vwo.packages.network_layer.manager.NetworkManager;
+import java.util.ArrayList;
 import java.util.HashMap;
-
+import java.util.List;
 import java.util.Map;
 
 public class ImpressionUtil {
 
     /**
-     * Creates and sends an impression for a variation shown event.
-     * This function constructs the necessary properties and payload for the event
+     * Sends an impression for a variation shown event.
+     * This function constructs the necessary properties for the event
      * and uses the NetworkUtil to send a POST API request.
      *
      * @param serviceContainer    The service container containing configuration.
      * @param campaignId  The ID of the campaign.
      * @param variationId The ID of the variation shown to the user.
      * @param context     The user context model containing user-specific data.
+     * @param payload     The payload data for tracking the user (created by caller).
      */
-    public static void createAndSendImpressionForVariationShown(
+    public static void sendImpressionForVariationShown(
             ServiceContainer serviceContainer,
             int campaignId,
             int variationId,
-            VWOContext context) {
+            VWOContext context,
+            EventArchPayload payload) {
         // Get base properties for the event
         Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
                 serviceContainer.getSettingsManager(),
                 EventEnum.VWO_VARIATION_SHOWN.getValue(),
                 encodeURIComponent(context.getUserAgent()),
-                context.getIpAddress());
-
-        // Construct payload data for tracking the user
-        EventArchPayload payload = NetworkUtil.getTrackUserPayloadData(
-                serviceContainer,
-                context.getId(),
-                EventEnum.VWO_VARIATION_SHOWN.getValue(),
-                campaignId,
-                variationId,
-                context.getUserAgent(),
                 context.getIpAddress());
 
         String campaignKeyWithFeatureName = CampaignUtil.getCampaignKeyFromCampaignId(serviceContainer.getSettings(), campaignId);
@@ -84,6 +80,63 @@ public class ImpressionUtil {
         } else {
             // Send the event immediately if batch event queue is not available
             NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context, featureInfo);
+        }
+    }
+
+    /**
+     * Sends impressions for variation shown events in batch.
+     * This function dispatches all collected payloads in a single network call.
+     *
+     * @param payloads         List of EventArchPayload objects to send.
+     * @param serviceContainer The service container containing configuration.
+     */
+    public static void sendImpressionForVariationShownInBatch(
+            List<EventArchPayload> payloads,
+            ServiceContainer serviceContainer) {
+        if (payloads == null || payloads.isEmpty()) {
+            return;
+        }
+
+        // Check if batch event queue is available
+        if (serviceContainer.getBatchEventQueue() != null) {
+            // Enqueue each payload to the batch queue for future processing
+            for (EventArchPayload payload : payloads) {
+                serviceContainer.getBatchEventQueue().enqueue(payload);
+            }
+        } else {
+            // Convert payloads to list of maps for batch request
+            List<Map<String, Object>> payloadMaps = new ArrayList<>();
+            for (EventArchPayload payload : payloads) {
+                Map<String, Object> payloadMap = VWOClient.objectMapper.convertValue(payload, Map.class);
+                payloadMap = NetworkUtil.removeNullValues(payloadMap);
+                payloadMaps.add(payloadMap);
+            }
+            
+            final int eventCount = payloadMaps.size();
+            // Send all events in a single batch request asynchronously
+            NetworkManager.getInstance().getExecutorService().submit(() -> {
+                try {
+                    NetworkUtil.sendPostBatchRequest(
+                            serviceContainer.getSettingsManager(),
+                            payloadMaps,
+                            serviceContainer.getSettingsManager().accountId,
+                            serviceContainer.getSettingsManager().sdkKey,
+                            null
+                    );
+                    serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "BATCH_IMPRESSION_SUCCESS", new HashMap<String, Object>() {
+                        {
+                            put("eventCount", String.valueOf(eventCount));
+                            put("accountId", serviceContainer.getSettingsManager().accountId.toString());
+                        }
+                    });
+                } catch (Exception e) {
+                    serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "BATCH_IMPRESSION_FAILED", new HashMap<String, Object>() {
+                        {
+                            put("err", e.getMessage());
+                        }
+                    });
+                }
+            });
         }
     }
 

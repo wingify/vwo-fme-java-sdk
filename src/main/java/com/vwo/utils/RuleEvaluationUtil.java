@@ -15,12 +15,13 @@
  */
 package com.vwo.utils;
 
+import com.vwo.enums.EventEnum;
 import com.vwo.models.Campaign;
 import com.vwo.models.Feature;
 import com.vwo.models.Variation;
+import com.vwo.models.request.EventArchPayload;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
-import com.vwo.services.LoggerService;
 import com.vwo.services.StorageService;
 import com.vwo.ServiceContainer;
 import java.util.HashMap;
@@ -28,7 +29,6 @@ import java.util.Map;
 
 
 import static com.vwo.utils.DecisionUtil.checkWhitelistingAndPreSeg;
-import static com.vwo.utils.ImpressionUtil.createAndSendImpressionForVariationShown;
 
 public class RuleEvaluationUtil {
 
@@ -70,20 +70,24 @@ public class RuleEvaluationUtil {
             // Extract the results of the evaluation
             boolean preSegmentationResult = (Boolean) checkResult.get("preSegmentationResult");
             Variation whitelistedObject = (Variation) checkResult.get("whitelistedObject");
+            EventArchPayload payload = null;
 
-            // If pre-segmentation is successful and a whitelisted object exists, proceed to send an impression
+            // If pre-segmentation is successful and a whitelisted object exists, create payload for impression
             if (preSegmentationResult && whitelistedObject != null && whitelistedObject.getId() != null) {
                 // Update the decision object with campaign and variation details
                 decision.put("experimentId", campaign.getId());
                 decision.put("experimentKey", campaign.getKey());
                 decision.put("experimentVariationId", whitelistedObject.getId());
 
-                // Send an impression for the variation shown
-                createAndSendImpressionForVariationShown(
+                // Create payload for the variation shown (to be sent in batch by caller)
+                payload = NetworkUtil.getTrackUserPayloadData(
                         serviceContainer,
+                        context.getId(),
+                        EventEnum.VWO_VARIATION_SHOWN.getValue(),
                         campaign.getId(),
                         whitelistedObject.getId(),
-                        context
+                        context.getUserAgent(),
+                        context.getIpAddress()
                 );
             }
 
@@ -92,6 +96,7 @@ public class RuleEvaluationUtil {
             result.put("preSegmentationResult", preSegmentationResult);
             result.put("whitelistedObject", whitelistedObject);
             result.put("updatedDecision", decision);
+            result.put("payload", payload);
             return result;
         } catch (Exception exception) {
             serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_EVALUATING_RULE", new HashMap<String, Object>() {

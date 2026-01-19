@@ -123,7 +123,7 @@ public class ServiceContainer {
      */
     public String getEndpointWithCollectionPrefix(String endpoint) {
         if (this.settingsManager.collectionPrefix != null && !this.settingsManager.collectionPrefix.isEmpty()) {
-            return "/" + this.settingsManager.collectionPrefix + "/" + endpoint;
+            return "/" + this.settingsManager.collectionPrefix + endpoint;
         }
 
         return endpoint;
