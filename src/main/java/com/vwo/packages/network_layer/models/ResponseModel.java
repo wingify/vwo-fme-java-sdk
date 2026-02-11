@@ -23,9 +23,26 @@ public class ResponseModel {
   private Exception error;
   private Map<String, String> headers;
   private String data;
+  private int totalAttempts;
 
   public void setStatusCode(int statusCode) {
     this.statusCode = statusCode;
+  }
+
+  /**
+   * Gets the total number of attempts made for this request.
+   * @return The total number of attempts.
+   */
+  public int getTotalAttempts() {
+    return totalAttempts;
+  }
+
+  /**
+   * Sets the total number of attempts made for this request.
+   * @param totalAttempts The total number of attempts.
+   */
+  public void setTotalAttempts(int totalAttempts) {
+    this.totalAttempts = totalAttempts;
   }
 
   public void setHeaders(Map<String, String> headers) {

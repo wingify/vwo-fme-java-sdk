@@ -55,5 +55,9 @@
 
   "ERROR_SETTING_ALIAS": "Alias failed to set on gateway service for user ID: {userId}.",
   "ERROR_GETTING_ALIAS": "Error while getting alias from gateway service for user ID: {userId}. Error: {err}",
-  "USAGE_STATS_EVENT_FAILED": "Error while sending usage stats event. Error: {err}"
+  "USAGE_STATS_EVENT_FAILED": "Error while sending usage stats event. Error: {err}",
+
+  "ATTEMPTING_RETRY_FOR_FAILED_NETWORK_CALL": "Retrying {endPoint} after {delay}s (attempt {attempt}/{maxRetries}). Error: {err}",
+  "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES": "Network call failed for {extraData} after {attempts} attempts. Error: {err}",
+  "INVALID_RETRY_CONFIG": "Invalid retry configuration provided: {retryConfig}. Using default values."
 }

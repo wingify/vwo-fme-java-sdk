@@ -64,11 +64,22 @@ public class VWOBuilder {
      */
     public VWOBuilder setNetworkManager() {
         NetworkManager networkInstance = NetworkManager.getInstance();
+        
+        // Set logger service first so it can be used for logging during configuration
+        networkInstance.setLoggerService(loggerService);
+        
+        // Configure thread pool (always call, uses defaults if no config provided)
+        networkInstance.configureThreadPool(this.options != null ? this.options.getThreadPoolConfig() : null);
+        
+        // Attach network client
         if (this.options != null && this.options.getNetworkClientInterface() != null) {
             networkInstance.attachClient(this.options.getNetworkClientInterface());
         } else {
             networkInstance.attachClient();
         }
+        
+        // Set retry configuration
+        networkInstance.setRetryConfig(this.options != null ? this.options.getRetryConfig() : null);
         networkInstance.getConfig().setDevelopmentMode(false);
         loggerService.log(LogLevelEnum.DEBUG, "SERVICE_INITIALIZED", new HashMap<String, Object>() {
             {
@@ -389,16 +400,6 @@ public class VWOBuilder {
 
             boolean isEventsPerRequestValid = DataTypeUtil.isInteger(eventsPerRequest) && eventsPerRequest > 0 && eventsPerRequest <= Constants.MAX_EVENTS_PER_REQUEST;
             boolean isRequestTimeIntervalValid = DataTypeUtil.isInteger(requestTimeInterval) && requestTimeInterval >0;
-
-            // Check data type and values for eventsPerRequest and requestTimeInterval
-            if (!isEventsPerRequestValid && !isRequestTimeIntervalValid) {
-                loggerService.log(LogLevelEnum.ERROR, "VALUES_MISMATCH_BATCHING_NOT_ENABLED", new HashMap<String, Object>() {
-                    {
-                        put("an", ApiEnum.INIT.getValue());
-                    }
-                });
-                return this;
-            }
 
             // Handle invalid data types for individual parameters
             if (!isEventsPerRequestValid) {

@@ -30,10 +30,8 @@ import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
-import com.vwo.enums.DebuggerCategoryEnum;
 import com.vwo.utils.DebuggerServiceUtil;
 import com.vwo.utils.NetworkUtil;
-import static com.vwo.utils.LogMessageUtil.buildMessage;
 
 // public class SettingsManager implements ISettingsManager {
 public class SettingsManager {
@@ -177,31 +175,26 @@ public class SettingsManager {
 
             RequestModel request = new RequestModel(hostname, "GET", endpoint, options, null, null, this.protocol, port);
             request.setTimeout(networkTimeout);
+            request.setRetryConfig(networkInstance.getRetryConfig());
 
             ResponseModel response = networkInstance.get(request);
-            if (response.getStatusCode() != 200){
-                // create debug event props
-                Map<String, Object> debugEventProps = new HashMap<String, Object>() {
-                    {
-                        put("cg", DebuggerCategoryEnum.NETWORK.getValue());
-                        put("tRa", 0);
-                        put("err", response.getError().getMessage());
-                        put("an", isViaWebhook ? ApiEnum.UPDATE_SETTINGS.getValue() : ApiEnum.INIT.getValue());
-                        put("msg_t", Constants.NETWORK_CALL_EXCEPTION);
-                        put("sc", response.getStatusCode());
-                        put("lt", LogLevelEnum.ERROR.toString());
-                        put("msg", buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_EXCEPTION"), new HashMap<String, Object>() {{
-                            put("extraData", endpoint);
-                            put("accountId", accountId.toString());
-                            put("err", response.getError().getMessage());
-                        }}));
-                    }
-                };
-                // send debug event to VWO
+            String apiName = isViaWebhook ? ApiEnum.UPDATE_SETTINGS.getValue() : ApiEnum.INIT.getValue();
+            
+            // If attempt is more than 0, send debug event
+            if (response.getTotalAttempts() > 0) {
+                Map<String, Object> debugEventProps = DebuggerServiceUtil.createNetWorkAndRetryDebugEvent(
+                    response,
+                    null,
+                    apiName,
+                    endpoint
+                );
                 DebuggerServiceUtil.sendDebugEventToVWO(this, debugEventProps);
+            }
+            
+            if (response.getStatusCode() != Constants.HTTP_OK){
                 loggerService.log(LogLevelEnum.ERROR, "ERROR_FETCHING_SETTINGS", new HashMap<String, Object>() {
                     {
-                        put("err", response.getError().getMessage());
+                        put("err", response.getError() != null ? response.getError().getMessage() : "Unknown error");
                         put("accountId", accountId.toString());
                         put("sdkKey", sdkKey);
                     }
@@ -211,24 +204,6 @@ public class SettingsManager {
             this.settingsFetchTime = System.currentTimeMillis() - startTime;
             return response.getData();
         } catch (Exception e) {
-            // create debug event props
-            Map<String, Object> debugEventProps = new HashMap<String, Object>() {
-                {
-                    put("cg", DebuggerCategoryEnum.NETWORK.getValue());
-                    put("err", e.getMessage());
-                    put("tRa", 0);
-                    put("msg_t", Constants.NETWORK_CALL_EXCEPTION);
-                    put("an", isViaWebhook ? ApiEnum.UPDATE_SETTINGS.getValue() : ApiEnum.INIT.getValue());
-                    put("lt", LogLevelEnum.ERROR.toString());
-                    put("msg", buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_EXCEPTION"), new HashMap<String, Object>() {{
-                        put("extraData", endpoint);
-                        put("accountId", accountId.toString());
-                        put("err", e.toString());
-                    }}));
-                }
-            };
-            // send debug event to VWO
-            DebuggerServiceUtil.sendDebugEventToVWO(this, debugEventProps);
             loggerService.log(LogLevelEnum.ERROR, "ERROR_FETCHING_SETTINGS", new HashMap<String, Object>() {
                 {
                     put("err", e.toString());

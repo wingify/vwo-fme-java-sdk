@@ -18,13 +18,11 @@ package com.vwo.utils;
 
 import com.vwo.enums.EventEnum;
 import com.vwo.enums.DebuggerCategoryEnum;
-import com.vwo.enums.ApiEnum;
-import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.services.LoggerService;
 import com.vwo.services.SettingsManager;
-import com.vwo.models.request.EventArchPayload;
 import com.vwo.constants.Constants;
 import com.vwo.packages.logger.enums.LogLevelEnum;
+import com.vwo.packages.network_layer.models.ResponseModel;
 
 import static com.vwo.utils.LogMessageUtil.buildMessage;
 
@@ -73,68 +71,86 @@ public class DebuggerServiceUtil {
     }
 
     /**
-     * Creates debug event properties for network category
-     * @param payload The payload containing event data
+     * Creates a network and retry debug event.
+     * Determines category (RETRY vs NETWORK) based on response status code.
+     * @param response The response model containing status code and error info
+     * @param payload The payload for the request (can be null)
+     * @param apiName The name of the API (e.g., getFlag, trackEvent)
+     * @param extraData Extra data for the message (e.g., feature name, endpoint)
      * @return Map containing debug event properties
      */
-    public static Map<String, Object> createNetworkDebugEvent(
-            EventArchPayload payload, Map<String, Object> featureInfo, Integer accountId, String error) {
-        
+    public static Map<String, Object> createNetWorkAndRetryDebugEvent(
+            ResponseModel response,
+            Object payload,
+            String apiName,
+            String extraData
+    ) {
         try {
-            Map<String, Object> debugEventProps = new HashMap<>();
+            // Determine category based on status code
+            String category = DebuggerCategoryEnum.RETRY.getValue();
+            String msgType = Constants.NETWORK_CALL_SUCCESS_WITH_RETRIES;
+            String logLevel = LogLevelEnum.INFO.toString();
             
-            debugEventProps.put("cg", DebuggerCategoryEnum.NETWORK.getValue());
-            debugEventProps.put("tRa", 0);
-            debugEventProps.put("uuid", payload.getD().getVisId());
-            debugEventProps.put("eId", payload.getD().getEvent().getProps().getId());
-            debugEventProps.put("sId", payload.getD().getSessionId());
-            debugEventProps.put("vId", payload.getD().getEvent().getProps().getVariation());
-            debugEventProps.put("msg_t", Constants.NETWORK_CALL_EXCEPTION);
-            debugEventProps.put("lt", LogLevelEnum.ERROR.toString());
-
-            String eventName = payload.getD().getEvent().getName();
-            if (eventName.equals(EventEnum.VWO_VARIATION_SHOWN.getValue())) {
-                String extraData;
-                debugEventProps.put("an", ApiEnum.GET_FLAG.getValue());
-                if (featureInfo != null && (featureInfo.get("campaignKey").equals(CampaignTypeEnum.ROLLOUT.getValue()) || featureInfo.get("campaignKey").equals(CampaignTypeEnum.PERSONALIZE.getValue()))) {
-                    extraData = "feature: " + featureInfo.get("featureKey") + " and rule: " + featureInfo.get("variationName");
-                } else {
-                    extraData = "feature: " + featureInfo.get("featureKey") + " and rule: " + featureInfo.get("campaignKey") + " and variation: " + featureInfo.get("variationName");
-                }
-                debugEventProps.put("msg", buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_EXCEPTION"), new HashMap<String, Object>() {{
+            String errorMsg = response.getError() != null ? response.getError().getMessage() : "";
+            int attempts = response.getTotalAttempts();
+            
+            String msg = buildMessage(LoggerService.infoMessages.get("NETWORK_CALL_SUCCESS_WITH_RETRIES"), 
+                new HashMap<String, Object>() {{
                     put("extraData", extraData);
-                    put("accountId", accountId.toString());
-                    put("err", error);
-                }}));
-            } else if (eventName.equals(EventEnum.VWO_SYNC_VISITOR_PROP.getValue())) {
-                debugEventProps.put("an", ApiEnum.SET_ATTRIBUTE.getValue());
-                debugEventProps.put("msg", buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_EXCEPTION"), new HashMap<String, Object>() {{
-                    put("extraData", ApiEnum.SET_ATTRIBUTE.getValue());
-                    put("accountId", accountId.toString());
-                    put("err", error);
-                }}));
-            } else {
-                debugEventProps.put("an", ApiEnum.TRACK_EVENT.getValue());
-                debugEventProps.put("msg", buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_EXCEPTION"), new HashMap<String, Object>() {{
-                    put("extraData", "event: " + eventName);
-                    put("accountId", accountId.toString());
-                    put("err", error);
-                }}));
+                    put("attempts", attempts);
+                    put("err", errorMsg);
+                }});
+
+            // If not 200, switch to NETWORK category (failure)
+            if (response.getStatusCode() != Constants.HTTP_OK) {
+                category = DebuggerCategoryEnum.NETWORK.getValue();
+                msgType = Constants.NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES;
+                logLevel = LogLevelEnum.ERROR.toString();
+                msg = buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES"), 
+                    new HashMap<String, Object>() {{
+                        put("extraData", extraData);
+                        put("attempts", attempts);
+                        put("err", errorMsg);
+                    }});
+            }
+
+            // Build debug event props
+            Map<String, Object> debugEventProps = new HashMap<>();
+            debugEventProps.put("cg", category);
+            debugEventProps.put("msg_t", msgType);
+            debugEventProps.put("msg", msg);
+            debugEventProps.put("lt", logLevel);
+
+            if (apiName != null && !apiName.isEmpty()) {
+                debugEventProps.put("an", apiName);
+            }
+
+            // Extract session ID from payload if available
+            if (payload instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> payloadMap = (Map<String, Object>) payload;
+                if (payloadMap.containsKey("d")) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> d = (Map<String, Object>) payloadMap.get("d");
+                    if (d != null && d.containsKey("sessionId")) {
+                        debugEventProps.put("sId", d.get("sessionId"));
+                    }
+                }
+            }
+            
+            if (!debugEventProps.containsKey("sId")) {
+                debugEventProps.put("sId", FunctionUtil.getCurrentUnixTimestampInMillis());
             }
 
             return debugEventProps;
-            
         } catch (Exception err) {
+            // Fallback on error
             Map<String, Object> errorProps = new HashMap<>();
             errorProps.put("cg", DebuggerCategoryEnum.NETWORK.getValue());
-            errorProps.put("err", err.toString());
-            errorProps.put("msg_t", Constants.NETWORK_CALL_EXCEPTION);
+            errorProps.put("an", apiName != null ? apiName : "");
+            errorProps.put("msg_t", Constants.NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES);
             errorProps.put("lt", LogLevelEnum.ERROR.toString());
-            errorProps.put("msg", buildMessage(LoggerService.errorMessages.get("NETWORK_CALL_EXCEPTION"), new HashMap<String, Object>() {{
-                put("extraData", "event: " + payload.getD().getEvent().getName());
-                put("accountId", accountId.toString());
-                put("err", err.toString());
-            }}));
+            errorProps.put("sId", FunctionUtil.getCurrentUnixTimestampInMillis());
             return errorProps;
         }
     }

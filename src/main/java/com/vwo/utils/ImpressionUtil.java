@@ -114,7 +114,7 @@ public class ImpressionUtil {
             
             final int eventCount = payloadMaps.size();
             // Send all events in a single batch request asynchronously
-            NetworkManager.getInstance().getExecutorService().submit(() -> {
+            NetworkManager.getInstance().getExecutorService().execute(() -> {
                 try {
                     NetworkUtil.sendPostBatchRequest(
                             serviceContainer.getSettingsManager(),

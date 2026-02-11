@@ -20,12 +20,11 @@ import com.vwo.constants.Constants;
 import com.vwo.models.FlushInterface;
 import com.vwo.enums.ApiEnum;
 import com.vwo.packages.logger.enums.LogLevelEnum;
+import com.vwo.packages.network_layer.manager.NetworkManager;
 import com.vwo.services.LoggerService;
 import com.vwo.utils.NetworkUtil;
 
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import com.vwo.models.Settings;
 import com.vwo.models.request.EventArchPayload;
 import com.vwo.services.SettingsManager;
@@ -111,44 +110,46 @@ public class BatchEventQueue {
             if (manual) {
                 loggerService.log(LogLevelEnum.DEBUG, "Manual flush triggered.");
             }
-                // Create a temporary list to hold the events for the batch
-                List<Map<String, Object>> eventsToSend = new ArrayList<>(batchQueue);
-                batchQueue.clear(); // Clear the queue after taking a snapshot
+            // Create a temporary list to hold the events for the batch
+            List<Map<String, Object>> eventsToSend = new ArrayList<>(batchQueue);
+            batchQueue.clear(); // Clear the queue after taking a snapshot
 
-                // Log before sending batch events
-                loggerService.log(LogLevelEnum.DEBUG, "Flushing " + eventsToSend.size() + " events.");
+            // Log before sending batch events
+            loggerService.log(LogLevelEnum.DEBUG, "Flushing " + eventsToSend.size() + " events.");
 
-                // Use ExecutorService to handle background task (better than Thread)
-                ExecutorService executorService = Executors.newSingleThreadExecutor(); // Use a single-thread pool
-                executorService.submit(() -> {
-                    try {
-                        // Send the batch events and handle the result
-                        boolean isSentSuccessfully = sendBatchEvents(eventsToSend);
-                        if (isSentSuccessfully) {
-                            loggerService.log(LogLevelEnum.INFO,
-                                    "Batch flush successful. Sent " + eventsToSend.size() + " events.");
-                        } else {
-                            // Re-enqueue events in case of failure for retry logic
+            // Use the shared executor service from NetworkManager instead of creating new one
+            // This prevents creating/destroying executors on every flush and provides better resource management
+            NetworkManager.getInstance().getExecutorService().execute(() -> {
+                try {
+                    // Send the batch events and handle the result
+                    boolean isSentSuccessfully = sendBatchEvents(eventsToSend);
+                    if (isSentSuccessfully) {
+                        loggerService.log(LogLevelEnum.INFO,
+                                "Batch flush successful. Sent " + eventsToSend.size() + " events.");
+                    } else {
+                        // Re-enqueue events in case of failure for retry logic
+                        synchronized (LockObject) {
                             batchQueue.addAll(eventsToSend);
-                            loggerService.log(LogLevelEnum.ERROR,
-                                    "BATCH_FLUSH_FAILED", new HashMap<String, Object>() {{
-                                        put("an", ApiEnum.FLUSH_EVENTS.getValue());
-                                        put("accountId", accountId);
-                                    }});
                         }
-                    } catch (Exception ex) {
-                        loggerService.log(LogLevelEnum.ERROR, "Error during batch flush: " + ex.getMessage());
-                        // Re-enqueue events in case of failure
-                        batchQueue.addAll(eventsToSend);
-                    } finally {
-                        // Reset the flag after flush
-                        isBatchProcessing = false;
-                        // Shutdown the executor service gracefully
-                        executorService.shutdown();
+                        loggerService.log(LogLevelEnum.ERROR,
+                                "BATCH_FLUSH_FAILED", new HashMap<String, Object>() {{
+                                    put("an", ApiEnum.FLUSH_EVENTS.getValue());
+                                    put("accountId", accountId);
+                                }});
                     }
-                });
-
-                return true;
+                } catch (Exception ex) {
+                    loggerService.log(LogLevelEnum.ERROR, "Error during batch flush: " + ex.getMessage());
+                    // Re-enqueue events in case of failure
+                    synchronized (LockObject) {
+                        batchQueue.addAll(eventsToSend);
+                    }
+                } finally {
+                    // Reset the flag after flush
+                    isBatchProcessing = false;
+                    // Note: Do NOT shutdown the executor - it's a shared resource
+                }
+            });
+            return true;
         }
     }
 

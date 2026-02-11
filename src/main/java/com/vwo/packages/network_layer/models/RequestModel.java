@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.gson.Gson;
+import com.vwo.models.user.RetryConfig;
+import com.vwo.constants.Constants;
 
 public class RequestModel {
 
@@ -31,6 +33,8 @@ public class RequestModel {
   private int timeout;
   private Map<String, Object> body;
   private Map<String, String> headers;
+  private RetryConfig retryConfig;
+  private String lastError;
 
   public RequestModel(String url, String method, String path, Map<String, String> query, Map<String, Object> body, Map<String, String> headers, String scheme, int port) {
     this.url = url;
@@ -43,6 +47,13 @@ public class RequestModel {
     if (port != 0) {
         this.port = port;
     }
+    // Initialize with default retry config
+    this.retryConfig = new RetryConfig(
+      Constants.DEFAULT_SHOULD_RETRY,
+      Constants.DEFAULT_MAX_RETRIES,
+      Constants.DEFAULT_INITIAL_DELAY,
+      Constants.DEFAULT_BACKOFF_MULTIPLIER
+    );
   }
 
   public String getMethod() {
@@ -115,6 +126,38 @@ public class RequestModel {
 
   public void setPath(String path) {
     this.path = path;
+  }
+
+  /**
+   * Gets the retry configuration.
+   * @return A copy of the retry configuration.
+   */
+  public RetryConfig getRetryConfig() {
+    return new RetryConfig(this.retryConfig);
+  }
+
+  /**
+   * Sets the retry configuration.
+   * @param retryConfig The retry configuration to set.
+   */
+  public void setRetryConfig(RetryConfig retryConfig) {
+    this.retryConfig = retryConfig;
+  }
+
+  /**
+   * Gets the last error message.
+   * @return The last error message.
+   */
+  public String getLastError() {
+    return lastError;
+  }
+
+  /**
+   * Sets the last error message.
+   * @param lastError The last error message to set.
+   */
+  public void setLastError(String lastError) {
+    this.lastError = lastError;
   }
 
   public Map<String, Object> getOptions() {

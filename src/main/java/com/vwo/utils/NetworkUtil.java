@@ -38,14 +38,14 @@ import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.packages.network_layer.manager.NetworkManager;
 import com.vwo.packages.network_layer.models.RequestModel;
 import com.vwo.packages.network_layer.models.ResponseModel;
+import com.vwo.models.user.RetryConfig;
 import com.vwo.ServiceContainer;
 import com.vwo.services.SettingsManager;
 
 import com.vwo.enums.EventEnum;
-import com.vwo.utils.FunctionUtil;
+import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.utils.DebuggerServiceUtil;
 import com.vwo.enums.ApiEnum;
-import com.vwo.enums.DebuggerCategoryEnum;
 
 public class NetworkUtil {
 
@@ -346,10 +346,50 @@ public class NetworkUtil {
             Map<String, Object> payloadMap = VWOClient.objectMapper.convertValue(payload, Map.class);
             payloadMap = removeNullValues(payloadMap);
             RequestModel request = new RequestModel(serviceContainer.getSettingsManager().hostname, "POST", serviceContainer.getEndpointWithCollectionPrefix(UrlEnum.EVENTS.getUrl()), properties, payloadMap, headers, serviceContainer.getSettingsManager().protocol, serviceContainer.getSettingsManager().port);
-            NetworkManager.getInstance().getExecutorService().submit(() -> {
+            request.setRetryConfig(NetworkManager.getInstance().getRetryConfig());
+            
+            final Map<String, Object> finalPayloadMap = payloadMap;
+            
+            // Determine apiName and extraData for debug events
+            String apiName;
+            String extraDataForMessage;
+            if (EventEnum.VWO_VARIATION_SHOWN.getValue().equals(eventName)) {
+                apiName = ApiEnum.GET_FLAG.getValue();
+                if (featureInfo != null) {
+                    String campaignType = featureInfo.get("campaignType") != null ? featureInfo.get("campaignType").toString() : "";
+                    if (campaignType.equals(CampaignTypeEnum.ROLLOUT.getValue()) || campaignType.equals(CampaignTypeEnum.PERSONALIZE.getValue())) {
+                        extraDataForMessage = "feature: " + featureInfo.get("featureKey") + ", rule: " + featureInfo.get("variationName");
+                    } else {
+                        extraDataForMessage = "feature: " + featureInfo.get("featureKey") + ", rule: " + featureInfo.get("campaignKey") + " and variation: " + featureInfo.get("variationName");
+                    }
+                } else {
+                    extraDataForMessage = "event: " + eventName;
+                }
+            } else if (EventEnum.VWO_SYNC_VISITOR_PROP.getValue().equals(eventName)) {
+                apiName = ApiEnum.SET_ATTRIBUTE.getValue();
+                extraDataForMessage = ApiEnum.SET_ATTRIBUTE.getValue();
+            } else {
+                apiName = ApiEnum.TRACK_EVENT.getValue();
+                extraDataForMessage = "event: " + eventName;
+            }
+            
+            final String finalApiName = apiName;
+            final String finalExtraData = extraDataForMessage;
+            
+            NetworkManager.getInstance().getExecutorService().execute(() -> {
                 try {
                     ResponseModel response = NetworkManager.getInstance().post(request, null);
-                    if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                    if (response != null && response.getStatusCode() >= Constants.HTTP_OK && response.getStatusCode() < Constants.HTTP_MULTIPLE_CHOICES) {
+                        // Check if there were retries - send debug event
+                        if (response.getTotalAttempts() > 0) {
+                            Map<String, Object> debugEventProps = DebuggerServiceUtil.createNetWorkAndRetryDebugEvent(
+                                response,
+                                finalPayloadMap,
+                                finalApiName,
+                                finalExtraData
+                            );
+                            DebuggerServiceUtil.sendDebugEventToVWO(serviceContainer.getSettingsManager(), debugEventProps);
+                        }
                         UsageStatsUtil.getInstance().clearUsageStats();
                         serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "NETWORK_CALL_SUCCESS", new HashMap<String, Object>() {
                             {
@@ -359,24 +399,23 @@ public class NetworkUtil {
                             }
                         });
                     } else {
-                        // create debug event props
-                        Map<String, Object> debugEventProps = DebuggerServiceUtil.createNetworkDebugEvent(payload, featureInfo, serviceContainer.getSettingsManager().accountId, response.getError().getMessage());
-                        // send debug event to VWO
+                        // Failure - send debug event
+                        Map<String, Object> debugEventProps = DebuggerServiceUtil.createNetWorkAndRetryDebugEvent(
+                            response,
+                            finalPayloadMap,
+                            finalApiName,
+                            finalExtraData
+                        );
                         DebuggerServiceUtil.sendDebugEventToVWO(serviceContainer.getSettingsManager(), debugEventProps);
                         serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
                             {
                                 put("extraData", "event: " + eventName);
                                 put("accountId", serviceContainer.getSettingsManager().accountId.toString());
-                                put("err", response.getError().getMessage());
+                                put("err", response != null && response.getError() != null ? response.getError().getMessage() : "Unknown error");
                             }
                         }, false);
                     }
                 } catch (Exception exception) {
-                    // create debug event props
-                    Map<String, Object> debugEventProps = DebuggerServiceUtil.createNetworkDebugEvent(payload, featureInfo, serviceContainer.getSettingsManager().accountId, exception.getMessage());
-                    debugEventProps.put("err", exception.getMessage());
-                    // send debug event to VWO
-                    DebuggerServiceUtil.sendDebugEventToVWO(serviceContainer.getSettingsManager(), debugEventProps);
                     serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "NETWORK_CALL_EXCEPTION", new HashMap<String, Object>() {
                         {
                             put("extraData", "event: " + eventName);
@@ -434,10 +473,11 @@ public class NetworkUtil {
                 settingsManager.protocol,
                 settingsManager.port
         );
+        requestModel.setRetryConfig(NetworkManager.getInstance().getRetryConfig());
 
         // Send the request asynchronously
         ResponseModel response = NetworkManager.getInstance().post(requestModel, flushCallback);  // Return the result of postAsync 
-        if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+        if (response != null && response.getStatusCode() >= Constants.HTTP_OK && response.getStatusCode() < Constants.HTTP_MULTIPLE_CHOICES) {
             return true;
         } else {
             return false;
@@ -457,15 +497,22 @@ public class NetworkUtil {
 
         String endpoint = UrlEnum.EVENTS.getUrl();
         if (settingsManager.collectionPrefix != null && !settingsManager.collectionPrefix.isEmpty()) {
-            endpoint = "/" + settingsManager.collectionPrefix + endpoint;
+            endpoint = "/" + settingsManager.collectionPrefix + "/" + endpoint;
         }
 
         RequestModel request = new RequestModel(settingsManager.hostname, "POST", endpoint, properties, payload, headers, settingsManager.protocol, settingsManager.port);
+        // Disable retry for debugger events to avoid infinite loops
+        if (eventName.equals(EventEnum.VWO_DEBUGGER_EVENT.getValue())) {
+            RetryConfig noRetryConfig = new RetryConfig(false, 0, 0, 2);
+            request.setRetryConfig(noRetryConfig);
+        } else {
+            request.setRetryConfig(NetworkManager.getInstance().getRetryConfig());
+        }
         
-        NetworkManager.getInstance().getExecutorService().submit(() -> {
+        NetworkManager.getInstance().getExecutorService().execute(() -> {
             try {
                 ResponseModel response = NetworkManager.getInstance().post(request, null);
-                if (response != null && response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                if (response != null && response.getStatusCode() >= Constants.HTTP_OK && response.getStatusCode() < Constants.HTTP_MULTIPLE_CHOICES) {
                     UsageStatsUtil.getInstance().clearUsageStats();
                 } else {
                     if (!eventName.equals(EventEnum.VWO_DEBUGGER_EVENT.getValue())) {

@@ -58,6 +58,7 @@ public class GatewayServiceUtil {
                     serviceContainer.getSettingsManager().protocol,
                     serviceContainer.getSettingsManager().port
             );
+            request.setRetryConfig(networkInstance.getRetryConfig());
             ResponseModel response = networkInstance.get(request);
 
             return response.getData();
@@ -103,6 +104,7 @@ public class GatewayServiceUtil {
                     serviceContainer.getSettingsManager().protocol,
                     serviceContainer.getSettingsManager().port
             );
+            request.setRetryConfig(networkInstance.getRetryConfig());
             // send the request
             ResponseModel response = networkInstance.post(request, null);
             return response.getData();

@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-02-11
+
+### Added
+
+- Added network retry mechanism with exponential backoff for failed network requests
+  - Configurable max retries (default: 3)
+  - Configurable initial delay (default: 2 seconds)
+  - Configurable backoff multiplier (default: 2)
+  - Skips retry for 400 Bad Request errors
+- Added bounded thread pool for async network operations
+  - Configurable max pool size and queue size
+  - Uses DiscardPolicy for queue overflow handling
+- Added debug event support for network retries to VWO
+
+  ```java
+  import com.vwo.VWO;
+  import com.vwo.models.user.VWOInitOptions;
+  import com.vwo.models.user.RetryConfig;
+  import java.util.Map;
+  import java.util.HashMap;
+
+  VWOInitOptions vwoInitOptions = new VWOInitOptions();
+  vwoInitOptions.setSdkKey("sdk-key");
+  vwoInitOptions.setAccountId(123456);
+
+  // Configure Network Retry
+  RetryConfig retryConfig = new RetryConfig();
+  retryConfig.setShouldRetry(true); // Enable/Disable retries
+  retryConfig.setMaxRetries(5);     // Max number of retries
+  retryConfig.setInitialDelay(2);   // Initial delay in seconds (default is 2)
+  retryConfig.setBackoffMultiplier(2); // Backoff multiplier (default is 2)
+  vwoInitOptions.setRetryConfig(retryConfig);
+
+  // Configure Thread Pool for Async Operations
+  Map<String, Object> threadPoolConfig = new HashMap<>();
+  threadPoolConfig.put("maxPoolSize", 50); // Max threads for network calls
+  threadPoolConfig.put("queueSize", 20000); // Max tasks in queue before rejection
+  vwoInitOptions.setThreadPoolConfig(threadPoolConfig);
+
+  VWO instance = VWO.init(vwoInitOptions);
+  ```
+
 ## [1.17.0] - 2025-01-19
 
 ### Added
@@ -30,7 +72,7 @@ vwoInitOptions.setProxyUrl("http://custom.proxy.com");
 vwoInitOptions.setIsAliasingEnabled(true);
 VWO instance = VWO.init(vwoInitOptions);
 ```
-
+  
 ## [1.15.0] - 2025-12-08
 ### Added
 

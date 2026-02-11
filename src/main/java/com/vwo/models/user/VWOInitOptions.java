@@ -43,6 +43,8 @@ public class VWOInitOptions {
     private Boolean isUsageStatsDisabled = false;
     private Map<String, Object> _vwo_meta = new HashMap<>();
     private Boolean isAliasingEnabled = false;
+    private RetryConfig retryConfig;
+    private Map<String, Object> threadPoolConfig = new HashMap<>();
     private String proxyUrl = "";
 
     public Map<String, Object> getVwoMetaData() {
@@ -155,6 +157,40 @@ public class VWOInitOptions {
 
     public void setIsAliasingEnabled(Boolean isAliasingEnabled) {
         this.isAliasingEnabled = isAliasingEnabled;
+    }
+
+    /**
+     * Gets the retry configuration.
+     * @return The retry configuration.
+     */
+    public RetryConfig getRetryConfig() {
+        return retryConfig;
+    }
+
+    /**
+     * Sets the retry configuration.
+     * @param retryConfig The retry configuration to set.
+     */
+    public void setRetryConfig(RetryConfig retryConfig) {
+        this.retryConfig = retryConfig;
+    }
+
+    /**
+     * Gets the thread pool configuration.
+     * Supported keys: "maxPoolSize" (Integer), "queueSize" (Integer)
+     * @return The thread pool configuration map.
+     */
+    public Map<String, Object> getThreadPoolConfig() {
+        return threadPoolConfig;
+    }
+
+    /**
+     * Sets the thread pool configuration.
+     * Supported keys: "maxPoolSize" (Integer), "queueSize" (Integer)
+     * @param threadPoolConfig The thread pool configuration to set.
+     */
+    public void setThreadPoolConfig(Map<String, Object> threadPoolConfig) {
+        this.threadPoolConfig = threadPoolConfig;
     }
 
     public String getProxyUrl() {
