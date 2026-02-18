@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2025-02-18
+### Added
+
+- Added session management capabilities to enable integration with VWO's web client testing campaigns. The SDK now automatically generates and manages session IDs to connect server-side feature flag decisions with client-side user sessions.
+
+  Example usage:
+
+  ```java
+  import com.vwo.VWO;
+  import com.vwo.models.user.VWOContext;
+  import com.vwo.models.user.GetFlag;
+  import com.vwo.models.user.VWOInitOptions;
+  import java.util.HashMap;
+  import java.util.Map;
+
+  // Initialize VWO client
+  VWOInitOptions options = new VWOInitOptions();
+  options.setAccountId(123456);
+  options.setSdkKey("32-alpha-numeric-sdk-key");
+  
+  VWO vwoClient = VWO.init(options);
+
+  // Session ID is automatically generated if not provided
+  VWOContext context = new VWOContext();
+  context.setId("user-123");
+  GetFlag flag = vwoClient.getFlag("feature-key", context);
+
+  // Access the session ID to pass to web client for session recording
+  Integer sessionId = flag.getSessionId();
+  System.out.println("Session ID for web client: " + sessionId);
+  ```
+
+  You can also explicitly set a session ID to match web client session
+
+  ```java
+  VWOContext context = new VWOContext();
+  context.setId("user-123");
+  context.setSessionId(1697123456); // Custom session ID matching web client
+  GetFlag flag = vwoClient.getFlag("feature-key", context);
+  ```
+
+  This enhancement enables seamless integration between server-side feature flag decisions and client-side session recording, allowing for comprehensive user behavior analysis across both server and client environments.
+
 ## [1.18.0] - 2026-02-11
 
 ### Added

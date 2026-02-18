@@ -15,6 +15,7 @@
  */
 package com.vwo.utils;
 
+import static com.vwo.utils.FunctionUtil.generateSessionId;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -103,17 +104,18 @@ public class NetworkUtil {
      * Creates the base payload for the event arch APIs.
      * @param settingsManager The settings manager containing configuration.
      * @param userId  The ID of the user.
+     * @param sessionId The session ID.
      * @param eventName The name of the event.
      * @param visitorUserAgent The user agent of the user.
      * @param ipAddress The IP address of the user.
      * @return
      */
-    public static EventArchPayload getEventBasePayload(SettingsManager settingsManager, String userId, String eventName, String visitorUserAgent, String ipAddress) {
+    public static EventArchPayload getEventBasePayload(SettingsManager settingsManager, String userId, long sessionId, String eventName, String visitorUserAgent, String ipAddress) {
         String uuid = UUIDUtils.getUUID(userId, settingsManager.accountId.toString());
         EventArchData eventArchData = new EventArchData();
         eventArchData.setMsgId(generateMsgId(uuid));
         eventArchData.setVisId(uuid);
-        eventArchData.setSessionId(FunctionUtil.generateSessionId());
+        eventArchData.setSessionId(sessionId);
         setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress);
 
         Event event = createEvent(settingsManager.sdkKey, eventName);
@@ -132,18 +134,19 @@ public class NetworkUtil {
      * This is used for usage stats events.
      * @param settingsManager The settings manager containing configuration.
      * @param userId  The ID of the user.
+     * @param sessionId The session ID.
      * @param eventName The name of the event.
      * @param visitorUserAgent The user agent of the user.
      * @param ipAddress The IP address of the user.
      * @param usageStatsAccountId The account ID of the usage stats account.
      * @return
      */
-    public static EventArchPayload getEventBasePayload(SettingsManager settingsManager, String userId, String eventName, String visitorUserAgent, String ipAddress, Integer usageStatsAccountId) {
+    public static EventArchPayload getEventBasePayload(SettingsManager settingsManager, String userId, long sessionId, String eventName, String visitorUserAgent, String ipAddress, Integer usageStatsAccountId) {
         String uuid = UUIDUtils.getUUID(userId, usageStatsAccountId.toString());
         EventArchData eventArchData = new EventArchData();
         eventArchData.setMsgId(generateMsgId(uuid));
         eventArchData.setVisId(uuid);
-        eventArchData.setSessionId(FunctionUtil.generateSessionId());
+        eventArchData.setSessionId(sessionId);
         setOptionalVisitorData(eventArchData, visitorUserAgent, ipAddress);
 
         Event event = createEvent(settingsManager.sdkKey, eventName);
@@ -214,19 +217,22 @@ public class NetworkUtil {
     /**
      * Returns the payload data for the track user API.
      * @param serviceContainer  The service container containing configuration.
-     * @param userId  The ID of the user.
      * @param eventName  The name of the event.
      * @param campaignId The ID of the campaign.
      * @param variationId  The ID of the variation.
-     * @param visitorUserAgent  The user agent of the user.
-     * @param ipAddress  The IP address of the user.
+     * @param context  The user context model containing user-specific data.
      * @return
      */
-    public static EventArchPayload getTrackUserPayloadData(ServiceContainer serviceContainer, String userId, String eventName, Integer campaignId, Integer variationId, String visitorUserAgent, String ipAddress) {
-        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, visitorUserAgent, ipAddress);
+    public static EventArchPayload getTrackUserPayloadData(ServiceContainer serviceContainer, String eventName, Integer campaignId, Integer variationId, VWOContext context) {
+        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), context.getId(), context.getSessionId(), eventName, context.getUserAgent(), context.getIpAddress());
         properties.getD().getEvent().getProps().setId(campaignId);
         properties.getD().getEvent().getProps().setVariation(variationId.toString());
         properties.getD().getEvent().getProps().setIsFirst(1);
+
+        if (serviceContainer.getUuid() != null && !serviceContainer.getUuid().isEmpty()) {
+            properties.getD().setMsgId(generateMsgId(serviceContainer.getUuid()));
+            properties.getD().setVisId(serviceContainer.getUuid());
+        }
         
         if (UsageStatsUtil.getInstance().getUsageStats() != null && !UsageStatsUtil.getInstance().getUsageStats().isEmpty()) {
             properties.getD().getEvent().getProps().setVwoMeta(UsageStatsUtil.getInstance().getUsageStats());
@@ -235,7 +241,7 @@ public class NetworkUtil {
         serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_USER", new HashMap<String, Object>() {
             {
                 put("accountId", serviceContainer.getSettingsManager().accountId.toString());
-                put("userId", userId);
+                put("userId", context.getId());
                 put("campaignId", campaignId.toString());
             }
         });
@@ -245,21 +251,24 @@ public class NetworkUtil {
     /**
      * Returns the payload data for the goal API.
      * @param serviceContainer  The service container containing configuration.
-     * @param userId  The ID of the user.
      * @param eventName  The name of the event.
      * @param context  The user context model containing user-specific data.
      * @param eventProperties event properties for the event
      * @return  Map containing the payload data.
      */
-    public static EventArchPayload getTrackGoalPayloadData(ServiceContainer serviceContainer, String userId, String eventName, VWOContext context, Map<String, ?> eventProperties) {
-        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, context.getUserAgent(), context.getIpAddress());
+    public static EventArchPayload getTrackGoalPayloadData(ServiceContainer serviceContainer, String eventName, VWOContext context, Map<String, ?> eventProperties) {
+        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), context.getId(), context.getSessionId(), eventName, context.getUserAgent(), context.getIpAddress());
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
+        if (serviceContainer.getUuid() != null && !serviceContainer.getUuid().isEmpty()) {
+            properties.getD().setMsgId(generateMsgId(serviceContainer.getUuid()));
+            properties.getD().setVisId(serviceContainer.getUuid());
+        }
         addCustomEventProperties(properties, (Map<String, Object>) eventProperties);
         serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_TRACK_GOAL", new HashMap<String, Object>() {
             {
                 put("eventName", eventName);
                 put("accountId", serviceContainer.getSettingsManager().accountId.toString());
-                put("userId", userId);
+                put("userId", context.getId());
             }
         });
         return properties;
@@ -279,55 +288,27 @@ public class NetworkUtil {
     /**
      * Returns the payload data for the attribute API.
      * @param serviceContainer  The service container containing configuration.
-     * @param userId  The ID of the user.
      * @param eventName The name of the event.
+     * @param context The user context model containing user-specific data.
      * @param attributeMap - Map of attribute key and value to be set
      * @return
      */
-    public static EventArchPayload getAttributePayloadData(ServiceContainer serviceContainer, String userId, String eventName, Map<String, Object> attributeMap) {
-        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), userId, eventName, null, null);
+    public static EventArchPayload getAttributePayloadData(ServiceContainer serviceContainer, String eventName, VWOContext context, Map<String, Object> attributeMap) {
+        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), context.getId(), context.getSessionId(), eventName, context.getUserAgent(), context.getIpAddress());
         properties.getD().getEvent().getProps().setIsCustomEvent(true);
         properties.getD().getVisitor().getProps().putAll(attributeMap);
+        if (serviceContainer.getUuid() != null && !serviceContainer.getUuid().isEmpty()) {
+            properties.getD().setMsgId(generateMsgId(serviceContainer.getUuid()));
+            properties.getD().setVisId(serviceContainer.getUuid());
+        }
         serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_SYNC_VISITOR_PROP", new HashMap<String, Object>() {
             {
                 put("eventName", eventName);
                 put("accountId", serviceContainer.getSettingsManager().accountId.toString());
-                put("userId", userId);
+                put("userId", context.getId());
             }
         });
         return properties;
-    }
-
-    /**
-     * Returns the payload data for the log to VWO event API.
-     * @param messageType The type of the log message.
-     * @param message The log message content.
-     * @param eventName The name of the event.
-     * @return Map containing the event payload data
-     */
-    public static Map<String, Object> getLogToVWOEventPayload(SettingsManager settingsManager, String messageType, String message, String eventName) {
-        String userId = settingsManager.accountId.toString() + "_" + settingsManager.sdkKey;
-        EventArchPayload properties = getEventBasePayload(settingsManager, userId, eventName, null, null);
-
-        // set product to FME
-        properties.getD().getEvent().getProps().setProduct(Constants.FME);
-
-        // set data object to send log messages to VWO server
-        Map<String, Object> data = new HashMap<>();
-        // set type of the log message
-        data.put("type", messageType);
-
-        // set content of the log message
-        Map<String, Object> content = new HashMap<>();
-        content.put("title", message);
-        content.put("dateTime", Calendar.getInstance().getTimeInMillis());
-        // set content of the log message
-        data.put("content", content);
-
-        // set data object to send log messages to VWO server
-        properties.getD().getEvent().getProps().setData(data);
-        Map<String, Object> payload = VWOClient.objectMapper.convertValue(properties, Map.class);
-        return removeNullValues(payload);
     }
 
     /**
@@ -602,7 +583,7 @@ public class NetworkUtil {
     public static Map<String, Object> getSdkInitEventPayload(SettingsManager settingsManager, String eventName, Long settingsFetchTime, Long sdkInitTime) {
         // Get settings and create user ID
         String userId = settingsManager.accountId.toString() + "_" + settingsManager.sdkKey;
-        EventArchPayload properties = getEventBasePayload(settingsManager, userId, eventName, null, null);
+        EventArchPayload properties = getEventBasePayload(settingsManager, userId, FunctionUtil.generateSessionId(), eventName, null, null);
         // Set the required fields as specified
         properties.getD().getEvent().getProps().setEnvKey(settingsManager.sdkKey);
         properties.getD().getEvent().getProps().setProduct(Constants.FME);
@@ -632,7 +613,7 @@ public class NetworkUtil {
     public static Map<String, Object> getDebuggerEventPayload(SettingsManager settingsManager, Map<String, Object> eventProps) {
         String userId = UUIDUtils.getUUID(settingsManager.accountId.toString() + "_" + settingsManager.sdkKey, settingsManager.sdkKey);
         // Get settings and create user ID
-        EventArchPayload payload = getEventBasePayload(settingsManager, userId, EventEnum.VWO_DEBUGGER_EVENT.getValue(), null, null);
+        EventArchPayload payload = getEventBasePayload(settingsManager, userId, FunctionUtil.generateSessionId(), EventEnum.VWO_DEBUGGER_EVENT.getValue(), null, null);
         if (eventProps.containsKey("uuid")) {
             String uuid = (String) eventProps.get("uuid");
             payload.getD().setMsgId(generateMsgId(uuid));
@@ -672,7 +653,7 @@ public class NetworkUtil {
     public static Map<String, Object> getUsageStatsPayloadData(SettingsManager settingsManager, String eventName, Integer usageStatsAccountId) {
         // Get settings and create user ID
         String userId = settingsManager.accountId.toString() + "_" + settingsManager.sdkKey;
-        EventArchPayload properties = getEventBasePayload(settingsManager, userId, eventName, null, null, usageStatsAccountId);
+        EventArchPayload properties = getEventBasePayload(settingsManager, userId, FunctionUtil.generateSessionId(), eventName, null, null, usageStatsAccountId);
         // Set the required fields as specified
         properties.getD().getEvent().getProps().setProduct(Constants.FME);
         properties.getD().getEvent().getProps().setVwoMeta(UsageStatsUtil.getInstance().getUsageStats());

@@ -15,6 +15,8 @@
  */
 package com.vwo.models.user;
 
+import static com.vwo.utils.FunctionUtil.generateSessionId;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,11 +24,21 @@ public class VWOContext {
     private String id;
     private String userAgent = "";
     private String ipAddress = "";
+    private long sessionId = generateSessionId();
+    private Boolean useIdForWeb = false;
     private Map<String, ?> customVariables = new HashMap<>();
 
     private Map<String, ?> variationTargetingVariables = new HashMap<>();
 
     private GatewayService _vwo;
+
+    public long getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(long sessionId) {
+        this.sessionId = sessionId;
+    }
 
     public String getId() {
         return id;
@@ -74,5 +86,13 @@ public class VWOContext {
 
     public void setVwo(GatewayService _vwo) {
         this._vwo = _vwo;
+    }
+
+    public Boolean isUseIdForWeb() {
+        return useIdForWeb;
+    }
+
+    public void setUseIdForWeb(Boolean useIdForWeb) {
+        this.useIdForWeb = useIdForWeb;
     }
 }

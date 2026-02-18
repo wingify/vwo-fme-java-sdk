@@ -82,12 +82,10 @@ public class RuleEvaluationUtil {
                 // Create payload for the variation shown (to be sent in batch by caller)
                 payload = NetworkUtil.getTrackUserPayloadData(
                         serviceContainer,
-                        context.getId(),
                         EventEnum.VWO_VARIATION_SHOWN.getValue(),
                         campaign.getId(),
                         whitelistedObject.getId(),
-                        context.getUserAgent(),
-                        context.getIpAddress()
+                        context
                 );
             }
 

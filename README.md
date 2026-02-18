@@ -77,6 +77,24 @@ public class VWOExample {
 }
  ```
 
+## UUID Generation
+
+The VWO SDK provides a utility function to generate usage-neutral, deterministic UUIDs based on the user ID and account ID. This can be useful for consistent user identification across different systems or for pre-generating UUIDs.
+
+This function does not require the SDK to be initialized.
+
+```java
+import com.vwo.VWO;
+
+String userId = "user123";
+String accountId = "account456";
+
+String uuid = VWO.getUUID(userId, accountId);
+System.out.println("Generated UUID: " + uuid);
+```
+
+The function returns a UUID string without dashes in uppercase format, or `null` if invalid input is provided.
+
 ## Advanced Configuration Options
 
 To customize the SDK further, additional parameters can be passed to the `init()` API using the `VWOInitOptions` object. Here’s a table describing each option:
@@ -125,6 +143,56 @@ context.setCustomVariables(customVariables);
 context.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
 context.setIpAddress("1.1.1.1");
 ```
+
+### Session Management
+
+The SDK provides automatic session management capabilities to enable seamless integration with VWO's web client testing campaigns. Session IDs are automatically generated and managed to connect server-side feature flag decisions with client-side user sessions.
+
+#### Automatic Session ID Generation
+
+Session IDs are automatically generated using Unix timestamps when not explicitly provided in the context. This ensures consistent session tracking across all feature flag evaluations and event tracking.
+
+#### Session ID Access
+
+You can access and manage session IDs through the following methods:
+
+- **Get Session ID from Flag**: Use `flag.getSessionId()` to retrieve the session ID used for a specific feature flag evaluation
+- **Set Custom Session ID**: Use `context.setSessionId(sessionId)` to set a custom session ID (useful for matching web client sessions)
+
+#### Example Usage
+
+```java
+import com.vwo.VWO;
+import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.GetFlag;
+import com.vwo.models.user.VWOInitOptions;
+
+// Initialize VWO client
+VWOInitOptions options = new VWOInitOptions();
+options.setAccountId(123456);
+options.setSdkKey("32-alpha-numeric-sdk-key");
+VWO vwoClient = VWO.init(options);
+
+// Session ID is automatically generated if not provided
+VWOContext context = new VWOContext();
+context.setId("user-123");
+GetFlag flag = vwoClient.getFlag("feature-key", context);
+
+// Access the session ID to pass to web client for session recording
+Integer sessionId = flag.getSessionId();
+System.out.println("Session ID for web client: " + sessionId);
+```
+
+You can also explicitly set a session ID to match web client session
+
+```java
+VWOContext context = new VWOContext();
+context.setId("user-123");
+context.setSessionId(1697123456); // Custom session ID matching web client
+GetFlag flag = vwoClient.getFlag("feature-key", context);
+```
+
+This enhancement enables seamless integration between server-side feature flag decisions and client-side session recording, allowing for comprehensive user behavior analysis across both server and client environments.
 
 ### Basic Feature Flagging
 

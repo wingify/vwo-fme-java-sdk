@@ -153,8 +153,17 @@ public class ServiceContainer {
         return sessionId;
     }
 
-    public void setUuid(String userId) {
-        this.uuid = UUIDUtils.getUUID(userId, this.options.getAccountId().toString());
+    /**
+     * Sets the UUID for the service container
+     * @param userId User ID
+     * @param shouldGenerateUUID Boolean value indicating if the UUID should be generated
+     */
+    public void setUuid(String userId, Boolean shouldGenerateUUID) {
+        if (shouldGenerateUUID) {
+            this.uuid = UUIDUtils.getUUID(userId, this.options.getAccountId().toString());
+        } else {
+            this.uuid = userId;
+        }
         this.debuggerService = new DebuggerService(uuid, sessionId);
     }
 }

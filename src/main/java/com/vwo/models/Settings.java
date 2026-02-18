@@ -54,6 +54,8 @@ public class Settings {
     private String collectionPrefix;
     @JsonProperty("pollInterval")
     private int pollInterval = Constants.DEFAULT_POLL_INTERVAL;
+    @JsonProperty("isWebConnectivityEnabled")
+    private Boolean isWebConnectivityEnabled = true;
 
     public List<Feature> getFeatures() {
         return features;
@@ -157,5 +159,13 @@ public class Settings {
 
     public void setSdkMetaInfo(Map<String, Object> sdkMetaInfo) {
         this.sdkMetaInfo = sdkMetaInfo;
+    }
+
+    public Boolean isWebConnectivityEnabled() {
+        return isWebConnectivityEnabled;
+    }
+
+    public void setWebConnectivityEnabled(Boolean isWebConnectivityEnabled) {
+        this.isWebConnectivityEnabled = isWebConnectivityEnabled;
     }
 }

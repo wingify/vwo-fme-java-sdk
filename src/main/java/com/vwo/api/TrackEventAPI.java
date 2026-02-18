@@ -96,7 +96,6 @@ public class TrackEventAPI {
         // Construct payload data for tracking the user
         EventArchPayload payload = NetworkUtil.getTrackGoalPayloadData(
                 serviceContainer,
-                context.getId(),
                 eventName,
                 context,
                 eventProperties

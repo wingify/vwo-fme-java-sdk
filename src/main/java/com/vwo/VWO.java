@@ -19,6 +19,7 @@ import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.LoggerService;
 import com.vwo.models.user.VWOInitOptions;
 import com.vwo.utils.LogMessageUtil;
+import com.vwo.utils.UUIDUtils;
 
 
 public class VWO extends VWOClient {
@@ -86,5 +87,36 @@ public class VWO extends VWOClient {
         // send sdk init event
         instance.sendSdkInitAndUsageStatsEvent(initTime);
         return instance;
+    }
+
+    /**
+     * Generate a deterministic UUID for a given user and account combination.
+     *
+     * @param userId    The user's ID (must be a non-empty string).
+     * @param accountId The account ID (must be a non-empty string).
+     * @return UUID without dashes in uppercase, or null on invalid input or error.
+     */
+    public static String getUUID(String userId, String accountId) {
+        String apiName = "getUUID";
+        try {
+            // Validate userId
+            if (userId == null || userId.isEmpty()) {
+                System.out.println("userId passed to " + apiName + " API is not of valid type.");
+                return null;
+            }
+
+            // Validate accountId
+            if (accountId == null || accountId.isEmpty()) {
+                System.out.println("accountId passed to " + apiName + " API is not of valid type.");
+                return null;
+            }
+
+            // Call the UUID utility function
+            return UUIDUtils.getUUID(userId, accountId);
+
+        } catch (Exception error) {
+            System.out.println("API - " + apiName + " failed to execute. Trace: " + error);
+            return null;
+        }
     }
 }

@@ -34,7 +34,10 @@ import com.vwo.utils.EventUtil;
 import com.vwo.enums.EventEnum;
 import com.vwo.enums.ApiEnum;
 import com.vwo.utils.UserIdUtil;
+import com.vwo.utils.FunctionUtil;
+import com.vwo.utils.UUIDUtils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -111,25 +114,24 @@ public class VWOClient {
      */
     public GetFlag getFlag(String featureKey, VWOContext context) {
         String apiName = "getFlag";
-        GetFlag getFlag = new GetFlag();
+        String uuid = null;
         try {
             vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
             }});
 
             if (context == null || context.getId() == null || context.getId().isEmpty()) {
-                getFlag.setIsEnabled(false);
                 throw new IllegalArgumentException("User ID is required");
             }
+            // get UUID from context
+            uuid = this.getUUIDFromContext(context, apiName);
 
             if (featureKey == null || featureKey.isEmpty()) {
-                getFlag.setIsEnabled(false);
                 throw new IllegalArgumentException("Feature Key is required");
             }
 
             if (!this.validateSettings(this.processedSettings, ApiEnum.GET_FLAG)) {
-                getFlag.setIsEnabled(false);
-                return getFlag;
+                return new GetFlag(false, new ArrayList<>(), context.getSessionId(), uuid);
             }
 
             // create Service Container instance
@@ -138,8 +140,9 @@ public class VWOClient {
             // get userId from gateway service
             if (this.options.getIsAliasingEnabled()) {
                 context.setId(UserIdUtil.getUserId(context.getId(), serviceContainer));
-                serviceContainer.setUuid(context.getId());
+                serviceContainer.setUuid(context.getId(), true);
             }
+            serviceContainer.setUuid(uuid, false);
 
             return GetFlagAPI.getFlag(featureKey, context, serviceContainer);
         } catch (Exception exception) {
@@ -148,8 +151,10 @@ public class VWOClient {
                 put("err", exception.getMessage());
                 put("an", ApiEnum.GET_FLAG.getValue());
             }});
-            getFlag.setIsEnabled(false);
-            return getFlag;
+            if (context != null) {
+                return new GetFlag(false, new ArrayList<>(), context.getSessionId(), uuid);
+            }
+            return new GetFlag(false, new ArrayList<>(), FunctionUtil.generateSessionId(), null);
         }
     }
 
@@ -163,6 +168,7 @@ public class VWOClient {
     private Map<String, Boolean> track(String eventName, VWOContext context, Map<String, ?> eventProperties) {
         String apiName = "trackEvent";
         Map<String, Boolean> resultMap = new HashMap<>();
+        String uuid = null;
         try {
             vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
@@ -181,6 +187,8 @@ public class VWOClient {
             if (context == null || context.getId() == null || context.getId().isEmpty()) {
                 throw new IllegalArgumentException("User ID is required");
             }
+            // get UUID from context
+            uuid = this.getUUIDFromContext(context, apiName);
 
             if (!this.validateSettings(this.processedSettings, ApiEnum.TRACK_EVENT)) {
                 resultMap.put(eventName, false);
@@ -193,8 +201,9 @@ public class VWOClient {
             // get userId from gateway service
             if (this.options.getIsAliasingEnabled()) {
                 context.setId(UserIdUtil.getUserId(context.getId(), serviceContainer));
-                serviceContainer.setUuid(context.getId());
+                serviceContainer.setUuid(context.getId(), true);
             }
+            serviceContainer.setUuid(uuid, false);
 
             Boolean result = TrackEventAPI.track(eventName, context, eventProperties, serviceContainer);
             if (result) {
@@ -246,10 +255,13 @@ public class VWOClient {
      */
     public void setAttribute(Map<String, Object> attributeMap, VWOContext context) {
         String apiName = "setAttribute";
+        String uuid = null;
         try {
             vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "API_CALLED", new HashMap<String, Object>() {{
                 put("apiName", apiName);
             }});
+            // get UUID from context
+            uuid = this.getUUIDFromContext(context, apiName);
             if (attributeMap == null || attributeMap.isEmpty()) {
                 throw new IllegalArgumentException("TypeError: attributeMap should be a non-empty map of type Map<String, Object>");
             }
@@ -282,9 +294,9 @@ public class VWOClient {
             // get userId from gateway service
             if (this.options.getIsAliasingEnabled()) {
                 context.setId(UserIdUtil.getUserId(context.getId(), serviceContainer));
-                serviceContainer.setUuid(context.getId());
+                serviceContainer.setUuid(context.getId(), true);
             }
-
+            serviceContainer.setUuid(uuid, false);
             SetAttributeAPI.setAttribute(attributeMap, context, serviceContainer);
         } catch (Exception exception) {
             vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "EXECUTION_FAILED", new HashMap<String, Object>() {{
@@ -541,4 +553,32 @@ public class VWOClient {
     public Boolean setAlias(VWOContext context, String aliasId) {
         return setAlias(context.getId(), aliasId);
     }
-}   
+
+    /**
+     * This method is used to get the UUID from the context
+     * @param context User context
+     * @param apiName API name
+     * @return String value containing the UUID
+     */
+    private String getUUIDFromContext(VWOContext context, String apiName) {
+        if (this.processedSettings.isWebConnectivityEnabled()) {
+            // if web connectivity is enabled, check if context.id is a valid web UUID
+            if (UUIDUtils.isWebUuid(context.getId())) {
+                // if context.id is a valid web UUID, set it as uuid
+                vwoBuilder.getLoggerService().log(LogLevelEnum.DEBUG, "WEB_UUID_FOUND", new HashMap<String, Object>() {{
+                    put("apiName", apiName);
+                    put("uuid", context.getId());
+                }});
+                return context.getId();
+            } else {
+                if (context.isUseIdForWeb() == true) {
+                    throw new IllegalArgumentException("UUID passed in context.id is not a valid UUID");
+                }
+                // if context?.useIdForWeb is false, fallback to server‑side UUID derivation
+                return UUIDUtils.getUUID(context.getId(), this.processedSettings.getAccountId().toString());
+            }
+        }
+        // if web connectivity is disabled, fallback to server‑side UUID derivation
+        return UUIDUtils.getUUID(context.getId(), this.processedSettings.getAccountId().toString());
+    }
+}

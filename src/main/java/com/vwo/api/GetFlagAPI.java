@@ -51,8 +51,9 @@ public class GetFlagAPI {
      * @return GetFlag object containing the flag value.
      */
     public static GetFlag getFlag(String featureKey, VWOContext context, ServiceContainer serviceContainer) {
-        GetFlag getFlag = new GetFlag();
         boolean shouldCheckForExperimentsRules = false;
+        boolean isFlagEnabled = false;
+        List<Variable> variablesToReturn = new ArrayList<Variable>();
 
         Map<String, Object> passedRulesInformation = new HashMap<>();
         Map<String, Object> evaluatedFeatureMap = new HashMap<>();
@@ -101,9 +102,7 @@ public class GetFlagAPI {
                                 put("experimentKey", storedData.getExperimentKey());
                             }
                         });
-                        getFlag.setIsEnabled(true);
-                        getFlag.setVariables(variation.getVariables());
-                        return getFlag;
+                        return new GetFlag(true, variation.getVariables(), context.getSessionId(), serviceContainer.getUuid()); 
                     }
                 }
             } else if (storedData != null && storedData.getRolloutKey() != null && !storedData.getRolloutKey().isEmpty() && storedData.getRolloutId() != null && !storedData.getRolloutId().toString().isEmpty()) {
@@ -125,7 +124,7 @@ public class GetFlagAPI {
                         }
                     });
 
-                    getFlag.setIsEnabled(true);
+                    isFlagEnabled = true;
                     shouldCheckForExperimentsRules = true;
                     Map<String, Object> featureInfo = new HashMap<>();
                     featureInfo.put("rolloutId", storedData.getRolloutId());
@@ -152,8 +151,7 @@ public class GetFlagAPI {
                 put("featureKey", featureKey);
                 putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
             }});
-            getFlag.setIsEnabled(false);
-            return getFlag;
+            return new GetFlag(false, new ArrayList<>(), context.getSessionId(), serviceContainer.getUuid());
         }
 
         serviceContainer.getSegmentationManager().setContextualData(serviceContainer, feature, context);
@@ -163,7 +161,7 @@ public class GetFlagAPI {
          * if any of the rollout rule passes, break the loop and evaluate the traffic
          */
         List<Campaign> rollOutRules = getSpecificRulesBasedOnType(feature, CampaignTypeEnum.ROLLOUT);
-        if (!rollOutRules.isEmpty() && !getFlag.isEnabled()){
+        if (!rollOutRules.isEmpty() && !isFlagEnabled){
             List<Campaign> rolloutRulesToEvaluate = new ArrayList<>();
             for (Campaign rule : rollOutRules) {
                 Map<String, Object> evaluateRuleResult = RuleEvaluationUtil.evaluateRule(serviceContainer, feature, rule, context, evaluatedFeatureMap, new HashMap<>(), storageService, decision);
@@ -185,20 +183,18 @@ public class GetFlagAPI {
                 Campaign passedRolloutCampaign = rolloutRulesToEvaluate.get(0);
                 Variation variation = evaluateTrafficAndGetVariation(serviceContainer, passedRolloutCampaign, context.getId());
                 if (variation != null) {
-                    getFlag.setIsEnabled(true);
-                    getFlag.setVariables(variation.getVariables());
+                    isFlagEnabled = true;
+                    variablesToReturn = variation.getVariables();
                     shouldCheckForExperimentsRules = true;
                     updateIntegrationsDecisionObject(passedRolloutCampaign, variation, passedRulesInformation, decision);
 
                     // Create payload for sending
                     EventArchPayload payload = NetworkUtil.getTrackUserPayloadData(
                             serviceContainer,
-                            context.getId(),
                             EventEnum.VWO_VARIATION_SHOWN.getValue(),
                             passedRolloutCampaign.getId(),
                             variation.getId(),
-                            context.getUserAgent(),
-                            context.getIpAddress()
+                            context
                     );
                     if (serviceContainer.getSettingsManager().isGatewayServiceProvided && payload != null) {
                         // Gateway service: send immediately
@@ -235,8 +231,8 @@ public class GetFlagAPI {
                         experimentRulesToEvaluate.add(rule);
                     } else {
                         // If whitelisted object is not null, update the decision object and handle payload
-                        getFlag.setIsEnabled(true);
-                        getFlag.setVariables(whitelistedObject.getVariables());
+                        isFlagEnabled = true;
+                        variablesToReturn = whitelistedObject.getVariables();
                         passedRulesInformation.put("experimentId", rule.getId());
                         passedRulesInformation.put("experimentKey", rule.getKey());
                         passedRulesInformation.put("experimentVariationId", whitelistedObject.getId());
@@ -262,19 +258,17 @@ public class GetFlagAPI {
                 Campaign campaign = experimentRulesToEvaluate.get(0);
                 Variation variation = evaluateTrafficAndGetVariation(serviceContainer, campaign, context.getId());
                 if (variation != null) {
-                    getFlag.setIsEnabled(true);
-                    getFlag.setVariables(variation.getVariables());
+                    isFlagEnabled = true;
+                    variablesToReturn = variation.getVariables();
                     updateIntegrationsDecisionObject(campaign, variation, passedRulesInformation, decision);
 
                     // Create payload for sending
                     EventArchPayload payload = NetworkUtil.getTrackUserPayloadData(
                             serviceContainer,
-                            context.getId(),
                             EventEnum.VWO_VARIATION_SHOWN.getValue(),
                             campaign.getId(),
                             variation.getId(),
-                            context.getUserAgent(),
-                            context.getIpAddress()
+                            context
                     );
                     if (serviceContainer.getSettingsManager().isGatewayServiceProvided && payload != null) {
                         // Gateway service: send immediately
@@ -287,7 +281,7 @@ public class GetFlagAPI {
             }
         }
 
-        if (getFlag.isEnabled()){
+        if (isFlagEnabled){
             Map<String, Object> storageMap = new HashMap<>();
             storageMap.put("featureKey", feature.getKey());
             storageMap.put("userId", context.getId());
@@ -310,30 +304,29 @@ public class GetFlagAPI {
          * If flag enabled - variation 2, else - variation 1
          */
         if (feature.getImpactCampaign() != null && feature.getImpactCampaign().getCampaignId() != null && !feature.getImpactCampaign().getCampaignId().toString().isEmpty()){
+            final boolean finalIsFlagEnabled = isFlagEnabled;
             serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPACT_ANALYSIS", new HashMap<String, Object>() {
                 {
                     put("userId", context.getId());
                     put("featureKey", featureKey);
-                    put("status", getFlag.isEnabled() ? "enabled": "disabled");
+                    put("status", finalIsFlagEnabled ? "enabled": "disabled");
                 }
             });
 
             // Create payload for impact campaign
             EventArchPayload impactPayload = NetworkUtil.getTrackUserPayloadData(
                     serviceContainer,
-                    context.getId(),
                     EventEnum.VWO_VARIATION_SHOWN.getValue(),
                     feature.getImpactCampaign().getCampaignId(),
-                    getFlag.isEnabled() ? 2 : 1,
-                    context.getUserAgent(),
-                    context.getIpAddress()
+                    isFlagEnabled ? 2 : 1,
+                    context
             );
             if (serviceContainer.getSettingsManager().isGatewayServiceProvided && impactPayload != null) {
                 // Gateway service: send immediately
                 sendImpressionForVariationShown(
                         serviceContainer,
                         feature.getImpactCampaign().getCampaignId(),
-                        getFlag.isEnabled() ? 2 : 1,
+                        isFlagEnabled ? 2 : 1,
                         context,
                         impactPayload
                 );
@@ -348,7 +341,7 @@ public class GetFlagAPI {
             sendImpressionForVariationShownInBatch(batchPayloads, serviceContainer);
         }
 
-        return getFlag;
+        return new GetFlag(isFlagEnabled, variablesToReturn, context.getSessionId(), serviceContainer.getUuid());
     }
 
     /**
@@ -402,4 +395,3 @@ public class GetFlagAPI {
         serviceContainer.getDebuggerService().addCategoryDebugProps(DebuggerCategoryEnum.DECISION.getValue(), decisionKeys);
     }
 }
-

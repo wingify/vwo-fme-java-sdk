@@ -22,16 +22,36 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.vwo.utils.FunctionUtil.generateSessionId;
 public class GetFlag {
     private Boolean isEnabled = false;
     private List<Variable> variables = new ArrayList<>();
+    private long sessionId;
+    private String uuid;
+
+    public GetFlag() {
+        this.isEnabled = false;
+        this.variables = new ArrayList<>();
+        this.sessionId = generateSessionId();
+        this.uuid = null;
+    }
+
+    public GetFlag(Boolean isEnabled, List<Variable> variables, long sessionId, String uuid) {
+        this.isEnabled = isEnabled;
+        this.variables = variables;
+        this.sessionId = sessionId;
+        this.uuid = uuid;
+    }
+
+    public long getSessionId() {
+        return sessionId;
+    }
+    public String getUuid() {
+        return uuid;
+    }
 
     public Boolean isEnabled() {
         return isEnabled;
-    }
-
-    public void setIsEnabled(Boolean isEnabled) {
-        this.isEnabled = isEnabled;
     }
 
     public void setVariables(List<Variable> variables) {

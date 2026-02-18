@@ -64,8 +64,8 @@ public class SetAttributeAPI {
         // Construct payload data for tracking the user
         EventArchPayload payload = NetworkUtil.getAttributePayloadData(
                 serviceContainer,
-                context.getId(),
                 EventEnum.VWO_SYNC_VISITOR_PROP.getValue(),
+                context,
                 attributeMap
         );
 

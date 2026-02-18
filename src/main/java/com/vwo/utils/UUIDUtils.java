@@ -19,6 +19,7 @@ import com.google.common.hash.Hashing;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 public class UUIDUtils {
 
@@ -28,6 +29,8 @@ public class UUIDUtils {
 
     // Define the SEED_URL constant
     private static final String SEED_URL = "https://vwo.com";
+
+    private static final Pattern WEB_UUID_PATTERN = Pattern.compile("^[DJ][0-9A-Fa-f]{32}$");
 
     /**
      * Generates a random UUID based on an API key.
@@ -139,4 +142,19 @@ public class UUIDUtils {
 
         return new UUID(msb, lsb);
     }
+
+    /**
+     * Checks whether the given ID is a "web UUID" of the form:
+     * starts with 'D' or 'J' followed by 32 hex characters.
+     *
+     * @param id The ID to validate.
+     * @return True if the ID matches the web UUID format, false otherwise.
+     */
+    public static boolean isWebUuid(String id) {
+        if (id == null) {
+            return false;
+        }
+        return WEB_UUID_PATTERN.matcher(id).matches();
+    }
+
 }

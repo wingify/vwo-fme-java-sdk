@@ -15,5 +15,6 @@
   "IMPRESSION_FOR_SYNC_VISITOR_PROP": "Impression built for {eventName} event for Account ID:{accountId}, and user ID:{userId}",
   "NETWORK_CALL_SUCCESS": "Impression successfully sent for {eventName} event for Account ID:{accountId}, and user ID:{userId}",
   "BATCH_IMPRESSION_SUCCESS": "Batch impression sent successfully for {eventCount} events for Account ID:{accountId}",
-  "BATCH_IMPRESSION_FAILED": "Batch impression failed: {err}"
+  "BATCH_IMPRESSION_FAILED": "Batch impression failed: {err}",
+  "WEB_UUID_FOUND": "VWO Web Testing identified UUID {uuid} as the Context ID for API {apiName}"
 }
