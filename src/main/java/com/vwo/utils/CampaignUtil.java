@@ -18,6 +18,7 @@ package com.vwo.utils;
 import com.vwo.constants.Constants;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.models.*;
+import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.LoggerService;
 
@@ -402,5 +403,40 @@ public class CampaignUtil {
                 .map(Campaign::getType)
                 .findFirst()
                 .orElse("");
+    }
+
+    /**
+     * Returns the bucketing ID for a user based on the custom bucketing seed configuration.
+     * @param context A VWOContext object containing user information.
+     * @return The identifier to be used for bucketing (either the CustomBucketingSeed or the UserID).
+     */
+    public static String getBucketingId(VWOContext context) {
+        if (context == null || context.getId()==null) {
+            return "";
+        }
+        String userId = context.getId();
+        String bucketingSeed = context.getBucketingSeed();
+
+        // Simple logic: if bucketingSeed is provided and not empty, use it; otherwise fallback to userId
+        if (bucketingSeed != null && !bucketingSeed.isEmpty()) {
+            return bucketingSeed;
+        }
+
+        return userId;
+    }
+
+    /**
+     * Returns the formatted user ID for logging purposes.
+     * If a custom bucketing seed is used, it appends the seed to the user ID.
+     * @param context A VWOContext object containing user information.
+     * @return The formatted user ID string.
+     */
+    public static String getUserIdForLogging(VWOContext context) {
+        String userId = context.getId();
+        String bucketingId = getBucketingId(context);
+        if (!bucketingId.equals(userId)) {
+            return userId + " (Seed: " + bucketingId + ")";
+        }
+        return userId;
     }
 }

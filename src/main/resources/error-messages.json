@@ -15,6 +15,7 @@
 
   "EXECUTION_FAILED": "API - {apiName} failed to execute. Trace - {err}",
   "INVALID_PARAM": "{key} passed to {apiName} API is not of valid type. Got type: {type}, should be: {correctType}",
+  "INVALID_BUCKETING_SEED": "Invalid bucketingSeed passed, since it can only be a valid string. Removing it from context so that userId is used for decisioning.",
 
   "FEATURE_NOT_FOUND": "Feature not found for the key {featureKey}",
   "EVENT_NOT_FOUND": "Event {eventName} not found in any of the features metrics",

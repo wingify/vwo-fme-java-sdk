@@ -82,7 +82,7 @@ public class DecisionUtil {
                 }
             } else {
                 serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, Object>() {{
-                    put("userId", context.getId());
+                    put("userId", getUserIdForLogging(context));
                     put("campaignKey", campaign.getRuleKey());
                 }});
             }
@@ -252,19 +252,19 @@ public class DecisionUtil {
      * This method is used to evaluate the traffic for a given campaign and get the variation.
      * @param serviceContainer  ServiceContainer object containing the service container.
      * @param campaign  CampaignModel object containing the campaign settings.
-     * @param userId   String containing the user ID.
+     * @param context   VWOContext object containing user information.
      * @return  VariationModel object containing the variation details.
      */
     public static Variation evaluateTrafficAndGetVariation(
             ServiceContainer serviceContainer,
             Campaign campaign,
-            String userId) {
+            VWOContext context) {
 
         // Get the variation allotted to the user
-        Variation variation = new CampaignDecisionService().getVariationAllotted(userId, serviceContainer.getVWOInitOptions().getAccountId().toString(), campaign, serviceContainer);
+        Variation variation = new CampaignDecisionService().getVariationAllotted(context, serviceContainer.getVWOInitOptions().getAccountId().toString(), campaign, serviceContainer);
         if (variation == null) {
             serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, Object>() {{
-                put("userId", userId);
+                put("userId", getUserIdForLogging(context));
                 put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                 put("status", "did not get any variation");
             }});
@@ -272,7 +272,7 @@ public class DecisionUtil {
         }
 
         serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_CAMPAIGN_BUCKET_INFO", new HashMap<String, Object>() {{
-            put("userId", userId);
+            put("userId", getUserIdForLogging(context));
             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             put("status", "got variation: " + variation.getName());
         }});
@@ -290,7 +290,7 @@ public class DecisionUtil {
         StatusEnum status = whitelistingResult != null ? StatusEnum.PASSED : StatusEnum.FAILED;
         String variationString = whitelistingResult != null ? (String) whitelistingResult.get("variationName") : "";
         serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_STATUS", new HashMap<String, Object>() {{
-            put("userId", context.getId());
+            put("userId", getUserIdForLogging(context));
             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
             put("status", status.getStatus());
             put("variationString", variationString);
@@ -310,7 +310,7 @@ public class DecisionUtil {
         for (Variation variation : campaign.getVariations()) {
             if (variation.getSegments() != null && variation.getSegments().isEmpty()) {
                 serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "WHITELISTING_SKIP", new HashMap<String, Object>() {{
-                    put("userId", context.getId());
+                    put("userId", getUserIdForLogging(context));
                     put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
                     put("variation", !variation.getName().isEmpty() ? "for variation: " + variation.getName() : "");
                 }});
@@ -337,7 +337,7 @@ public class DecisionUtil {
                 stepFactor = assignRangeValues(variation, currentAllocation);
                 currentAllocation += stepFactor;
             }
-            whitelistedVariation = new CampaignDecisionService().getVariation(targetedVariations, new DecisionMaker().calculateBucketValue(getBucketingSeed(context.getId(), campaign, null)));
+            whitelistedVariation = new CampaignDecisionService().getVariation(targetedVariations, new DecisionMaker().calculateBucketValue(getBucketingSeed(getBucketingId(context), campaign, null)));
         } else if (targetedVariations.size() == 1) {
             whitelistedVariation = targetedVariations.get(0);
         }

@@ -181,7 +181,7 @@ public class GetFlagAPI {
             // Evaluate the passed rollout rule traffic and get the variation
             if (!rolloutRulesToEvaluate.isEmpty()) {
                 Campaign passedRolloutCampaign = rolloutRulesToEvaluate.get(0);
-                Variation variation = evaluateTrafficAndGetVariation(serviceContainer, passedRolloutCampaign, context.getId());
+                Variation variation = evaluateTrafficAndGetVariation(serviceContainer, passedRolloutCampaign, context);
                 if (variation != null) {
                     isFlagEnabled = true;
                     variablesToReturn = variation.getVariables();
@@ -256,7 +256,7 @@ public class GetFlagAPI {
             // Evaluate the passed experiment rule traffic and get the variation
             if (!experimentRulesToEvaluate.isEmpty()) {
                 Campaign campaign = experimentRulesToEvaluate.get(0);
-                Variation variation = evaluateTrafficAndGetVariation(serviceContainer, campaign, context.getId());
+                Variation variation = evaluateTrafficAndGetVariation(serviceContainer, campaign, context);
                 if (variation != null) {
                     isFlagEnabled = true;
                     variablesToReturn = variation.getVariables();

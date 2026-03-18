@@ -123,6 +123,15 @@ public class VWOClient {
             if (context == null || context.getId() == null || context.getId().isEmpty()) {
                 throw new IllegalArgumentException("User ID is required");
             }
+
+            if (!DataTypeUtil.isNull(context.getBucketingSeed())) {
+                if (!DataTypeUtil.isString(context.getBucketingSeed())
+                        || context.getBucketingSeed().trim().isEmpty()) {
+                    vwoBuilder.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_BUCKETING_SEED", new HashMap<String, Object>() {{
+                    }});
+                    context.setBucketingSeed(null);
+                }
+            }
             // get UUID from context
             uuid = this.getUUIDFromContext(context, apiName);
 
@@ -141,6 +150,8 @@ public class VWOClient {
             if (this.options.getIsAliasingEnabled()) {
                 context.setId(UserIdUtil.getUserId(context.getId(), serviceContainer));
                 serviceContainer.setUuid(context.getId(), true);
+                // regenerate uuid with the resolved userId (handles case where aliasing changed the userId)
+                uuid = this.getUUIDFromContext(context, apiName);
             }
             serviceContainer.setUuid(uuid, false);
 
