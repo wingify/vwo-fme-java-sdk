@@ -27,18 +27,22 @@ import com.vwo.ServiceContainer;
 
 import java.util.*;
 
+import static com.vwo.utils.CampaignUtil.getBucketingId;
+import static com.vwo.utils.CampaignUtil.getUserIdForLogging;
+
 public class CampaignDecisionService {
 
     /**
      * This method is used to check if the user is part of the campaign.
-     * @param userId  User ID for which the check is to be performed.
+     * @param context  VWOContext object containing the user context.
      * @param campaign CampaignModel object containing the campaign settings.
      * @return  boolean value indicating if the user is part of the campaign.
      */
-    public boolean isUserPartOfCampaign(String userId, Campaign campaign, ServiceContainer serviceContainer) {
-        if (campaign == null || userId == null) {
+    public boolean isUserPartOfCampaign(VWOContext context, Campaign campaign, ServiceContainer serviceContainer) {
+        if (campaign == null || context == null || context.getId()==null) {
             return false;
         }
+        String bucketingId = getBucketingId(context);
         double trafficAllocation;
         // Check if the campaign is of type ROLLOUT or PERSONALIZE
         // If yes, set the traffic allocation to the weight of the first variation
@@ -52,14 +56,14 @@ public class CampaignDecisionService {
 
         // Generate bucket key using salt if available, otherwise use campaign ID
         String bucketKey = (salt != null && !salt.isEmpty()) ? 
-                          salt + "_" + userId : 
-                          campaign.getId() + "_" + userId;
+                          salt + "_" + bucketingId : 
+                          campaign.getId() + "_" + bucketingId;
 
         int valueAssignedToUser = new DecisionMaker().getBucketValueForUser(bucketKey);
         boolean isUserPart = valueAssignedToUser != 0 && valueAssignedToUser <= trafficAllocation;
 
         serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_PART_OF_CAMPAIGN", new HashMap<String, Object>() {{
-            put("userId", userId);
+            put("userId", getUserIdForLogging(context));
             put("notPart", isUserPart? "" : "not");
             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
         }});
@@ -96,15 +100,16 @@ public class CampaignDecisionService {
 
     /**
      * This method is used to bucket the user to a variation based on the bucket value.
-     * @param userId  User ID for which the bucketing is to be performed.
+     * @param context  VWOContext object containing the user context.
      * @param accountId  Account ID for which the bucketing is to be performed.
      * @param campaign  CampaignModel object containing the campaign settings.
      * @return  VariationModel object containing the variation allotted to the user.
      */
-    public Variation bucketUserToVariation(String userId, String accountId, Campaign campaign, ServiceContainer serviceContainer) {
-        if (campaign == null || userId == null) {
+    public Variation bucketUserToVariation(VWOContext context, String accountId, Campaign campaign, ServiceContainer serviceContainer) {
+        if (campaign == null || context == null || context.getId()==null) {
             return null;
         }
+        String bucketingId = getBucketingId(context);
 
         int multiplier = campaign.getPercentTraffic() != 0 ? 1 : 0;
         int percentTraffic = campaign.getPercentTraffic();
@@ -113,15 +118,15 @@ public class CampaignDecisionService {
         String bucketKey;
         // if salt is not null and not empty, use salt else use campaign id
         if (salt != null && !salt.isEmpty()) {
-            bucketKey = salt + "_" + accountId + "_" + userId;
+            bucketKey = salt + "_" + accountId + "_" + bucketingId;
         } else {
-            bucketKey = campaign.getId() + "_" + accountId + "_" + userId;
+            bucketKey = campaign.getId() + "_" + accountId + "_" + bucketingId;
         }
         long hashValue = new DecisionMaker().generateHashValue(bucketKey);
         int bucketValue = new DecisionMaker().generateBucketValue(hashValue, Constants.MAX_TRAFFIC_VALUE, multiplier);
 
         serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "USER_BUCKET_TO_VARIATION", new HashMap<String, Object>() {{
-            put("userId", userId);
+            put("userId", getUserIdForLogging(context));
             put("campaignKey", campaign.getRuleKey());
             put("percentTraffic", String.valueOf(percentTraffic));
             put("bucketValue", String.valueOf(bucketValue));
@@ -168,17 +173,17 @@ public class CampaignDecisionService {
 
     /**
      * This method is used to get the variation allotted to the user in the campaign.
-     * @param userId  User ID for which the variation is to be allotted.
+     * @param context  VWOContext containing the user context.
      * @param accountId  Account ID for which the variation is to be allotted.
      * @param campaign  CampaignModel object containing the campaign settings.
      * @return  VariationModel object containing the variation allotted to the user.
      */
-    public Variation getVariationAllotted(String userId, String accountId, Campaign campaign, ServiceContainer serviceContainer) {
-        boolean isUserPart = isUserPartOfCampaign(userId, campaign, serviceContainer);
+    public Variation getVariationAllotted(VWOContext context, String accountId, Campaign campaign, ServiceContainer serviceContainer) {
+        boolean isUserPart = isUserPartOfCampaign(context, campaign, serviceContainer);
         if (Objects.equals(campaign.getType(), CampaignTypeEnum.ROLLOUT.getValue()) || Objects.equals(campaign.getType(), CampaignTypeEnum.PERSONALIZE.getValue())) {
             return isUserPart ? campaign.getVariations().get(0) : null;
         } else {
-            return isUserPart ? bucketUserToVariation(userId, accountId, campaign, serviceContainer) : null;
+            return isUserPart ? bucketUserToVariation(context, accountId, campaign, serviceContainer) : null;
         }
     }
 }

@@ -5,7 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.19.0] - 2025-02-18
+## [1.20.0] - 2026-03-03
+
+### Added
+
+- Added support for custom bucketing seed on the `VWOContext` so that bucketing can be driven by a caller-provided seed instead of the raw `userId`, with automatic fallback to `userId` when the seed is not set.
+
+  Example usage:
+
+  ```java
+  import com.vwo.VWO;
+  import com.vwo.models.user.VWOContext;
+  import com.vwo.models.user.GetFlag;
+  import com.vwo.models.user.VWOInitOptions;
+  import java.util.HashMap;
+  import java.util.Map;
+
+  VWOInitOptions options = new VWOInitOptions();
+  options.setAccountId(123456);
+  options.setSdkKey("32-alpha-numeric-sdk-key");
+
+  VWO vwoClient = VWO.init(options);
+
+  // Use custom bucketing seed so different userIds can share bucketing
+  VWOContext context = new VWOContext();
+  context.setId("user-123");
+  context.setBucketingSeed("shared-seed-1");
+
+  GetFlag flag = vwoClient.getFlag("feature-key", context);
+
+  // If bucketingSeed is invalid (non-string, empty or whitespace-only),
+  // the SDK logs INVALID_PARAM for bucketingSeed and falls back to userId.
+  ```
+
+## [1.19.0] - 2026-02-18
 ### Added
 
 - Added session management capabilities to enable integration with VWO's web client testing campaigns. The SDK now automatically generates and manages session IDs to connect server-side feature flag decisions with client-side user sessions.
@@ -90,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   VWO instance = VWO.init(vwoInitOptions);
   ```
 
-## [1.17.0] - 2025-01-19
+## [1.17.0] - 2026-01-19
 
 ### Added
 

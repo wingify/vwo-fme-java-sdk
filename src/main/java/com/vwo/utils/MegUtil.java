@@ -141,7 +141,7 @@ public class MegUtil {
             }
 
             if (ruleToTestForTraffic != null) {
-                Variation variation = evaluateTrafficAndGetVariation(serviceContainer, ruleToTestForTraffic, context.getId());
+                Variation variation = evaluateTrafficAndGetVariation(serviceContainer, ruleToTestForTraffic, context);
                 if (variation != null) {
                     Map<String, Object> rollOutInformation = new HashMap<>();
                     rollOutInformation.put("rolloutId", variation.getId());
@@ -211,7 +211,7 @@ public class MegUtil {
                  }
                 // Check if user is eligible for the campaign
                 if (new CampaignDecisionService().getPreSegmentationDecision(campaign, context, serviceContainer) &&
-                        new CampaignDecisionService().isUserPartOfCampaign(context.getId(), campaign, serviceContainer)) {
+                        new CampaignDecisionService().isUserPartOfCampaign(context, campaign, serviceContainer)) {
                     serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "MEG_CAMPAIGN_ELIGIBLE", new HashMap<String, Object>(){
                         {
                             put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
@@ -340,8 +340,10 @@ public class MegUtil {
                     .collect(Collectors.toList());
 
             setCampaignAllocation(variations);
+            //get bucketing id
+            String bucketingId = getBucketingId(context);
             Variation winnerVariation = new CampaignDecisionService().getVariation(
-                    variations, new DecisionMaker().calculateBucketValue(getBucketingSeed(context.getId(), null, groupId))
+                    variations, new DecisionMaker().calculateBucketValue(getBucketingSeed(bucketingId, null, groupId))
             );
 
             if (winnerVariation != null) {
@@ -349,7 +351,7 @@ public class MegUtil {
                     {
                         put("campaignKey", winnerVariation.getType().equals(CampaignTypeEnum.AB.getValue()) ? winnerVariation.getKey() : winnerVariation.getName() + "_" + winnerVariation.getRuleKey());
                         put("groupId", String.valueOf(groupId));
-                        put("userId", context.getId());
+                        put("userId", getUserIdForLogging(context));
                         put("algo", "using random algorithm");
                     }
                 });
@@ -446,8 +448,9 @@ public class MegUtil {
                         .collect(Collectors.toList());
 
                 setCampaignAllocation(variations);
+                String bucketingId = getBucketingId(context);
                 winnerCampaign = new CampaignDecisionService().getVariation(
-                        variations, new DecisionMaker().calculateBucketValue(getBucketingSeed(context.getId(), null, groupId))
+                        variations, new DecisionMaker().calculateBucketValue(getBucketingSeed(bucketingId, null, groupId))
                 );
             }
 
@@ -459,7 +462,7 @@ public class MegUtil {
                     {
                         put("campaignKey", finalWinnerCampaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? finalWinnerCampaign.getKey() : finalWinnerCampaign.getName() + "_" + finalWinnerCampaign.getRuleKey());
                         put("groupId", String.valueOf(groupId));
-                        put("userId", context.getId());
+                        put("userId", getUserIdForLogging(context));
                         put("algo", "using advanced algorithm");
                     }
                 });

@@ -27,6 +27,7 @@ public class VWOContext {
     private long sessionId = generateSessionId();
     private Boolean useIdForWeb = false;
     private Map<String, ?> customVariables = new HashMap<>();
+    private String bucketingSeed;
 
     private Map<String, ?> variationTargetingVariables = new HashMap<>();
 
@@ -94,5 +95,13 @@ public class VWOContext {
 
     public void setUseIdForWeb(Boolean useIdForWeb) {
         this.useIdForWeb = useIdForWeb;
+    }
+
+    public String getBucketingSeed() {
+        return bucketingSeed;
+    }
+
+    public void setBucketingSeed(String bucketingSeed) {
+        this.bucketingSeed = bucketingSeed;
     }
 }
