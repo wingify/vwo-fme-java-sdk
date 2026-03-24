@@ -65,6 +65,18 @@ public class Settings {
         this.features = features;
     }
 
+    @JsonProperty("holdouts")
+    @JsonDeserialize(using = EmptyObjectAsEmptyListDeserializer.class)
+    private List<Holdout> holdouts;
+
+    public List<Holdout> getHoldouts() {
+        return holdouts;
+    }
+
+    public void setHoldouts(List<Holdout> holdouts) {
+        this.holdouts = holdouts;
+    }
+
     public Integer getAccountId() {
         return accountId;
     }

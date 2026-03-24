@@ -43,6 +43,8 @@ public class Props {
   private String product;
   @JsonProperty("data")
   private Map<String, Object> data;
+  @JsonProperty("fId")
+  private Integer fId;
 
   @JsonIgnore
   private Map<String,Object> additionalProperties = new HashMap<String,Object>();
@@ -110,5 +112,9 @@ public class Props {
 
   public void setProduct(String product) {
     this.product = product;
+  }
+
+  public void setfId(Integer fId) {
+    this.fId = fId;
   }
 }

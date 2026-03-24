@@ -129,12 +129,71 @@ public class SettingsSchema {
                     }
                 }
             }
+            if (settings.getHoldouts() != null) {
+                for (int i = 0; i < settings.getHoldouts().size(); i++) {
+                    Holdout holdout = settings.getHoldouts().get(i);
+                    SettingsSchema holdoutResult = validateHoldout(holdout, i);
+                    if (!holdoutResult.isValid()) {
+                        result.getErrors().addAll(holdoutResult.getErrors());
+                        result.setValid(false);
+                    }
+                }
+            }
         } catch (Exception e) {
             result.addError("Error validating settings: " + e.getMessage());
             result.setValid(false);
             return result;
         }
 
+        return result;
+    }
+
+    /**
+     * Validates a holdout
+     * @param holdout holdout to be validated
+     * @param index index of the holdout
+     * @return SettingsSchema object containing the validation result
+     */
+    private SettingsSchema validateHoldout(Holdout holdout, int index) {
+        SettingsSchema result = new SettingsSchema();
+        String prefix = "Holdout[" + index + "]: ";
+        
+        if (holdout == null) {
+            result.addError(prefix + "Holdout object is null");
+            return result;
+        }
+        
+        if (holdout.getId() == null) {
+            result.addError(prefix + "Holdout id is null");
+        }
+        
+        if (holdout.getName() == null) {
+            result.addError(prefix + "Holdout name is null");
+        }
+        if (holdout.getPercentTraffic() == null) {
+            result.addError(prefix + "Holdout percentTraffic is null");
+        }
+        if (holdout.getIsGlobal() == null) {
+            result.addError(prefix + "Holdout isGlobal is null");
+        }
+        if (holdout.getSegments() == null) {
+            result.addError(prefix + "Holdout segments object is null");
+        }
+        if (holdout.getFeatureIds() == null) {
+            result.addError(prefix + "Holdout featureIds is null");
+        }
+        if (holdout.getMetrics() == null) {
+            result.addError(prefix + "Holdout metrics is null");
+        } else {
+            for (int i = 0; i < holdout.getMetrics().size(); i++) {
+                Metric metric = holdout.getMetrics().get(i);
+                SettingsSchema metricResult = validateCampaignMetric(metric, index, i);
+                if (!metricResult.isValid()) {
+                    result.getErrors().addAll(metricResult.getErrors());
+                    result.setValid(false);
+                }
+            }
+        }
         return result;
     }
 

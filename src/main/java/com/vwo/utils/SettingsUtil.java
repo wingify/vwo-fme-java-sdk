@@ -27,6 +27,7 @@ import com.google.gson.Gson;
 import com.vwo.enums.CampaignTypeEnum;
 import com.vwo.models.Campaign;
 import com.vwo.models.Feature;
+import com.vwo.models.Holdout;
 import com.vwo.models.Settings;
 import com.vwo.packages.logger.enums.LogLevelEnum;
 import com.vwo.services.LoggerService;
@@ -112,33 +113,58 @@ public class SettingsUtil {
                 }
                 if (segments != null) {
                     String jsonSegments = new Gson().toJson(segments);
-                    Matcher matcher = pattern.matcher(jsonSegments);
-                    boolean foundMatch = false;
-
-                    while (matcher.find()) {
-                        String match = matcher.group();
-                        if (match.matches("\\b(country|region|city|os|device_type|browser_string|ua)\\b")) {
-                            // Check if within "custom_variable" block
-                            if (!isWithinCustomVariable(matcher.start(), jsonSegments)) {
-                                foundMatch = true;
-                                break;
-                            }
-                        } else {
-                            foundMatch = true;
-                            break;
-                        }
-                    }
-
-                    if (foundMatch) {
+                    if (checkPreSegmentation(jsonSegments, pattern)) {
                         feature.setIsGatewayServiceRequired(true);
                         break;
                     }
                 }
             }
         }
+
+        if (settings.getHoldouts() != null) {
+            for (Holdout holdout : settings.getHoldouts()) {
+                Map<String, Object> segments = holdout.getSegments();
+                if (segments != null) {
+                    String jsonSegments = new Gson().toJson(segments);
+                    if (checkPreSegmentation(jsonSegments, pattern)) {
+                        holdout.setIsGatewayServiceRequired(true);
+                    }
+                }
+            }
+        }
     }
 
-    // Helper method to check if a match is within "custom_variable"
+    /**
+     * Checks if the pre-segmentation requires gateway service based on segment conditions.
+     * This method looks for geographic (country, region, city) and device-related (os, device_type, browser_string, ua)
+     * targeting conditions, or custom variables using the inlist function.
+     * @param jsonSegments The JSON representation of segments to check.
+     * @param pattern The compiled regex pattern to match against segment keys.
+     * @return true if gateway service is required for the segmentation, false otherwise.
+     */
+    private static boolean checkPreSegmentation(String jsonSegments, Pattern pattern) {
+        Matcher matcher = pattern.matcher(jsonSegments);
+        while (matcher.find()) {
+            String match = matcher.group();
+            if (match.matches("\\b(country|region|city|os|device_type|browser_string|ua)\\b")) {
+                // Check if within "custom_variable" block
+                if (!isWithinCustomVariable(matcher.start(), jsonSegments)) {
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Helper method to check if a matched segment key is within a "custom_variable" block.
+     * This is used to differentiate between built-in geographic/device targeting and custom variable conditions.
+     * @param startIndex The starting index of the matched segment key in the JSON string.
+     * @param input The full JSON string representation of segments.
+     * @return true if the match is within a custom_variable block, false otherwise.
+     */
     private static boolean isWithinCustomVariable(int startIndex, String input) {
         int index = input.lastIndexOf("\"custom_variable\"", startIndex);
         if (index == -1) return false;

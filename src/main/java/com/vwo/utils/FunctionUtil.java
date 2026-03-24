@@ -26,8 +26,8 @@ public class FunctionUtil {
 
     /**
      * Clones an object using JSON serialization and deserialization.
-     * @param obj  The object to clone.
-     * @return   The cloned object.
+     * @param obj The object to clone.
+     * @return The cloned object.
      */
     public static Object cloneObject(Object obj) {
         if (obj == null) {
@@ -39,7 +39,7 @@ public class FunctionUtil {
 
     /**
      * Generates a session ID.
-     * @return  The session ID.
+     * @return The session ID.
      */
     public static long generateSessionId() {
         return System.currentTimeMillis() / 1000;
@@ -47,7 +47,7 @@ public class FunctionUtil {
 
     /**
      * Retrieves the current Unix timestamp in milliseconds.
-     * @return  The current Unix timestamp in milliseconds.
+     * @return The current Unix timestamp in milliseconds.
      */
     public static long getCurrentUnixTimestampInMillis() {
         // Return the current Unix timestamp in milliseconds
@@ -56,7 +56,7 @@ public class FunctionUtil {
 
     /**
      * Retrieves a random number between 0 and 1.
-     * @return  A random number between 0 and 1.
+     * @return A random number between 0 and 1.
      */
     public static double getRandomNumber() {
         // Use Math.random() to generate a random number between 0 and 1
@@ -66,7 +66,7 @@ public class FunctionUtil {
     /**
      * Retrieves specific rules based on the type from a feature.
      * @param feature The feature model.
-     * @param type The type of the rules to retrieve.
+     * @param type    The type of the rules to retrieve.
      * @return A list of rules that match the type.
      */
     public static List<Campaign> getSpecificRulesBasedOnType(Feature feature, CampaignTypeEnum type) {
@@ -91,13 +91,14 @@ public class FunctionUtil {
             return Collections.emptyList();
         }
         return feature.getRulesLinkedCampaign().stream()
-                .filter(rule -> Objects.equals(rule.getType(), CampaignTypeEnum.AB.getValue()) || Objects.equals(rule.getType(), CampaignTypeEnum.PERSONALIZE.getValue()))
+                .filter(rule -> Objects.equals(rule.getType(), CampaignTypeEnum.AB.getValue())
+                        || Objects.equals(rule.getType(), CampaignTypeEnum.PERSONALIZE.getValue()))
                 .collect(Collectors.toList());
     }
 
     /**
      * Retrieves a feature by its key from the settings.
-     * @param settings The settings model.
+     * @param settings   The settings model.
      * @param featureKey The key of the feature to find.
      * @return The feature if found, otherwise null.
      */
@@ -111,9 +112,31 @@ public class FunctionUtil {
                 .orElse(null);
     }
 
+    /**
+     * Checks if an event belongs to any feature.
+     * @param eventName The event name to check.
+     * @param settings  The settings model.
+     * @return True if the event belongs to any feature, otherwise false.
+     */
     public static boolean doesEventBelongToAnyFeature(String eventName, Settings settings) {
         return settings.getFeatures().stream()
                 .anyMatch(feature -> feature.getMetrics().stream()
+                        .anyMatch(metric -> metric.getIdentifier().equals(eventName)));
+    }
+
+    /**
+     * Checks if an event belongs to any holdout.
+     * @param eventName The event name to check.
+     * @param settings  The settings model.
+     * @return True if the event belongs to any holdout, otherwise false.
+     */
+    public static boolean doesEventBelongToAnyHoldout(String eventName, Settings settings) {
+        if (settings.getHoldouts() == null) {
+            return false;
+        }
+        // Check if any holdout has a metric with an identifier matching the event name
+        return settings.getHoldouts().stream()
+                .anyMatch(holdout -> holdout.getMetrics() != null && holdout.getMetrics().stream()
                         .anyMatch(metric -> metric.getIdentifier().equals(eventName)));
     }
 }

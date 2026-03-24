@@ -21,6 +21,7 @@ public enum EventEnum {
     VWO_SDK_INIT_EVENT("vwo_fmeSdkInit"),
     VWO_ERROR("vwo_log"),
     VWO_DEBUGGER_EVENT("vwo_sdkDebug"),
+    VWO_HOLDOUT("vwo_holdout"),
     VWO_USAGE_STATS("vwo_sdkUsageStats");
 
     private final String value;

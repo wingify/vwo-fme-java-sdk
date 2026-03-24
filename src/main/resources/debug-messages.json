@@ -16,5 +16,9 @@
   "NETWORK_CALL_SUCCESS": "Impression successfully sent for {eventName} event for Account ID:{accountId}, and user ID:{userId}",
   "BATCH_IMPRESSION_SUCCESS": "Batch impression sent successfully for {eventCount} events for Account ID:{accountId}",
   "BATCH_IMPRESSION_FAILED": "Batch impression failed: {err}",
+
+  "HOLDOUT_SKIP_EVALUATION": "Skipping evaluation for holdout '{holdoutName}' for User '{userId}' as it is already evaluated for feature '{featureKey}'.",
+  "PART_OF_HOLDOUT_IN_MEG": "Feature '{featureKey}' is part of holdout '{holdoutId}' for User '{userId}' in MEG evaluation. Skipping feature.",
+  
   "WEB_UUID_FOUND": "VWO Web Testing identified UUID {uuid} as the Context ID for API {apiName}"
 }

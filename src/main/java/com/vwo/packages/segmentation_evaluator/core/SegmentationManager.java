@@ -20,6 +20,7 @@ import com.vwo.VWOClient;
 import com.vwo.constants.Constants;
 import com.vwo.enums.UrlEnum;
 import com.vwo.models.Feature;
+import com.vwo.models.Holdout;
 import com.vwo.models.user.GatewayService;
 import com.vwo.models.user.VWOContext;
 import com.vwo.packages.logger.enums.LogLevelEnum;
@@ -29,6 +30,7 @@ import com.vwo.ServiceContainer;
 import com.vwo.services.LoggerService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.vwo.utils.GatewayServiceUtil.getFromGatewayService;
@@ -67,8 +69,16 @@ public class SegmentationManager {
       return;
     }
 
-    // If gateway service is required and the base URL is not the default one, fetch the data from the gateway service
-    if (feature.getIsGatewayServiceRequired() && serviceContainer.getSettingsManager().isGatewayServiceProvided && (context.getVwo() == null)) {
+    // Check if any holdout requires gateway service
+    List<Holdout> holdouts = serviceContainer.getSettings().getHoldouts();
+    boolean isGatewayServiceRequiredForHoldouts = false;
+    if (holdouts != null) {
+      isGatewayServiceRequiredForHoldouts = holdouts.stream()
+              .anyMatch(holdout -> holdout.getIsGatewayServiceRequired() != null && holdout.getIsGatewayServiceRequired());
+    }
+
+    // If gateway service is required (by feature OR holdouts) and the base URL is not the default one, fetch the data from the gateway service
+    if ((feature.getIsGatewayServiceRequired() || isGatewayServiceRequiredForHoldouts) && serviceContainer.getSettingsManager().isGatewayServiceProvided && (context.getVwo() == null)) {
       Map<String, String> queryParams = new HashMap<>();
       if ( (context.getUserAgent() == null || context.getUserAgent().isEmpty() ) && (context.getIpAddress() == null || context.getIpAddress().isEmpty())) {
         return;

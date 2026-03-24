@@ -58,11 +58,128 @@ public class MegUtil {
         List<String> featureKeys = (List<String>) featureKeysAndGroupCampaignIds.get("featureKeys");
         List<String> groupCampaignIds = (List<String>) featureKeysAndGroupCampaignIds.get("groupCampaignIds");
 
+        List<Integer> evaluatedMegHoldouts_IN = new ArrayList<>();
+        List<Integer> evaluatedMegHoldouts_NOT_IN = new ArrayList<>();
+
         for (String featureKey : featureKeys) {
             Feature currentFeature = getFeatureFromKey(serviceContainer.getSettings(), featureKey);
 
             // check if the feature is already evaluated
             if (featureToSkip.contains(featureKey)) {
+                continue;
+            }
+
+            // Check if user is already in holdout for this feature (from storage)
+            Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(featureKey, context, storageService, serviceContainer);
+            Storage storedData = null;
+            try {
+                String storageMapAsString = VWOClient.objectMapper.writeValueAsString(storedDataMap);
+                storedData = VWOClient.objectMapper.readValue(storageMapAsString, Storage.class);
+                
+                if (storedData != null && storedData.getNotInHoldoutId() != null) {
+                    for (Integer id : storedData.getNotInHoldoutId()) {
+                        if (!evaluatedMegHoldouts_NOT_IN.contains(id)) evaluatedMegHoldouts_NOT_IN.add(id);
+                    }
+                }
+
+                List<Integer> storedIsInHoldoutId = storedData != null ? storedData.getIsInHoldoutId() : null;
+
+                if (storedIsInHoldoutId != null && !storedIsInHoldoutId.isEmpty()) {
+                    featureToSkip.add(featureKey);
+                    serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "PART_OF_HOLDOUT_IN_MEG", new HashMap<String, Object>() {{
+                        put("featureKey", featureKey);
+                        put("userId", context.getId());
+                        put("holdoutId", storedIsInHoldoutId.toString());
+                    }});
+
+                    for (Integer id : storedIsInHoldoutId) {
+                        if (!evaluatedMegHoldouts_IN.contains(id)) evaluatedMegHoldouts_IN.add(id);
+                    }
+                    continue;
+                }
+            } catch (Exception e) {
+                serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_PARSING_HOLDOUT_DATA", new HashMap<String, Object>() {{
+                    put("err", e.getMessage());
+                    put("featureKey", featureKey);
+                    put("userId", context.getId());
+                }});
+            }
+
+            // IN optimization check
+            List<Holdout> applicableHoldoutsForCurrentFeature = HoldoutUtil.getApplicableHoldouts(serviceContainer.getSettings(), currentFeature.getId());
+            boolean isAlreadyInHoldoutMemory = false;
+            
+            if (applicableHoldoutsForCurrentFeature != null) {
+                for (Holdout h : applicableHoldoutsForCurrentFeature) {
+                    if (evaluatedMegHoldouts_IN.contains(h.getId())) {
+                        isAlreadyInHoldoutMemory = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isAlreadyInHoldoutMemory) {
+                featureToSkip.add(featureKey);
+                serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "PART_OF_HOLDOUT_IN_MEG", new HashMap<String, Object>() {{
+                    put("featureKey", featureKey);
+                    put("userId", context.getId());
+                    put("holdoutId", "memory_cached");
+                }});
+                continue;
+            }
+
+            // NOT_IN optimization check - inject into storedData to skip re-evaluation in HoldoutUtil
+            if (storedData == null) {
+                storedData = new Storage();
+            }
+            if (storedData.getNotInHoldoutId() == null) {
+                storedData.setNotInHoldoutId(new ArrayList<>());
+            }
+            if (applicableHoldoutsForCurrentFeature != null) {
+                for (Holdout h : applicableHoldoutsForCurrentFeature) {
+                    if (evaluatedMegHoldouts_NOT_IN.contains(h.getId()) && !storedData.getNotInHoldoutId().contains(h.getId())) {
+                        storedData.getNotInHoldoutId().add(h.getId());
+                    }
+                }
+            }
+
+            // Check if user is in holdout for this feature 
+            Map<String, Object> holdoutResult = HoldoutUtil.getMatchedHoldouts(serviceContainer, currentFeature, context, storedData);
+            List<Holdout> matchedHoldouts = (List<Holdout>) holdoutResult.get("matchedHoldouts");
+            List<Holdout> notMatchedHoldouts = (List<Holdout>) holdoutResult.get("notMatchedHoldouts");
+
+            if (matchedHoldouts != null) {
+                for (Holdout h : matchedHoldouts) {
+                    if (!evaluatedMegHoldouts_IN.contains(h.getId())) evaluatedMegHoldouts_IN.add(h.getId());
+                }
+            }
+            if (notMatchedHoldouts != null) {
+                for (Holdout h : notMatchedHoldouts) {
+                    if (!evaluatedMegHoldouts_NOT_IN.contains(h.getId())) evaluatedMegHoldouts_NOT_IN.add(h.getId());
+                }
+            }
+            
+            if (matchedHoldouts != null && !matchedHoldouts.isEmpty()) {
+                featureToSkip.add(featureKey);
+
+                List<Integer> holdoutIdList = matchedHoldouts.stream().map(Holdout::getId).collect(java.util.stream.Collectors.toList());
+                // include notInHoldoutId in MEG storage write to match Node.js logic and prevent tracking bugs
+                List<Integer> notInHoldoutIdList = notMatchedHoldouts != null ? notMatchedHoldouts.stream().map(Holdout::getId).collect(java.util.stream.Collectors.toList()) : new ArrayList<>();
+                
+                Map<String, Object> holdoutStorageData = new HashMap<>();
+                holdoutStorageData.put("featureKey", featureKey);
+                holdoutStorageData.put("userId", context.getId());
+                holdoutStorageData.put("isInHoldoutId", holdoutIdList);
+                holdoutStorageData.put("notInHoldoutId", notInHoldoutIdList);
+                new StorageDecorator().setDataInStorage(holdoutStorageData, storageService, serviceContainer);
+                
+                String qualifiedHoldoutIds = matchedHoldouts.stream().map(h -> h.getId().toString()).collect(java.util.stream.Collectors.joining(","));
+                serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "PART_OF_HOLDOUT_IN_MEG", new HashMap<String, Object>() {{
+                    put("featureKey", featureKey);
+                    put("userId", context.getId());
+                    put("holdoutId", qualifiedHoldoutIds);
+                }});
+
                 continue;
             }
 

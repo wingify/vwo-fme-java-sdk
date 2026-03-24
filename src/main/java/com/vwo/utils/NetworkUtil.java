@@ -478,7 +478,7 @@ public class NetworkUtil {
 
         String endpoint = UrlEnum.EVENTS.getUrl();
         if (settingsManager.collectionPrefix != null && !settingsManager.collectionPrefix.isEmpty()) {
-            endpoint = "/" + settingsManager.collectionPrefix + "/" + endpoint;
+            endpoint = "/" + settingsManager.collectionPrefix + endpoint;
         }
 
         RequestModel request = new RequestModel(settingsManager.hostname, "POST", endpoint, properties, payload, headers, settingsManager.protocol, settingsManager.port);
@@ -642,6 +642,39 @@ public class NetworkUtil {
         // Convert to Map and return
         Map<String, Object> payloadMap = VWOClient.objectMapper.convertValue(payload, Map.class);
         return removeNullValues(payloadMap);
+    }
+
+    /**
+     * Creates payload for holdout variation shown event.
+     * @param serviceContainer - The service container containing configuration.
+     * @param holdoutId - The holdout ID (used as campaignId).
+     * @param variationId - The variation ID (1 if IN holdout, 2 if NOT IN holdout).
+     * @param context - The user context model containing user-specific data.
+     * @param featureId - The feature ID.
+     * @return The holdout payload data.
+     */
+    public static EventArchPayload createHoldoutPayload(
+            ServiceContainer serviceContainer,
+            Integer holdoutId,
+            Integer variationId,
+            VWOContext context,
+            Integer featureId
+    ) {
+        EventArchPayload properties = getEventBasePayload(
+                serviceContainer.getSettingsManager(),
+                context.getId(),
+                context.getSessionId(),
+                EventEnum.VWO_VARIATION_SHOWN.getValue(),
+                context.getUserAgent(),
+                context.getIpAddress()
+        );
+
+        properties.getD().getEvent().getProps().setId(holdoutId);
+        properties.getD().getEvent().getProps().setVariation(variationId.toString());
+        properties.getD().getEvent().getProps().setIsFirst(1);
+        properties.getD().getEvent().getProps().setfId(featureId);
+
+        return properties;
     }
 
     /**

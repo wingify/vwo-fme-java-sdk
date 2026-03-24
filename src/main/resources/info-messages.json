@@ -29,5 +29,13 @@
   "SETTINGS_UPDATED": "Settings fetched and updated successfully on the current VWO client instance when API: {apiName} got called having isViaWebhook param as {isViaWebhook}",
 
   "PROXY_AND_GATEWAY_SERVICE_PROVIDED": "Both proxy URL and gateway service are provided. Gateway service will be used and proxy URL will be ignored",
-  "NETWORK_CALL_SUCCESS_WITH_RETRIES": "Network call for {extraData} succeeded after {attempts} retries. Error: {err}"
+  "NETWORK_CALL_SUCCESS_WITH_RETRIES": "Network call for {extraData} succeeded after {attempts} retries. Error: {err}",
+
+  "STORED_HOLDOUT_DECISION": "User '{userId}' is in holdout '{holdoutId}' for feature '{featureKey}' found in storage.",
+  "USER_IN_HOLDOUT_GROUP": "User '{userId}' is in holdout '{holdoutNames}' for feature '{featureKey}'.",
+  "USER_NOT_EXCLUDED_DUE_TO_HOLDOUT": "User '{userId}' is not excluded from feature '{featureKey}' due to holdout.",
+  "SEGMENTATION_FAILED_HOLDOUT": "User '{userId}' failed segmentation for holdout '{experimentId}'.",
+  "SEGMENTATION_PASSED_HOLDOUT": "User '{userId}' passed segmentation for holdout '{experimentId}'.",
+  "USER_IN_HOLDOUT": "User '{userId}' falls into holdout '{holdoutName}' for feature '{featureKey}'.",
+  "HOLDOUT_SEGMENTATION_SKIP": "For userId:{userId} of holdout:{holdoutId}, segments was missing. Hence, skipping segmentation"
 }

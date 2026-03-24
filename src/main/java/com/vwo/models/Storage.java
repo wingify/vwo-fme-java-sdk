@@ -15,6 +15,8 @@
  */
 package com.vwo.models;
 
+import java.util.List;
+
 public class Storage {
     private String featureKey;
     private String user;
@@ -24,6 +26,8 @@ public class Storage {
     private Integer experimentId;
     private String experimentKey;
     private Integer experimentVariationId;
+    private List<Integer> isInHoldoutId;
+    private List<Integer> notInHoldoutId;
 
     public String getFeatureKey() {
         return featureKey;
@@ -88,4 +92,22 @@ public class Storage {
     public void setExperimentVariationId(Integer experimentVariationId) {
         this.experimentVariationId = experimentVariationId;
     }
+
+    public List<Integer> getIsInHoldoutId() {
+        return isInHoldoutId;
+    }
+
+    public void setIsInHoldoutId(List<Integer> isInHoldoutId) {
+        this.isInHoldoutId = isInHoldoutId;
+    }
+
+    public List<Integer> getNotInHoldoutId() {
+        return notInHoldoutId;
+    }
+
+    public void setNotInHoldoutId(List<Integer> notInHoldoutId) {
+        this.notInHoldoutId = notInHoldoutId;
+    }
+
+
 }

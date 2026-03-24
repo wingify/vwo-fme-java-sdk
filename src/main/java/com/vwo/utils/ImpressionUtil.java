@@ -64,7 +64,8 @@ public class ImpressionUtil {
             campaignKey = Constants.IMPACT_ANALYSIS;
         } else {
             // split campaignKeyWithFeatureName with featureKey_ to get the campaignKey
-            campaignKey = campaignKeyWithFeatureName.split(featureKey + "_")[1];
+            String[] parts = campaignKeyWithFeatureName.split(featureKey + "_");
+            campaignKey = parts.length > 1 ? parts[1] : campaignKeyWithFeatureName;
         }
 
         Map<String, Object> featureInfo = new HashMap<>();

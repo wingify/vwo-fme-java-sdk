@@ -41,7 +41,7 @@ public class TrackEventAPI {
     public static Boolean track(String eventName, VWOContext context, Map<String, ?> eventProperties, ServiceContainer serviceContainer) {
         serviceContainer.getDebuggerService().addStandardDebugProp("an", ApiEnum.TRACK_EVENT.getValue());
         try {
-            if (FunctionUtil.doesEventBelongToAnyFeature(eventName, serviceContainer.getSettings())) {
+            if (FunctionUtil.doesEventBelongToAnyFeature(eventName, serviceContainer.getSettings()) || FunctionUtil.doesEventBelongToAnyHoldout(eventName, serviceContainer.getSettings())) {
                 createAndSendImpressionForTrack(eventName, context, eventProperties, serviceContainer);
                 Map<String, Object> objectToReturn = new HashMap<>();
                 objectToReturn.put("eventName", eventName);

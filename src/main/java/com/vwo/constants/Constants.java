@@ -32,7 +32,7 @@ public class Constants {
   public static final int DEFAULT_REQUEST_TIME_INTERVAL = 600; // 10 * 60(secs) = 600 secs i.e. 10 minutes
   public static final int DEFAULT_EVENTS_PER_REQUEST = 100;
   public static final String SDK_NAME = "vwo-fme-java-sdk";
-  public static final String SDK_VERSION = "1.20.0";
+  public static final String SDK_VERSION = "1.21.0";
   public static final long SETTINGS_EXPIRY = 10000000;
   public static final long SETTINGS_TIMEOUT = 50000;
 
@@ -71,4 +71,8 @@ public class Constants {
   public static final int THREAD_POOL_MAX_SIZE = 20;              // Maximum threads under load (configurable)
   public static final int THREAD_POOL_QUEUE_SIZE = 10000;         // Tasks waiting in queue (configurable)
   public static final long THREAD_POOL_KEEP_ALIVE_SECONDS = 60L;  // Idle thread timeout
+
+  // Holdout variation IDs
+  public static final int HOLDOUT_VARIATION_IN = 1;      // User is IN holdout
+  public static final int HOLDOUT_VARIATION_NOT_IN = 2;  // User is NOT IN holdout
 }

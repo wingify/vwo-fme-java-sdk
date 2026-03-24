@@ -32,8 +32,10 @@ import com.vwo.services.StorageService;
 import com.vwo.utils.DebuggerServiceUtil;
 import com.vwo.utils.NetworkUtil;
 import com.vwo.utils.RuleEvaluationUtil;
+import com.vwo.utils.HoldoutUtil;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.vwo.utils.CampaignUtil.getVariationFromCampaignKey;
 import static com.vwo.utils.DecisionUtil.evaluateTrafficAndGetVariation;
@@ -58,6 +60,8 @@ public class GetFlagAPI {
         Map<String, Object> passedRulesInformation = new HashMap<>();
         Map<String, Object> evaluatedFeatureMap = new HashMap<>();
         List<EventArchPayload> batchPayloads = new ArrayList<>();
+        List<Integer> notInHoldoutIds = new ArrayList<>();
+        boolean isStoredDecision = false;
 
         // get feature object from feature key
         Feature feature = getFeatureFromKey(serviceContainer.getSettings(), featureKey);
@@ -83,6 +87,85 @@ public class GetFlagAPI {
         StorageService storageService = new StorageService();
         Map<String, Object> storedDataMap = new StorageDecorator().getFeatureFromStorage(featureKey, context, storageService, serviceContainer);
 
+        // Check for stored holdout decision - validate against current settings
+        try {
+            String storageMapAsString = VWOClient.objectMapper.writeValueAsString(storedDataMap);
+            Storage storedData = VWOClient.objectMapper.readValue(storageMapAsString, Storage.class);
+            List<Integer> storedIsInHoldoutId = storedData != null ? storedData.getIsInHoldoutId() : null;
+            if (storedIsInHoldoutId != null && !storedIsInHoldoutId.isEmpty() && feature != null) {
+                List<Holdout> applicableHoldouts = HoldoutUtil.getApplicableHoldouts(serviceContainer.getSettings(), feature.getId());
+                if (!applicableHoldouts.isEmpty()) {
+                    for (Holdout holdout : applicableHoldouts) {
+                        if (storedIsInHoldoutId.contains(holdout.getId())) {
+                            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "STORED_HOLDOUT_DECISION", new HashMap<String, Object>() {{
+                                put("featureKey", featureKey);
+                                put("userId", context.getId());
+                                put("holdoutId", storedIsInHoldoutId.toString());
+                            }});
+
+                            // evaluate new holdouts
+                            Map<String, Object> holdoutResult = HoldoutUtil.getMatchedHoldouts(serviceContainer, feature, context, storedData);
+                            List<Holdout> matchedHoldouts = (List<Holdout>) holdoutResult.get("matchedHoldouts");
+                            List<Holdout> notMatchedHoldouts = (List<Holdout>) holdoutResult.get("notMatchedHoldouts");
+                            List<EventArchPayload> holdoutPayloads = (List<EventArchPayload>) holdoutResult.get("holdoutPayloads");
+
+                            List<Integer> updatedHoldoutIds = new ArrayList<>(storedIsInHoldoutId);
+                            if (matchedHoldouts != null) {
+                                for (Holdout mHoldout : matchedHoldouts) {
+                                    if (!updatedHoldoutIds.contains(mHoldout.getId())) {
+                                        updatedHoldoutIds.add(mHoldout.getId());
+                                    }
+                                }
+                            }
+
+                            List<Integer> storedNotInHoldoutId = storedData.getNotInHoldoutId() != null ? storedData.getNotInHoldoutId() : new ArrayList<>();
+                            List<Integer> updatedNotInHoldoutIds = new ArrayList<>(storedNotInHoldoutId);
+                            if (notMatchedHoldouts != null) {
+                                for (Holdout nmHoldout : notMatchedHoldouts) {
+                                    if (!updatedNotInHoldoutIds.contains(nmHoldout.getId())) {
+                                        updatedNotInHoldoutIds.add(nmHoldout.getId());
+                                    }
+                                }
+                            }
+
+                            Map<String, Object> storageMap = new HashMap<>();
+                            storageMap.put("featureKey", featureKey);
+                            storageMap.put("userId", context.getId());
+                            storageMap.put("isInHoldoutId", updatedHoldoutIds);
+                            storageMap.put("notInHoldoutId", updatedNotInHoldoutIds);
+                            new StorageDecorator().setDataInStorage(storageMap, storageService, serviceContainer);
+
+                            if (holdoutPayloads != null && !holdoutPayloads.isEmpty()) {
+                                if (serviceContainer.getSettingsManager().isGatewayServiceProvided) {
+                                    for (EventArchPayload payload : holdoutPayloads) {
+                                        sendImpressionForVariationShown(serviceContainer, 
+                                            payload.getD().getEvent().getProps().getId(), 
+                                            Integer.parseInt(payload.getD().getEvent().getProps().getVariation()), 
+                                            context, payload);
+                                    }
+                                } else {
+                                    batchPayloads.addAll(holdoutPayloads);
+                                }
+                            }
+
+                            // If we have batchPayloads, send them now before returning
+                            if (!batchPayloads.isEmpty() && !serviceContainer.getSettingsManager().isGatewayServiceProvided) {
+                                sendImpressionForVariationShownInBatch(batchPayloads, serviceContainer);
+                            }
+
+                            return new GetFlag(false, new ArrayList<>(), context.getSessionId(), serviceContainer.getUuid());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_PARSING_HOLDOUT_DATA", new HashMap<String, Object>() {{
+                put("err", e.getMessage());
+                put("featureKey", featureKey);
+                put("userId", context.getId());
+            }});
+        }
+
         /**
          * If feature is found in the storage, return the stored variation
          */
@@ -102,6 +185,16 @@ public class GetFlagAPI {
                                 put("experimentKey", storedData.getExperimentKey());
                             }
                         });
+
+                        // network calls for holdouts that are newly added in settings and are not present in storage
+                        if (feature != null) {
+                            List<Integer> updatedNotInHoldoutIds = HoldoutUtil.sendNetworkCallsForNotInHoldouts(serviceContainer, feature, context, storedData, storageService);
+                            if (updatedNotInHoldoutIds != null) {
+                                for(Integer id : updatedNotInHoldoutIds) {
+                                    if(!notInHoldoutIds.contains(id)) notInHoldoutIds.add(id);
+                                }
+                            }
+                        }
                         return new GetFlag(true, variation.getVariables(), context.getSessionId(), serviceContainer.getUuid()); 
                     }
                 }
@@ -124,6 +217,16 @@ public class GetFlagAPI {
                         }
                     });
 
+                    // network calls for holdouts that are newly added in settings and are not present in storage
+                    if (feature != null) {
+                        List<Integer> updatedNotInHoldoutIds = HoldoutUtil.sendNetworkCallsForNotInHoldouts(serviceContainer, feature, context, storedData, storageService);
+                        if (updatedNotInHoldoutIds != null) {
+                            for(Integer id : updatedNotInHoldoutIds) {
+                                if(!notInHoldoutIds.contains(id)) notInHoldoutIds.add(id);
+                            }
+                        }
+                    }
+
                     isFlagEnabled = true;
                     shouldCheckForExperimentsRules = true;
                     Map<String, Object> featureInfo = new HashMap<>();
@@ -132,6 +235,7 @@ public class GetFlagAPI {
                     featureInfo.put("rolloutVariationId", storedData.getRolloutVariationId());
                     evaluatedFeatureMap.put(featureKey, featureInfo);
                     passedRulesInformation.putAll(featureInfo);
+                    isStoredDecision = true;
                 }
             }
         } catch (Exception e) {
@@ -155,6 +259,102 @@ public class GetFlagAPI {
         }
 
         serviceContainer.getSegmentationManager().setContextualData(serviceContainer, feature, context);
+
+
+        // Parse storedData for holdout evaluation
+        Storage storedData = null;
+        try {
+            String storageMapAsString = VWOClient.objectMapper.writeValueAsString(storedDataMap);
+            storedData = VWOClient.objectMapper.readValue(storageMapAsString, Storage.class);
+        } catch (Exception e) {
+            // already logged above
+        }
+
+        decision.put("isUserPartOfCampaign", false);
+        decision.put("isPartOfHoldout", false);
+        decision.put("isHoldoutPresent", false);
+        decision.put("holdoutIDs", new ArrayList<>());
+
+        // Check for Holdouts
+        List<Holdout> notMatchedHoldouts = new ArrayList<>();
+        if (feature != null && !isFlagEnabled) {
+            Map<String, Object> holdoutResult = HoldoutUtil.getMatchedHoldouts(serviceContainer, feature, context, storedData);
+            List<Holdout> matchedHoldouts = (List<Holdout>) holdoutResult.get("matchedHoldouts");
+            notMatchedHoldouts = (List<Holdout>) holdoutResult.get("notMatchedHoldouts");
+            List<EventArchPayload> holdoutPayloads = (List<EventArchPayload>) holdoutResult.get("holdoutPayloads");
+
+            decision.put("isPartOfHoldout", matchedHoldouts != null && !matchedHoldouts.isEmpty());
+            if ((matchedHoldouts != null && !matchedHoldouts.isEmpty()) || (notMatchedHoldouts != null && !notMatchedHoldouts.isEmpty())) {
+                decision.put("isHoldoutPresent", true);
+            }
+
+            if (matchedHoldouts != null && !matchedHoldouts.isEmpty()) {
+                String qualifiedHoldoutNames = matchedHoldouts.stream().map(Holdout::getName).collect(Collectors.joining(","));
+                List<Integer> holdoutIdList = matchedHoldouts.stream().map(Holdout::getId).collect(Collectors.toList());
+                decision.put("holdoutIDs", holdoutIdList);
+                decision.put("isEnabled", false);
+
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_IN_HOLDOUT_GROUP", new HashMap<String, Object>() {{
+                    put("userId", context.getId());
+                    put("holdoutNames", qualifiedHoldoutNames);
+                    put("featureKey", featureKey);
+                }});
+
+                Map<String, Object> holdoutStorageData = new HashMap<>();
+                holdoutStorageData.put("featureKey", featureKey);
+                holdoutStorageData.put("userId", context.getId());
+                holdoutStorageData.put("isInHoldoutId", holdoutIdList);
+                holdoutStorageData.put("notInHoldoutId", notMatchedHoldouts.stream().map(Holdout::getId).collect(Collectors.toList()));
+                new StorageDecorator().setDataInStorage(holdoutStorageData, storageService, serviceContainer);
+
+                serviceContainer.getHooksManager().set(decision);
+                serviceContainer.getHooksManager().execute(serviceContainer.getHooksManager().get());
+
+                if (holdoutPayloads != null && !holdoutPayloads.isEmpty()) {
+                    if (serviceContainer.getSettingsManager().isGatewayServiceProvided) {
+                        for (EventArchPayload payload : holdoutPayloads) {
+                            sendImpressionForVariationShown(serviceContainer, 
+                                payload.getD().getEvent().getProps().getId(), 
+                                Integer.parseInt(payload.getD().getEvent().getProps().getVariation()), 
+                                context, payload);
+                        }
+                    } else {
+                        batchPayloads.addAll(holdoutPayloads);
+                    }
+                }
+
+                // Send all collected payloads (including holdouts)
+                if (!batchPayloads.isEmpty() && !serviceContainer.getSettingsManager().isGatewayServiceProvided) {
+                    sendImpressionForVariationShownInBatch(batchPayloads, serviceContainer);
+                }
+
+                return new GetFlag(false, new ArrayList<>(), context.getSessionId(), serviceContainer.getUuid());
+            } else {
+                serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_NOT_EXCLUDED_DUE_TO_HOLDOUT", new HashMap<String, Object>() {{
+                    put("featureKey", featureKey);
+                    put("userId", context.getId());
+                }});
+                
+                if (notMatchedHoldouts != null) {
+                    for(Holdout nmHoldout : notMatchedHoldouts) {
+                        if(!notInHoldoutIds.contains(nmHoldout.getId())) notInHoldoutIds.add(nmHoldout.getId());
+                    }
+                }
+
+                if (holdoutPayloads != null && !holdoutPayloads.isEmpty()) {
+                    if (serviceContainer.getSettingsManager().isGatewayServiceProvided) {
+                        for (EventArchPayload payload : holdoutPayloads) {
+                            sendImpressionForVariationShown(serviceContainer, 
+                                payload.getD().getEvent().getProps().getId(), 
+                                Integer.parseInt(payload.getD().getEvent().getProps().getVariation()), 
+                                context, payload);
+                        }
+                    } else {
+                        batchPayloads.addAll(holdoutPayloads);
+                    }
+                }
+            }
+        }
 
         /**
          * get all the rollout rules for the feature and evaluate them
@@ -184,7 +384,7 @@ public class GetFlagAPI {
                 Variation variation = evaluateTrafficAndGetVariation(serviceContainer, passedRolloutCampaign, context);
                 if (variation != null) {
                     isFlagEnabled = true;
-                    variablesToReturn = variation.getVariables();
+                    variablesToReturn = variation.getVariables() != null ? variation.getVariables() : new ArrayList<>();
                     shouldCheckForExperimentsRules = true;
                     updateIntegrationsDecisionObject(passedRolloutCampaign, variation, passedRulesInformation, decision);
 
@@ -232,10 +432,11 @@ public class GetFlagAPI {
                     } else {
                         // If whitelisted object is not null, update the decision object and handle payload
                         isFlagEnabled = true;
-                        variablesToReturn = whitelistedObject.getVariables();
+                        variablesToReturn = whitelistedObject.getVariables() != null ? whitelistedObject.getVariables() : new ArrayList<>();
                         passedRulesInformation.put("experimentId", rule.getId());
                         passedRulesInformation.put("experimentKey", rule.getKey());
                         passedRulesInformation.put("experimentVariationId", whitelistedObject.getId());
+                        isStoredDecision = false;
   
                         // Handle whitelisting payload
                         EventArchPayload whitelistPayload = (EventArchPayload) evaluateRuleResult.get("payload");
@@ -259,8 +460,9 @@ public class GetFlagAPI {
                 Variation variation = evaluateTrafficAndGetVariation(serviceContainer, campaign, context);
                 if (variation != null) {
                     isFlagEnabled = true;
-                    variablesToReturn = variation.getVariables();
+                    variablesToReturn = variation.getVariables() != null ? variation.getVariables() : new ArrayList<>();
                     updateIntegrationsDecisionObject(campaign, variation, passedRulesInformation, decision);
+                    isStoredDecision = false;
 
                     // Create payload for sending
                     EventArchPayload payload = NetworkUtil.getTrackUserPayloadData(
@@ -286,12 +488,25 @@ public class GetFlagAPI {
             storageMap.put("featureKey", feature.getKey());
             storageMap.put("userId", context.getId());
             storageMap.putAll(passedRulesInformation);
+            storageMap.put("notInHoldoutId", notInHoldoutIds);
+            new StorageDecorator().setDataInStorage(storageMap, storageService, serviceContainer);
+            
+            // Set isUserPartOfCampaign to true as a rule evaluated successfully
+            decision.put("isUserPartOfCampaign", true);
+        } else {
+            // Write notInHoldoutIds even if flag is not enabled (Holdout Tracking Catch-up Bug)
+            Map<String, Object> storageMap = new HashMap<>();
+            storageMap.put("featureKey", feature.getKey());
+            storageMap.put("userId", context.getId());
+            storageMap.put("notInHoldoutId", notInHoldoutIds);
             new StorageDecorator().setDataInStorage(storageMap, storageService, serviceContainer);
         }
 
         // Execute the integrations
-        serviceContainer.getHooksManager().set(decision);
-        serviceContainer.getHooksManager().execute(serviceContainer.getHooksManager().get());
+        if (!isStoredDecision) {
+            serviceContainer.getHooksManager().set(decision);
+            serviceContainer.getHooksManager().execute(serviceContainer.getHooksManager().get());
+        }
 
         // if debugger is enabled, update the debug event props
         if (feature.getIsDebuggerEnabled()) {
