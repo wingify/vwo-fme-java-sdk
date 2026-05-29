@@ -1,13 +1,13 @@
 {
-  "ON_READY_ALREADY_RESOLVED": "[INFO]: VWO-SDK {date} {apiName} already resolved",
-  "ON_READY_SETTINGS_FAILED": "[INFO]: VWO-SDK {date} VWO settings could not be fetched",
+  "ON_READY_ALREADY_RESOLVED": "[INFO]: {brand}-SDK {date} {apiName} already resolved",
+  "ON_READY_SETTINGS_FAILED": "[INFO]: {brand}-SDK {date} {brand} settings could not be fetched",
 
-  "POLLING_SET_SETTINGS": "There's a change in settings from the last settings fetched. Hence, instantiating a new VWO client internally",
-  "POLLING_NO_CHANGE_IN_SETTINGS": "No change in settings with the last settings fetched. Hence, not instantiating new VWO client",
+  "POLLING_SET_SETTINGS": "There's a change in settings from the last settings fetched. Hence, instantiating a new {brand} client internally",
+  "POLLING_NO_CHANGE_IN_SETTINGS": "No change in settings with the last settings fetched. Hence, not instantiating new {brand} client",
 
   "SETTINGS_FETCH_SUCCESS": "Settings fetched successfully",
 
-  "CLIENT_INITIALIZED": "VWO Client initialized",
+  "CLIENT_INITIALIZED": "{brand} Client initialized",
 
   "STORED_VARIATION_FOUND": "Variation {variationKey} found in storage for the user {userId} for the {experimentType} experiment:{experimentKey}",
 
@@ -26,7 +26,7 @@
   "MEG_CAMPAIGN_FOUND_IN_STORAGE": "Campaign {campaignKey} found in storage for user ID:{userId}",
   "MEG_CAMPAIGN_ELIGIBLE": "Campaign {campaignKey} is eligible for user ID:{userId}",
   "MEG_WINNER_CAMPAIGN": "MEG: Campaign {campaignKey} is the winner for group {groupId} for user ID:{userId} {algo}",
-  "SETTINGS_UPDATED": "Settings fetched and updated successfully on the current VWO client instance when API: {apiName} got called having isViaWebhook param as {isViaWebhook}",
+  "SETTINGS_UPDATED": "Settings fetched and updated successfully on the current {brand} client instance when API: {apiName} got called having isViaWebhook param as {isViaWebhook}",
 
   "PROXY_AND_GATEWAY_SERVICE_PROVIDED": "Both proxy URL and gateway service are provided. Gateway service will be used and proxy URL will be ignored",
   "NETWORK_CALL_SUCCESS_WITH_RETRIES": "Network call for {extraData} succeeded after {attempts} retries. Error: {err}",

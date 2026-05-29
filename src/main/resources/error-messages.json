@@ -1,15 +1,15 @@
 
 {
-  "INVALID_OPTIONS": "[ERROR]: VWO-SDK Options should be of type object",
-  "INVALID_SDK_KEY_IN_OPTIONS": "[ERROR]: VWO-SDK Please provide the sdkKey in the options and should be a of type string",
-  "INVALID_ACCOUNT_ID_IN_OPTIONS": "[ERROR]: VWO-SDK Please provide VWO account ID in the options and should be a of type string|number",
-  "INVALID_GATEWAY_SERVICE_WHEN_ALIASING_ENABLED": "[ERROR]: VWO-SDK Please provide a valid gateway service url in the options when aliasing is enabled",
+  "INVALID_OPTIONS": "[ERROR]: {brand}-SDK Options should be of type object",
+  "INVALID_SDK_KEY_IN_OPTIONS": "[ERROR]: {brand}-SDK Please provide the sdkKey in the options and should be a of type string",
+  "INVALID_ACCOUNT_ID_IN_OPTIONS": "[ERROR]: {brand}-SDK Please provide {brand} account ID in the options and should be a of type string|number",
+  "INVALID_GATEWAY_SERVICE_WHEN_ALIASING_ENABLED": "[ERROR]: {brand}-SDK Please provide a valid gateway service url in the options when aliasing is enabled",
   
   "INVALID_POLLING_CONFIGURATION": "Invalid {key} passed in options. Should be of type: {correctType} and greater than equal to 1000",
 
   "ERROR_FETCHING_SETTINGS": "Settings could not be fetched for account ID: {accountId} and SDK key: {sdkKey}. Error: {err}",
   "INVALID_SETTINGS_SCHEMA": "Settings are not valid for account ID: {accountId} and SDK key: {sdkKey}. Got settings as {settings} and errors: {errors}",
-  "UPDATING_CLIENT_INSTANCE_FAILED_WHEN_WEBHOOK_TRIGGERED": "Failed to fetch settings and hence VWO client instance couldn't be updated when API: {apiName} got called having isViaWebhook param as {isViaWebhook}. Error: {err}",
+  "UPDATING_CLIENT_INSTANCE_FAILED_WHEN_WEBHOOK_TRIGGERED": "Failed to fetch settings and hence {brand} client instance couldn't be updated when API: {apiName} got called having isViaWebhook param as {isViaWebhook}. Error: {err}",
 
   "ERROR_UPDATING_SETTINGS": "Error while updating settings. Error: {err}, originalSettings: {originalSettings}, latestSettings: {latestSettings}",
 
@@ -24,7 +24,7 @@
   "ERROR_PARSING_STORED_DATA": "Error in parsing stored data. Error: {err}",
   "ERROR_PARSING_HOLDOUT_DATA": "Error in parsing holdout data for feature {featureKey} and user {userId}. Error: {err}",
 
-  "INVALID_GATEWAY_URL": "Please provide a valid URL for VWO Gateway Service",
+  "INVALID_GATEWAY_URL": "Please provide a valid URL for {brand} Gateway Service",
 
   "SDK_INIT_EVENT_FAILED": "Error while sending SDK init event. Error: {err}",
   "NETWORK_CALL_EXCEPTION": "Network call for {extraData} with account ID: {accountId}. Error: {err}",

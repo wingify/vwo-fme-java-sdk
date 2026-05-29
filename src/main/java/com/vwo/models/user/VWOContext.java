@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,93 +15,13 @@
  */
 package com.vwo.models.user;
 
-import static com.vwo.utils.FunctionUtil.generateSessionId;
+import com.wingify.models.user.WingifyUserContext;
 
-import java.util.HashMap;
-import java.util.Map;
-
-public class VWOContext {
-    private String id;
-    private String userAgent = "";
-    private String ipAddress = "";
-    private long sessionId = generateSessionId();
-    private Boolean useIdForWeb = false;
-    private Map<String, ?> customVariables = new HashMap<>();
-    private String bucketingSeed;
-
-    private Map<String, ?> variationTargetingVariables = new HashMap<>();
-
-    private GatewayService _vwo;
-
-    public long getSessionId() {
-        return sessionId;
-    }
-
-    public void setSessionId(long sessionId) {
-        this.sessionId = sessionId;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getUserAgent() {
-        return userAgent;
-    }
-
-    public void setUserAgent(String userAgent) {
-        this.userAgent = userAgent;
-    }
-
-    public String getIpAddress() {
-        return ipAddress;
-    }
-
-    public void setIpAddress(String ipAddress) {
-        this.ipAddress = ipAddress;
-    }
-
-    public Map<String, ?> getCustomVariables() {
-        return customVariables;
-    }
-
-    public void setCustomVariables(Map<String, ?> customVariables) {
-        this.customVariables = customVariables;
-    }
-
-    public Map<String, ?> getVariationTargetingVariables() {
-        return variationTargetingVariables;
-    }
-
-    public void setVariationTargetingVariables(Map<String, ?> variationTargetingVariables) {
-        this.variationTargetingVariables = variationTargetingVariables;
-    }
-
-    public GatewayService getVwo() {
-        return _vwo;
-    }
-
-    public void setVwo(GatewayService _vwo) {
-        this._vwo = _vwo;
-    }
-
-    public Boolean isUseIdForWeb() {
-        return useIdForWeb;
-    }
-
-    public void setUseIdForWeb(Boolean useIdForWeb) {
-        this.useIdForWeb = useIdForWeb;
-    }
-
-    public String getBucketingSeed() {
-        return bucketingSeed;
-    }
-
-    public void setBucketingSeed(String bucketingSeed) {
-        this.bucketingSeed = bucketingSeed;
-    }
+/**
+ * Backward-compatible user context for existing VWO integrations.
+ *
+ * @deprecated Use {@link com.wingify.models.user.WingifyUserContext} instead.
+ */
+@Deprecated
+public class VWOContext extends WingifyUserContext {
 }

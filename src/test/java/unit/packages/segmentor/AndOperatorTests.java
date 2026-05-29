@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,18 @@ package unit.packages.segmentor;
 
 import com.vwo.VWO;
 import com.vwo.models.user.VWOInitOptions;
-import com.vwo.packages.segmentation_evaluator.core.SegmentationManager;
-import com.vwo.services.CampaignDecisionService;
+import com.wingify.packages.segmentation_evaluator.core.SegmentationManager;
+import com.wingify.services.CampaignDecisionService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import com.vwo.services.LoggerService;
-import com.vwo.ServiceContainer;
-import com.vwo.models.Feature;
+import com.wingify.services.LoggerService;
+import com.wingify.ServiceContainer;
+import com.wingify.models.Feature;
 import com.vwo.models.user.VWOContext;
-import com.vwo.models.Settings;
-import com.vwo.services.SettingsManager;
-import com.vwo.services.BatchEventQueue;
+import com.wingify.models.Settings;
+import com.wingify.services.SettingsManager;
+import com.wingify.services.BatchEventQueue;
 
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.*;

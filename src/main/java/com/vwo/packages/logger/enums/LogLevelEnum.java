@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,36 @@
  */
 package com.vwo.packages.logger.enums;
 
+/**
+ * Backward-compatible log levels for existing VWO logger integrations.
+ *
+ * @deprecated Use {@link com.wingify.packages.logger.enums.LogLevelEnum} instead.
+ */
+@Deprecated
 public enum LogLevelEnum {
-  TRACE,
-  DEBUG,
-  INFO,
-  WARN,
-  ERROR
+    TRACE,
+    DEBUG,
+    INFO,
+    WARN,
+    ERROR;
+
+    /**
+     * Converts this VWO log level to the Wingify equivalent.
+     *
+     * @deprecated Use {@link com.wingify.packages.logger.enums.LogLevelEnum#valueOf(String)} instead.
+     */
+    @Deprecated
+    public com.wingify.packages.logger.enums.LogLevelEnum toWingify() {
+        return com.wingify.packages.logger.enums.LogLevelEnum.valueOf(this.name());
+    }
+
+    /**
+     * Converts a Wingify log level to the VWO equivalent.
+     *
+     * @deprecated Use {@link com.wingify.packages.logger.enums.LogLevelEnum} directly instead.
+     */
+    @Deprecated
+    public static LogLevelEnum fromWingify(com.wingify.packages.logger.enums.LogLevelEnum level) {
+        return LogLevelEnum.valueOf(level.name());
+    }
 }

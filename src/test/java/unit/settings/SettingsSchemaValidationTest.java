@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  */
 package unit.settings;
 
-import com.vwo.VWOClient;
-import com.vwo.models.Settings;
-import com.vwo.models.schemas.SettingsSchema;
+import com.wingify.WingifyClient;
+import com.wingify.models.Settings;
+import com.wingify.models.schemas.SettingsSchema;
 import data.DummySettingsReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +44,7 @@ public class SettingsSchemaValidationTest {
     public void testSettingsWithWrongTypeForValues() {
         try {
             String settingsJson = settingsMap.get("SETTINGS_WITH_WRONG_TYPE_FOR_VALUES");
-            Settings settings = VWOClient.objectMapper.readValue(settingsJson, Settings.class);
+            Settings settings = WingifyClient.objectMapper.readValue(settingsJson, Settings.class);
             
             boolean result = settingsSchemaValidation.isSettingsValid(settings);
             assertFalse(result, "Settings with wrong type for values should fail validation");
@@ -59,7 +59,7 @@ public class SettingsSchemaValidationTest {
     public void testSettingsWithExtraKeyAtRootLevel() {
         try {
             String settingsJson = settingsMap.get("SETTINGS_WITH_EXTRA_KEYS_AT_ROOT_LEVEL");
-            Settings settings = VWOClient.objectMapper.readValue(settingsJson, Settings.class);
+            Settings settings = WingifyClient.objectMapper.readValue(settingsJson, Settings.class);
             
             boolean result = settingsSchemaValidation.isSettingsValid(settings);
             assertTrue(result, "Settings with extra key at root level should not fail validation");
@@ -73,7 +73,7 @@ public class SettingsSchemaValidationTest {
     public void testSettingsWithExtraKeyInsideObjects() {
         try {
             String settingsJson = settingsMap.get("SETTINGS_WITH_EXTRA_KEYS_INSIDE_OBJECTS");
-            Settings settings = VWOClient.objectMapper.readValue(settingsJson, Settings.class);
+            Settings settings = WingifyClient.objectMapper.readValue(settingsJson, Settings.class);
             
             boolean result = settingsSchemaValidation.isSettingsValid(settings);
             assertTrue(result, "Settings with extra key inside objects should not fail validation");
@@ -87,7 +87,7 @@ public class SettingsSchemaValidationTest {
     public void testSettingsWithNoFeaturesAndCampaigns() {
         try {
             String settingsJson = settingsMap.get("SETTINGS_WITH_NO_FEATURES_AND_CAMPAIGNS");
-            Settings settings = VWOClient.objectMapper.readValue(settingsJson, Settings.class);
+            Settings settings = WingifyClient.objectMapper.readValue(settingsJson, Settings.class);
             
             boolean result = settingsSchemaValidation.isSettingsValid(settings);
             assertTrue(result, "Settings with no features and campaigns should not fail validation");

@@ -5,6 +5,74 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.50.0] - 2026-06-29
+
+This release introduces **Wingify** as the primary SDK branding and package namespace, while keeping existing **VWO** integrations fully supported.
+
+### Added
+
+- **Wingify public API** — use `Wingify`, `WingifyInitOptions`, and `WingifyUserContext` from the `com.wingify` package as the recommended entry point for new integrations.
+
+  ```java
+  import com.wingify.Wingify;
+  import com.wingify.models.user.WingifyUserContext;
+  import com.wingify.models.user.WingifyInitOptions;
+  import com.wingify.models.user.GetFlag;
+
+  WingifyInitOptions options = new WingifyInitOptions();
+  options.setAccountId(123456);
+  options.setSdkKey("32-alpha-numeric-sdk-key");
+
+  Wingify client = Wingify.init(options);
+
+  WingifyUserContext context = new WingifyUserContext();
+  context.setId("user-123");
+
+  GetFlag flag = client.getFlag("feature-key", context);
+  ```
+
+### Changed
+
+- The SDK implementation now lives under the `com.wingify` package.
+- Log messages and documentation have been updated to reflect Wingify branding.
+- **No breaking changes for existing integrations** — server event names, payload keys, and runtime behavior remain compatible with the VWO platform.
+
+### Deprecated
+
+The following **VWO** classes in `com.vwo` are deprecated but **continue to work without modification**:
+
+| Deprecated (still supported) | Use instead |
+|---|---|
+| `com.vwo.VWO` | `com.wingify.Wingify` |
+| `com.vwo.models.user.VWOInitOptions` | `com.wingify.models.user.WingifyInitOptions` |
+| `com.vwo.models.user.VWOContext` | `com.wingify.models.user.WingifyUserContext` |
+| `com.vwo.interfaces.logger.LogTransport` | `com.wingify.interfaces.logger.LogTransport` |
+| `com.vwo.packages.logger.enums.LogLevelEnum` | `com.wingify.packages.logger.enums.LogLevelEnum` |
+| `com.vwo.interfaces.integration.IntegrationCallback` | `com.wingify.interfaces.integration.IntegrationCallback` |
+| `com.vwo.packages.storage.Connector` | `com.wingify.packages.storage.Connector` |
+
+Existing code does not need to change immediately. We recommend adopting the Wingify API for new projects and migrating when convenient:
+
+```java
+// Still supported — no action required today
+import com.vwo.VWO;
+import com.vwo.models.user.VWOContext;
+import com.vwo.models.user.VWOInitOptions;
+
+VWOInitOptions options = new VWOInitOptions();
+options.setAccountId(123456);
+options.setSdkKey("32-alpha-numeric-sdk-key");
+
+VWO client = VWO.init(options);
+
+VWOContext context = new VWOContext();
+context.setId("user-123");
+
+client.getFlag("feature-key", context);
+```
+
+**Migration tip:** Replace `VWO` → `Wingify`, `VWOInitOptions` → `WingifyInitOptions`, and `VWOContext` → `WingifyUserContext`, and update imports from `com.vwo.*` to `com.wingify.*`. Method signatures and SDK behavior are unchanged.
+
 ## [1.21.0] - 2026-03-24
 
 ### Added

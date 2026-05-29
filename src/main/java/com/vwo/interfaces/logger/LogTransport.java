@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,12 @@ package com.vwo.interfaces.logger;
 
 import com.vwo.packages.logger.enums.LogLevelEnum;
 
+/**
+ * Backward-compatible custom logger transport for existing VWO integrations.
+ *
+ * @deprecated Use {@link com.wingify.interfaces.logger.LogTransport} instead.
+ */
+@Deprecated
 public interface LogTransport {
     void log(LogLevelEnum level, String message);
 }

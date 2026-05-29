@@ -1,0 +1,175 @@
+/**
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.wingify.utils;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import com.google.gson.Gson;
+import com.wingify.enums.CampaignTypeEnum;
+import com.wingify.models.Campaign;
+import com.wingify.models.Feature;
+import com.wingify.models.Holdout;
+import com.wingify.models.Settings;
+import com.wingify.packages.logger.enums.LogLevelEnum;
+import com.wingify.services.LoggerService;
+
+import static com.wingify.utils.CampaignUtil.setVariationAllocation;
+
+public class SettingsUtil {
+
+    /**
+     * Processes the settings file and modifies it as required.
+     * This method is called before the settings are used by the SDK.
+     * It sets the variation allocation for each campaign.
+     * It adds linked campaigns to each feature in the settings based on rules.
+     * It adds isGatewayServiceRequired flag to each feature in the settings based on pre segmentation.
+     * @param settings - The settings file to modify.
+     * @param loggerService - The logger service.
+     */
+    public static void processSettings(Settings settings, LoggerService loggerService) {
+        List<Campaign> campaigns = settings.getCampaigns();
+
+        for (int i = 0; i < campaigns.size(); i++) {
+            Campaign campaign = campaigns.get(i);
+            setVariationAllocation(campaign, loggerService);
+            campaigns.set(i, campaign);
+        }
+        addLinkedCampaignsToSettings(settings);
+        addIsGatewayServiceRequiredFlag(settings);
+    }
+
+    /**
+     * Adds linked campaigns to each feature in the settings based on rules.
+     * @param settings  - The settings file to modify.
+     */
+    private static void addLinkedCampaignsToSettings(Settings settings) {
+
+        // Create a map for quick access to campaigns by ID
+        Map<Integer, Campaign> campaignMap = settings.getCampaigns().stream()
+                .collect(Collectors.toMap(Campaign::getId, campaign -> campaign));
+
+        // Loop over all features
+        for (Feature feature : settings.getFeatures()) {
+            List<Campaign> rulesLinkedCampaignModel = feature.getRules().stream()
+                    .map(rule -> {
+                        Campaign originalCampaign = campaignMap.get(rule.getCampaignId());
+                        if (originalCampaign == null) return null;
+                        originalCampaign.setRuleKey(rule.getRuleKey());
+                        Campaign campaign = new Campaign();
+                        campaign.setModelFromDictionary(originalCampaign);
+
+                        // If a variationId is specified, find and add the variation
+                        if (rule.getVariationId() != null) {
+                            campaign.getVariations().stream()
+                                    .filter(v -> v.getId().equals(rule.getVariationId()))
+                                    .findFirst().ifPresent(variation -> campaign.setVariations(Collections.singletonList(variation)));
+                        }
+                        return campaign;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            // Assign the linked campaigns to the feature
+            feature.setRulesLinkedCampaign(rulesLinkedCampaignModel);
+        }
+    }
+
+    /**
+     * Adds isGatewayServiceRequired flag to each feature in the settings based on pre segmentation.
+     * @param settings  - The settings file to modify.
+     */
+    private static void addIsGatewayServiceRequiredFlag(Settings settings) {
+        // Updated pattern without using lookbehind
+        String patternString = "\\b(country|region|city|os|device_type|browser_string|ua)\\b|\"custom_variable\"\\s*:\\s*\\{\\s*\"name\"\\s*:\\s*\"inlist\\([^)]*\\)\"";
+        Pattern pattern = Pattern.compile(patternString);
+
+        for (Feature feature : settings.getFeatures()) {
+            List<Campaign> rules = feature.getRulesLinkedCampaign();
+            for (Campaign rule : rules) {
+                Object segments;
+                if (Objects.equals(rule.getType(), CampaignTypeEnum.ROLLOUT.getValue()) || Objects.equals(rule.getType(), CampaignTypeEnum.PERSONALIZE.getValue())) {
+                    segments = rule.getVariations().get(0).getSegments();
+                } else {
+                    segments = rule.getSegments();
+                }
+                if (segments != null) {
+                    String jsonSegments = new Gson().toJson(segments);
+                    if (checkPreSegmentation(jsonSegments, pattern)) {
+                        feature.setIsGatewayServiceRequired(true);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (settings.getHoldouts() != null) {
+            for (Holdout holdout : settings.getHoldouts()) {
+                Map<String, Object> segments = holdout.getSegments();
+                if (segments != null) {
+                    String jsonSegments = new Gson().toJson(segments);
+                    if (checkPreSegmentation(jsonSegments, pattern)) {
+                        holdout.setIsGatewayServiceRequired(true);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if the pre-segmentation requires gateway service based on segment conditions.
+     * This method looks for geographic (country, region, city) and device-related (os, device_type, browser_string, ua)
+     * targeting conditions, or custom variables using the inlist function.
+     * @param jsonSegments The JSON representation of segments to check.
+     * @param pattern The compiled regex pattern to match against segment keys.
+     * @return true if gateway service is required for the segmentation, false otherwise.
+     */
+    private static boolean checkPreSegmentation(String jsonSegments, Pattern pattern) {
+        Matcher matcher = pattern.matcher(jsonSegments);
+        while (matcher.find()) {
+            String match = matcher.group();
+            if (match.matches("\\b(country|region|city|os|device_type|browser_string|ua)\\b")) {
+                // Check if within "custom_variable" block
+                if (!isWithinCustomVariable(matcher.start(), jsonSegments)) {
+                    return true;
+                }
+            } else {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Helper method to check if a matched segment key is within a "custom_variable" block.
+     * This is used to differentiate between built-in geographic/device targeting and custom variable conditions.
+     * @param startIndex The starting index of the matched segment key in the JSON string.
+     * @param input The full JSON string representation of segments.
+     * @return true if the match is within a custom_variable block, false otherwise.
+     */
+    private static boolean isWithinCustomVariable(int startIndex, String input) {
+        int index = input.lastIndexOf("\"custom_variable\"", startIndex);
+        if (index == -1) return false;
+
+        int closingBracketIndex = input.indexOf("}", index);
+        return closingBracketIndex != -1 && startIndex < closingBracketIndex;
+    }
+}

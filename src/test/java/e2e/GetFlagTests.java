@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 package e2e;
 
 import com.vwo.VWO;
-import com.vwo.VWOBuilder;
-import com.vwo.VWOClient;
-import com.vwo.models.Storage;
-import com.vwo.models.user.GetFlag;
+import com.wingify.WingifyBuilder;
+import com.wingify.WingifyClient;
+import com.wingify.models.Storage;
+import com.wingify.models.user.GetFlag;
 import com.vwo.models.user.VWOContext;
 import com.vwo.models.user.VWOInitOptions;
 import data.StorageTest;
@@ -83,12 +83,12 @@ public class GetFlagTests {
                 vwoInitOptions.setStorage(storage);
             }
 
-            VWOBuilder vwoBuilder = new VWOBuilder(vwoInitOptions);
-            VWOBuilder vwoBuilderSpy = spy(vwoBuilder);
+            WingifyBuilder wingifyBuilder = new WingifyBuilder(vwoInitOptions);
+            WingifyBuilder wingifyBuilderSpy = spy(wingifyBuilder);
 
-            when(vwoBuilderSpy.getSettings(false)).thenReturn(settingsMap.get(testData.getSettings()));
+            when(wingifyBuilderSpy.getSettings(false)).thenReturn(settingsMap.get(testData.getSettings()));
 
-            vwoInitOptions.setVwoBuilder(vwoBuilderSpy);
+            vwoInitOptions.setVwoBuilder(wingifyBuilderSpy);
             VWO vwoClient = VWO.init(vwoInitOptions);
 
             if (storageMap) {
@@ -108,8 +108,9 @@ public class GetFlagTests {
                 try {
                     if (testData.getExpectation().getIsEnabled()) {
                         Map<String, Object> updatedStorageData = (Map<String, Object>) storage.get(testData.getFeatureKey(), testData.getContext().getId());
-                        String storageMapAsString = VWOClient.objectMapper.writeValueAsString(updatedStorageData);
-                        Storage storedData = VWOClient.objectMapper.readValue(storageMapAsString, com.vwo.models.Storage.class);assertEquals(testData.getExpectation().getStorageData().getRolloutKey(), storedData.getRolloutKey());
+                        String storageMapAsString = WingifyClient.objectMapper.writeValueAsString(updatedStorageData);
+                        Storage storedData = WingifyClient.objectMapper.readValue(storageMapAsString, Storage.class);
+                        assertEquals(testData.getExpectation().getStorageData().getRolloutKey(), storedData.getRolloutKey());
                         assertEquals(testData.getExpectation().getStorageData().getRolloutVariationId(), storedData.getRolloutVariationId());
                         assertEquals(testData.getExpectation().getStorageData().getExperimentKey(), storedData.getExperimentKey());
                         assertEquals(testData.getExpectation().getStorageData().getExperimentVariationId(), storedData.getExperimentVariationId());
@@ -127,12 +128,12 @@ public class GetFlagTests {
             vwoInitOptions.setSdkKey(SDK_KEY);
             vwoInitOptions.setAccountId(ACCOUNT_ID);
 
-            VWOBuilder vwoBuilder = new VWOBuilder(vwoInitOptions);
-            VWOBuilder vwoBuilderSpy = spy(vwoBuilder);
+            WingifyBuilder wingifyBuilder = new WingifyBuilder(vwoInitOptions);
+            WingifyBuilder wingifyBuilderSpy = spy(wingifyBuilder);
 
-            when(vwoBuilderSpy.getSettings(false)).thenReturn(settingsMap.get(testData.getSettings()));
+            when(wingifyBuilderSpy.getSettings(false)).thenReturn(settingsMap.get(testData.getSettings()));
 
-            vwoInitOptions.setVwoBuilder(vwoBuilderSpy);
+            vwoInitOptions.setVwoBuilder(wingifyBuilderSpy);
             VWO vwoClient = VWO.init(vwoInitOptions);
 
             ArrayList<String> userIds = testData.getUserIds();

@@ -1,0 +1,189 @@
+/**
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.wingify.services;
+
+import com.wingify.constants.Constants;
+import com.wingify.enums.CampaignTypeEnum;
+import com.wingify.models.Campaign;
+import com.wingify.models.Variation;
+import com.wingify.models.user.WingifyUserContext;
+import com.wingify.packages.decision_maker.DecisionMaker;
+import com.wingify.packages.logger.enums.LogLevelEnum;
+import com.wingify.packages.segmentation_evaluator.core.SegmentationManager;
+import com.wingify.ServiceContainer;
+
+import java.util.*;
+
+import static com.wingify.utils.CampaignUtil.getBucketingId;
+import static com.wingify.utils.CampaignUtil.getUserIdForLogging;
+
+public class CampaignDecisionService {
+
+    /**
+     * This method is used to check if the user is part of the campaign.
+     * @param context  WingifyUserContext object containing the user context.
+     * @param campaign CampaignModel object containing the campaign settings.
+     * @return  boolean value indicating if the user is part of the campaign.
+     */
+    public boolean isUserPartOfCampaign(WingifyUserContext context, Campaign campaign, ServiceContainer serviceContainer) {
+        if (campaign == null || context == null || context.getId()==null) {
+            return false;
+        }
+        String bucketingId = getBucketingId(context);
+        double trafficAllocation;
+        // Check if the campaign is of type ROLLOUT or PERSONALIZE
+        // If yes, set the traffic allocation to the weight of the first variation
+        String campaignType = campaign.getType();
+        boolean isRolloutOrPersonalize = Objects.equals(campaignType, CampaignTypeEnum.ROLLOUT.getValue()) || 
+                                       Objects.equals(campaignType, CampaignTypeEnum.PERSONALIZE.getValue());
+
+        // Get salt and traffic allocation based on campaign type
+        String salt = isRolloutOrPersonalize ? campaign.getVariations().get(0).getSalt() : campaign.getSalt();
+        trafficAllocation = isRolloutOrPersonalize ? campaign.getVariations().get(0).getWeight() : campaign.getPercentTraffic();
+
+        // Generate bucket key using salt if available, otherwise use campaign ID
+        String bucketKey = (salt != null && !salt.isEmpty()) ? 
+                          salt + "_" + bucketingId : 
+                          campaign.getId() + "_" + bucketingId;
+
+        int valueAssignedToUser = new DecisionMaker().getBucketValueForUser(bucketKey);
+        boolean isUserPart = valueAssignedToUser != 0 && valueAssignedToUser <= trafficAllocation;
+
+        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USER_PART_OF_CAMPAIGN", new HashMap<String, Object>() {{
+            put("userId", getUserIdForLogging(context));
+            put("notPart", isUserPart? "" : "not");
+            put("campaignKey", campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
+        }});
+        return isUserPart;
+    }
+
+    /**
+     * This method is used to get the variation for the user based on the bucket value.
+     * @param variations  List of VariationModel objects containing the variations.
+     * @param bucketValue  Bucket value assigned to the user.
+     * @return  VariationModel object containing the variation for the user.
+     */
+    public Variation getVariation(List<Variation> variations, int bucketValue) {
+        for (Variation variation : variations) {
+            if (bucketValue >= variation.getStartRangeVariation() && bucketValue <= variation.getEndRangeVariation()) {
+                return variation;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * This method is used to check if the bucket value falls in the range of the variation.
+     * @param variation  VariationModel object containing the variation settings.
+     * @param bucketValue  Bucket value assigned to the user.
+     * @return  VariationModel object containing the variation if the bucket value falls in the range, otherwise null.
+     */
+    public Variation checkInRange(Variation variation, int bucketValue) {
+        if (bucketValue >= variation.getStartRangeVariation() && bucketValue <= variation.getEndRangeVariation()) {
+            return variation;
+        }
+        return null;
+    }
+
+    /**
+     * This method is used to bucket the user to a variation based on the bucket value.
+     * @param context  WingifyUserContext object containing the user context.
+     * @param accountId  Account ID for which the bucketing is to be performed.
+     * @param campaign  CampaignModel object containing the campaign settings.
+     * @return  VariationModel object containing the variation allotted to the user.
+     */
+    public Variation bucketUserToVariation(WingifyUserContext context, String accountId, Campaign campaign, ServiceContainer serviceContainer) {
+        if (campaign == null || context == null || context.getId()==null) {
+            return null;
+        }
+        String bucketingId = getBucketingId(context);
+
+        int multiplier = campaign.getPercentTraffic() != 0 ? 1 : 0;
+        int percentTraffic = campaign.getPercentTraffic();
+        // get salt from campaign
+        String salt = campaign.getSalt();
+        String bucketKey;
+        // if salt is not null and not empty, use salt else use campaign id
+        if (salt != null && !salt.isEmpty()) {
+            bucketKey = salt + "_" + accountId + "_" + bucketingId;
+        } else {
+            bucketKey = campaign.getId() + "_" + accountId + "_" + bucketingId;
+        }
+        long hashValue = new DecisionMaker().generateHashValue(bucketKey);
+        int bucketValue = new DecisionMaker().generateBucketValue(hashValue, Constants.MAX_TRAFFIC_VALUE, multiplier);
+
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "USER_BUCKET_TO_VARIATION", new HashMap<String, Object>() {{
+            put("userId", getUserIdForLogging(context));
+            put("campaignKey", campaign.getRuleKey());
+            put("percentTraffic", String.valueOf(percentTraffic));
+            put("bucketValue", String.valueOf(bucketValue));
+            put("hashValue", String.valueOf(hashValue));
+        }});
+
+        return getVariation(campaign.getVariations(), bucketValue);
+    }
+
+    /**
+     * This method is used to analyze the pre-segmentation decision for the user in the campaign.
+     * @param campaign  CampaignModel object containing the campaign settings.
+     * @param context  WingifyUserContext object containing the user context.
+     * @return  boolean value indicating if the user passes the pre-segmentation.
+     */
+    public boolean getPreSegmentationDecision(Campaign campaign, WingifyUserContext context, ServiceContainer serviceContainer) {
+        String campaignType = campaign.getType();
+        Map<String, Object> segments;
+
+        if (Objects.equals(campaignType, CampaignTypeEnum.ROLLOUT.getValue()) || Objects.equals(campaignType, CampaignTypeEnum.PERSONALIZE.getValue())) {
+            segments = campaign.getVariations().get(0).getSegments();
+        } else if (Objects.equals(campaignType, CampaignTypeEnum.AB.getValue())) {
+            segments = campaign.getSegments();
+        } else {
+            segments = Collections.emptyMap();
+        }
+
+        if (segments.isEmpty()) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "SEGMENTATION_SKIP", new HashMap<String, Object>() {{
+                put("userId", context.getId());
+                put("campaignKey",campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
+            }});
+            return true;
+        } else {
+            boolean preSegmentationResult = serviceContainer.getSegmentationManager().validateSegmentation(segments, (Map<String, Object>) context.getCustomVariables());
+            serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "SEGMENTATION_STATUS", new HashMap<String, Object>() {{
+                put("userId", context.getId());
+                put("campaignKey",campaign.getType().equals(CampaignTypeEnum.AB.getValue()) ? campaign.getKey() : campaign.getName() + "_" + campaign.getRuleKey());
+                put("status", preSegmentationResult ? "passed" : "failed");
+            }});
+            return preSegmentationResult;
+        }
+    }
+
+    /**
+     * This method is used to get the variation allotted to the user in the campaign.
+     * @param context  WingifyUserContext containing the user context.
+     * @param accountId  Account ID for which the variation is to be allotted.
+     * @param campaign  CampaignModel object containing the campaign settings.
+     * @return  VariationModel object containing the variation allotted to the user.
+     */
+    public Variation getVariationAllotted(WingifyUserContext context, String accountId, Campaign campaign, ServiceContainer serviceContainer) {
+        boolean isUserPart = isUserPartOfCampaign(context, campaign, serviceContainer);
+        if (Objects.equals(campaign.getType(), CampaignTypeEnum.ROLLOUT.getValue()) || Objects.equals(campaign.getType(), CampaignTypeEnum.PERSONALIZE.getValue())) {
+            return isUserPart ? campaign.getVariations().get(0) : null;
+        } else {
+            return isUserPart ? bucketUserToVariation(context, accountId, campaign, serviceContainer) : null;
+        }
+    }
+}

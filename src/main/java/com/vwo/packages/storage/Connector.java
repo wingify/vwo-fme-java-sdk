@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 package com.vwo.packages.storage;
 
-
-import java.util.Map;
-
-public abstract class Connector {
-    // Abstract methods to be implemented by subclasses
-    public abstract void set(Map<String, Object> data) throws Exception;
-    public abstract Object get(String featureKey, String userId) throws Exception;
+/**
+ * Backward-compatible storage connector for persisting user and campaign data.
+ *
+ * @deprecated Use {@link com.wingify.packages.storage.Connector} instead.
+ */
+@Deprecated
+public abstract class Connector extends com.wingify.packages.storage.Connector {
 }

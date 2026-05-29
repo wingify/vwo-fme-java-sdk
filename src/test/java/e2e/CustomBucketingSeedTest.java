@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@ package e2e;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.vwo.VWO;
-import com.vwo.VWOBuilder;
-import com.vwo.VWOClient;
-import com.vwo.models.Settings;
-import com.vwo.models.user.GetFlag;
+import com.wingify.WingifyBuilder;
+import com.wingify.WingifyClient;
+import com.wingify.models.Settings;
+import com.wingify.models.user.GetFlag;
 import com.vwo.models.user.VWOContext;
 import com.vwo.models.user.VWOInitOptions;
-import com.vwo.packages.storage.Storage;
+import com.wingify.packages.storage.Storage;
 import data.DummySettingsReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -183,7 +183,7 @@ public class CustomBucketingSeedTest {
 
     @BeforeEach
     public void setup() throws JsonProcessingException {
-        mockSettings = VWOClient.objectMapper.readValue(MOCK_SETTINGS_JSON, Settings.class);
+        mockSettings = WingifyClient.objectMapper.readValue(MOCK_SETTINGS_JSON, Settings.class);
         // Reset the Storage singleton to prevent leakage from other test classes
         // (e.g., GetFlagTests attaches a StorageTest connector that persists on the singleton).
         // Without this, cached results from prior tests bypass seed-based bucketing.
@@ -196,12 +196,12 @@ public class CustomBucketingSeedTest {
         vwoInitOptions.setAccountId(ACCOUNT_ID);
         vwoInitOptions.setLogger(new HashMap<>());
 
-        VWOBuilder vwoBuilder = new VWOBuilder(vwoInitOptions);
-        VWOBuilder vwoBuilderSpy = spy(vwoBuilder);
+        WingifyBuilder wingifyBuilder = new WingifyBuilder(vwoInitOptions);
+        WingifyBuilder wingifyBuilderSpy = spy(wingifyBuilder);
 
-        doReturn(MOCK_SETTINGS_JSON).when(vwoBuilderSpy).getSettings(anyBoolean());
+        doReturn(MOCK_SETTINGS_JSON).when(wingifyBuilderSpy).getSettings(anyBoolean());
 
-        vwoInitOptions.setVwoBuilder(vwoBuilderSpy);
+        vwoInitOptions.setVwoBuilder(wingifyBuilderSpy);
         return VWO.init(vwoInitOptions);
     }
 
@@ -211,12 +211,12 @@ public class CustomBucketingSeedTest {
         vwoInitOptions.setAccountId(ACCOUNT_ID);
         vwoInitOptions.setLogger(new HashMap<>());
 
-        VWOBuilder vwoBuilder = new VWOBuilder(vwoInitOptions);
-        VWOBuilder vwoBuilderSpy = spy(vwoBuilder);
+        WingifyBuilder wingifyBuilder = new WingifyBuilder(vwoInitOptions);
+        WingifyBuilder wingifyBuilderSpy = spy(wingifyBuilder);
 
-        doReturn(settingsJson).when(vwoBuilderSpy).getSettings(anyBoolean());
+        doReturn(settingsJson).when(wingifyBuilderSpy).getSettings(anyBoolean());
 
-        vwoInitOptions.setVwoBuilder(vwoBuilderSpy);
+        vwoInitOptions.setVwoBuilder(wingifyBuilderSpy);
         return VWO.init(vwoInitOptions);
     }
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- Copyright 2024-2025 Wingify Software Pvt. Ltd.
+<!-- Copyright 2024-2026 Wingify Software Pvt. Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,14 +17,14 @@ limitations under the License. -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.vwo.sdk</groupId>
-    <artifactId>vwo-fme-java-sdk</artifactId>
-    <version>1.21.0</version>
+    <groupId>com.wingify.sdk</groupId>
+    <artifactId>wingify-fme-java-sdk</artifactId>
+    <version>1.50.0</version>
     <packaging>jar</packaging>
 
-    <name>VWO FME Java SDK</name>
-    <description>VWO Feature Management and Experimentation SDK for Java</description>
-    <url>https://github.com/wingify/vwo-fme-java-sdk</url>
+    <name>Wingify FME Java SDK</name>
+    <description>Wingify Feature Management and Experimentation SDK for Java</description>
+    <url>https://github.com/wingify/wingify-fme-java-sdk</url>
 
     <licenses>
         <license>
@@ -34,9 +34,9 @@ limitations under the License. -->
     </licenses>
 
     <scm>
-        <url>scm:git@github.com:wingify/vwo-fme-java-sdk.git</url>
-        <connection>scm:git:git@github.com:wingify/vwo-fme-java-sdk.git</connection>
-        <developerConnection>scm:git:git@github.com:wingify/vwo-fme-java-sdk.git</developerConnection>
+        <url>scm:git@github.com:wingify/wingify-fme-java-sdk.git</url>
+        <connection>scm:git:git@github.com:wingify/wingify-fme-java-sdk.git</connection>
+        <developerConnection>scm:git:git@github.com:wingify/wingify-fme-java-sdk.git</developerConnection>
         <tag>v1.0.0</tag>
     </scm>
 
@@ -287,7 +287,7 @@ limitations under the License. -->
                 </executions>
                 <configuration>
                     <excludes>
-                        <exclude>com/vwo/**/Murmur3*</exclude>
+                        <exclude>com/wingify/**/Murmur3*</exclude>
                     </excludes>
                 </configuration>
             </plugin>

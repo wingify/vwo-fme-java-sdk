@@ -1,0 +1,109 @@
+/**
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.wingify.utils;
+
+import com.wingify.enums.EventEnum;
+import com.wingify.models.Campaign;
+import com.wingify.models.Feature;
+import com.wingify.models.Variation;
+import com.wingify.models.request.EventArchPayload;
+import com.wingify.models.user.WingifyUserContext;
+import com.wingify.packages.logger.enums.LogLevelEnum;
+import com.wingify.services.StorageService;
+import com.wingify.ServiceContainer;
+import java.util.HashMap;
+import java.util.Map;
+
+
+import static com.wingify.utils.DecisionUtil.checkWhitelistingAndPreSeg;
+
+public class RuleEvaluationUtil {
+
+    /**
+     * This method is used to evaluate the rule for a given feature and campaign.
+     * @param serviceContainer  ServiceContainer object containing the service container.
+     * @param feature   FeatureModel object containing the feature settings.
+     * @param campaign  CampaignModel object containing the campaign settings.
+     * @param context   WingifyUserContext object containing the user context.
+     * @param evaluatedFeatureMap   Map containing the evaluated feature map.
+     * @param megGroupWinnerCampaigns  Map containing the MEG group winner campaigns.
+     * @param decision  Map containing the decision object.
+     * @return
+     */
+    public static Map<String, Object> evaluateRule(
+            ServiceContainer serviceContainer,
+            Feature feature,
+            Campaign campaign,
+            WingifyUserContext context,
+            Map<String, Object> evaluatedFeatureMap,
+            Map<Integer, String> megGroupWinnerCampaigns,
+            StorageService storageService,
+            Map<String, Object> decision
+    ) {
+        // Perform whitelisting and pre-segmentation checks
+        try {
+            // Check if the campaign satisfies the whitelisting and pre-segmentation
+            Map<String, Object> checkResult = checkWhitelistingAndPreSeg(
+                    serviceContainer,
+                    feature,
+                    campaign,
+                    context,
+                    evaluatedFeatureMap,
+                    megGroupWinnerCampaigns,
+                    storageService,
+                    decision
+            );
+
+            // Extract the results of the evaluation
+            boolean preSegmentationResult = (Boolean) checkResult.get("preSegmentationResult");
+            Variation whitelistedObject = (Variation) checkResult.get("whitelistedObject");
+            EventArchPayload payload = null;
+
+            // If pre-segmentation is successful and a whitelisted object exists, create payload for impression
+            if (preSegmentationResult && whitelistedObject != null && whitelistedObject.getId() != null) {
+                // Update the decision object with campaign and variation details
+                decision.put("experimentId", campaign.getId());
+                decision.put("experimentKey", campaign.getKey());
+                decision.put("experimentVariationId", whitelistedObject.getId());
+
+                // Create payload for the variation shown (to be sent in batch by caller)
+                payload = NetworkUtil.getTrackUserPayloadData(
+                        serviceContainer,
+                        EventEnum.WINGIFY_VARIATION_SHOWN.getValue(),
+                        campaign.getId(),
+                        whitelistedObject.getId(),
+                        context
+                );
+            }
+
+            // Return the results of the evaluation
+            Map<String, Object> result = new HashMap<>();
+            result.put("preSegmentationResult", preSegmentationResult);
+            result.put("whitelistedObject", whitelistedObject);
+            result.put("updatedDecision", decision);
+            result.put("payload", payload);
+            return result;
+        } catch (Exception exception) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "ERROR_EVALUATING_RULE", new HashMap<String, Object>() {
+                {
+                    put("err", exception.getMessage());
+                    putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+                }
+            });
+            return new HashMap<>();
+        }
+    }
+}

@@ -1,5 +1,5 @@
 /**
- * Copyright 2024-2025 Wingify Software Pvt. Ltd.
+ * Copyright 2024-2026 Wingify Software Pvt. Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,108 +15,44 @@
  */
 package com.vwo;
 
-import com.vwo.packages.logger.enums.LogLevelEnum;
-import com.vwo.services.LoggerService;
+import com.vwo.models.user.GetFlag;
 import com.vwo.models.user.VWOInitOptions;
-import com.vwo.utils.LogMessageUtil;
-import com.vwo.utils.UUIDUtils;
+import com.wingify.Wingify;
+import com.wingify.WingifyBuilder;
+import com.wingify.models.user.WingifyUserContext;
 
+/**
+ * Backward-compatible entry point for the SDK.
+ * Existing integrations using {@code com.vwo.VWO} continue to work without code changes.
+ *
+ * @deprecated Use {@link com.wingify.Wingify} instead.
+ */
+@Deprecated
+public class VWO extends Wingify {
 
-public class VWO extends VWOClient {
-
-    /**
-     * Constructor for the VWO class.
-     * Initializes a new instance of VWO with the provided options.
-     * @param settings - Settings string for the VWO instance.
-     * @param vwoBuilder - VWO builder instance containing configuration options.
-     */
-    public VWO(String settings, VWOBuilder vwoBuilder) {
-        super(settings, vwoBuilder);
+    VWO(String settings, WingifyBuilder wingifyBuilder) {
+        super(settings, wingifyBuilder);
     }
 
     /**
-     * Sets the singleton instance of VWO.
-     * Configures and builds the VWO instance using the provided options.
-     * @param options - Configuration options for setting up VWO.
-     * @return A CompletableFuture resolving to the configured VWO instance.
-     */
-    private static VWO setInstance(VWOInitOptions options) {
-        VWOBuilder vwoBuilder;
-        if (options.getVwoBuilder() != null) {
-            vwoBuilder = options.getVwoBuilder();
-        } else {
-            vwoBuilder = new VWOBuilder(options);
-        }
-        vwoBuilder
-                .setLogger()           // Sets up logging for debugging and monitoring.
-                .setSettingsManager()  // Sets the settings manager for configuration management.
-                .setStorage()          // Configures storage for data persistence.
-                .setNetworkManager()   // Configures network management for API communication.
-                .initPolling()        // Initializes the polling mechanism for fetching settings.
-                .initUsageStats();
-
-        String settings =  vwoBuilder.getSettings(false);
-        vwoBuilder.initBatching();
-        VWO vwoInstance = new VWO(settings, vwoBuilder);
-        // Set VWOClient instance in VWOBuilder
-        vwoBuilder.setVWOClient(vwoInstance);
-
-        vwoBuilder.getLoggerService().log(LogLevelEnum.INFO, "CLIENT_INITIALIZED", null);
-        return vwoInstance;
-    }
-
-    public static VWO init(VWOInitOptions options) {
-        if (options == null || options.getSdkKey() == null || options.getSdkKey().isEmpty()) {
-            String message = "[ERROR]: VWO-SDK Please provide the sdkKey in the options and should be a of type string";
-            System.err.println(message);
-        }
-
-        if (options == null || options.getAccountId() == null || options.getAccountId().toString().isEmpty()) {
-            String message = "[ERROR]: VWO-SDK Please provide VWO account ID in the options and should be a of type string|number";
-            System.err.println(message);
-        }
-
-        if (options == null ||options.getIsAliasingEnabled() && (options.getGatewayService() == null || options.getGatewayService().isEmpty())) {
-            String message = "[ERROR]: VWO-SDK Please provide a valid gateway service url in the options when aliasing is enabled";
-            System.err.println(message);
-        }
-        //start timer
-        long initStartTime = System.currentTimeMillis();
-        VWO instance = VWO.setInstance(options);
-        long initTime = System.currentTimeMillis() - initStartTime;
-        // send sdk init event
-        instance.sendSdkInitAndUsageStatsEvent(initTime);
-        return instance;
-    }
-
-    /**
-     * Generate a deterministic UUID for a given user and account combination.
+     * Initializes the SDK using {@link VWOInitOptions}.
      *
-     * @param userId    The user's ID (must be a non-empty string).
-     * @param accountId The account ID (must be a non-empty string).
-     * @return UUID without dashes in uppercase, or null on invalid input or error.
+     * @deprecated Use {@link com.wingify.Wingify#init(com.wingify.models.user.WingifyInitOptions)} instead.
      */
-    public static String getUUID(String userId, String accountId) {
-        String apiName = "getUUID";
-        try {
-            // Validate userId
-            if (userId == null || userId.isEmpty()) {
-                System.out.println("userId passed to " + apiName + " API is not of valid type.");
-                return null;
-            }
+    @Deprecated
+    public static VWO init(VWOInitOptions options) {
+        options.setIsViaVWO(true);
+        return (VWO) Wingify.init(options, VWO::new);
+    }
 
-            // Validate accountId
-            if (accountId == null || accountId.isEmpty()) {
-                System.out.println("accountId passed to " + apiName + " API is not of valid type.");
-                return null;
-            }
-
-            // Call the UUID utility function
-            return UUIDUtils.getUUID(userId, accountId);
-
-        } catch (Exception error) {
-            System.out.println("API - " + apiName + " failed to execute. Trace: " + error);
-            return null;
-        }
+    /**
+     * Returns the feature flag result as {@link GetFlag} for backward compatibility.
+     *
+     * @deprecated Use {@link com.wingify.WingifyClient#getFlag(String, com.wingify.models.user.WingifyUserContext)} instead.
+     */
+    @Deprecated
+    @Override
+    public GetFlag getFlag(String featureKey, WingifyUserContext context) {
+        return new GetFlag(super.getFlag(featureKey, context));
     }
 }
