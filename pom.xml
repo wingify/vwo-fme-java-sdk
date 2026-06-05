@@ -19,7 +19,7 @@ limitations under the License. -->
 
     <groupId>com.wingify.sdk</groupId>
     <artifactId>wingify-fme-java-sdk</artifactId>
-    <version>1.50.0</version>
+    <version>1.51.0</version>
     <packaging>jar</packaging>
 
     <name>Wingify FME Java SDK</name>

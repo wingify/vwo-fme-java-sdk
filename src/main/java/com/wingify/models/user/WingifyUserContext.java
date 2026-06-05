@@ -28,6 +28,7 @@ public class WingifyUserContext {
     private Boolean useIdForWeb = false;
     private Map<String, ?> customVariables = new HashMap<>();
     private String bucketingSeed;
+    private Map<String, ?> platformVariables = new HashMap<>();
 
     private Map<String, ?> variationTargetingVariables = new HashMap<>();
 
@@ -103,5 +104,12 @@ public class WingifyUserContext {
 
     public void setBucketingSeed(String bucketingSeed) {
         this.bucketingSeed = bucketingSeed;
+    }
+    public Map<String, ?> getPlatformVariables() {
+        return platformVariables;
+    }
+
+    public void setPlatformVariables(Map<String, ?> platformVariables) {
+        this.platformVariables = platformVariables;
     }
 }
