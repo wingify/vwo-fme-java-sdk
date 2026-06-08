@@ -132,38 +132,61 @@ public class SegmentationManager {
       return false;
     }
   }
-  /** Returns true if the caller passed webTestingCampaigns in context.platformVariables. */
+  /**
+   * Returns true if the caller passed webTestingCampaigns in context.platformVariables.
+   * 
+   * @return Boolean indicating whether webTestingCampaigns is present in platform variables.
+   */
   private boolean isWebTestingCampaignsProvided() {
     WingifyUserContext context = evaluator.context;
+    
+    // Return false if context or platform variables are not provided
     if (context == null || context.getPlatformVariables() == null) {
       return false;
     }
+    
+    // Check if the webTestingCampaigns key exists in the platform variables map
     return context.getPlatformVariables().get("webTestingCampaigns") != null;
   }
 
-  /** Recursively walks the DSL tree and returns true if any node is a campaignVariation operand. */
+  /**
+   * Recursively walks the DSL tree and returns true if any node is a campaignVariation operand.
+   * 
+   * @param dsl The JSON node representing the segmentation DSL.
+   * @return Boolean indicating whether a campaignVariation operand is present in the DSL.
+   */
   private boolean containsCampaignVariationOperand(JsonNode dsl) {
+    // If the DSL node is null or represents a JSON null value, return false
     if (dsl == null || dsl.isNull()) {
       return false;
     }
+    
     if (dsl.isObject()) {
+      // If it's a JSON object, iterate through all its fields
       Iterator<String> fieldNames = dsl.fieldNames();
       while (fieldNames.hasNext()) {
         String fieldName = fieldNames.next();
+        
+        // Check if the current field is the web campaign variation operator
         if (SegmentOperatorValueEnum.WEB_CAMPAIGN_VARIATION.getValue().equals(fieldName)) {
           return true;
         }
+        
+        // Recursively check the child node
         if (containsCampaignVariationOperand(dsl.get(fieldName))) {
           return true;
         }
       }
     } else if (dsl.isArray()) {
+      // If it's a JSON array, recursively check all elements
       for (JsonNode element : dsl) {
         if (containsCampaignVariationOperand(element)) {
           return true;
         }
       }
     }
+    
+    // Return false if no campaignVariation operand was found in this branch
     return false;
   }
 }

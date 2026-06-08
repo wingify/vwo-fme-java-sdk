@@ -35,12 +35,20 @@ public final class WebTestingSegmentUtil {
     private WebTestingSegmentUtil() {
     }
   
-    // Result of evaluating a {@code campaignVariation} operand: whether the rule matched and whether the token shape was valid.
-    // This class is used to store the result of evaluating a campaign variation operand.
+    /**
+     * Result of evaluating a {@code campaignVariation} operand: whether the rule matched and whether the token shape was valid.
+     * This class is used to store the result of evaluating a campaign variation operand.
+     */
     public static class WebTestingCampaignVariationEval {
         private final boolean result;
         private final boolean invalidFormat;
-        // Constructor to initialize the result and invalid format
+        
+        /**
+         * Constructor to initialize the result and invalid format
+         * 
+         * @param result boolean indicating if the variation rule evaluated to true
+         * @param invalidFormat boolean indicating if the operand string format was invalid
+         */
         public WebTestingCampaignVariationEval(boolean result, boolean invalidFormat) {
             this.result = result;
             this.invalidFormat = invalidFormat;
@@ -86,7 +94,13 @@ public final class WebTestingSegmentUtil {
         return campaignIdToVariationId;
     }
 
-    //Parses {@code context.platformVariables.webTestingCampaigns} (JSON string or plain object map).
+    /**
+     * Parses {@code context.platformVariables.webTestingCampaigns} from either a JSON string or plain object map.
+     * 
+     * @param context WingifyUserContext containing the platform variables
+     * @param serviceContainer ServiceContainer for logging debugging and error messages
+     * @return Normalized map of campaign id to variation id, or null if parsing fails or variables are absent
+     */
     public static Map<String, String> parseWebTestingCampaignsFromContext(WingifyUserContext context, ServiceContainer serviceContainer) {
         if (context == null || context.getPlatformVariables() == null) {
             return null;
@@ -146,10 +160,11 @@ public final class WebTestingSegmentUtil {
     }
 
     /**
-     * Evaluates {@code campaignVariation} operand encoding:
+     * Evaluates {@code campaignVariation} operand encoding against user's assigned variations.
      *
      * @param campaignVariationOperand token from the segment DSL (e.g. {@code "122_4"})
      * @param assignedVariationsByCampaignId map from campaign id to assigned variation id; {@code null} means no assignments
+     * @return WebTestingCampaignVariationEval containing the evaluation result and format validity
      */
     public static WebTestingCampaignVariationEval evaluateWebTestingCampaignVariation(
             String campaignVariationOperand,
@@ -202,6 +217,9 @@ public final class WebTestingSegmentUtil {
     /**
      * Scans a raw JSON string for duplicate top-level keys.
      * Jackson silently keeps the last value for duplicates, so we catch this before parsing.
+     * 
+     * @param jsonString the raw JSON string to be scanned
+     * @return boolean true if duplicate keys are found, false otherwise
      */
     private static boolean hasDuplicateJsonKeys(String jsonString) {
         Pattern keyPattern = Pattern.compile("\"([^\"]+)\"\\s*:");
