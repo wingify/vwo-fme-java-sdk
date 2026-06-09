@@ -30,6 +30,9 @@ import java.util.regex.Pattern;
 
 import static com.wingify.utils.DataTypeUtil.isObject;
 import static com.wingify.utils.DataTypeUtil.isString;
+import static com.wingify.utils.DataTypeUtil.isNull;
+import static com.wingify.utils.DataTypeUtil.isArray;
+import static com.wingify.utils.DataTypeUtil.getType;
 
 public final class WebTestingSegmentUtil {
     private WebTestingSegmentUtil() {
@@ -72,14 +75,14 @@ public final class WebTestingSegmentUtil {
     public static Map<String, String> normalizeWebTestingCampaignsMap(Map<?, ?> rawAssignments) {
         // Turn the raw assignments map into a simple string map for regex matching.
         Map<String, String> campaignIdToVariationId = new HashMap<>();
-        if (rawAssignments == null) {
+        if (isNull(rawAssignments)) {
             return campaignIdToVariationId;
         }
         // Iterate over the raw assignments map
         for (Map.Entry<?, ?> entry : rawAssignments.entrySet()) {
             Object campaignIdObj = entry.getKey();
             Object assignedVariationId = entry.getValue();
-            if (campaignIdObj == null || assignedVariationId == null) {
+            if (isNull(campaignIdObj) || isNull(assignedVariationId)) {
                 continue;
             }
             // Convert the campaign id to a string
@@ -102,13 +105,13 @@ public final class WebTestingSegmentUtil {
      * @return Normalized map of campaign id to variation id, or null if parsing fails or variables are absent
      */
     public static Map<String, String> parseWebTestingCampaignsFromContext(WingifyUserContext context, ServiceContainer serviceContainer) {
-        if (context == null || context.getPlatformVariables() == null) {
+        if (isNull(context) || isNull(context.getPlatformVariables())) {
             return null;
         }
         // Get the web testing campaigns from the context
         Object webTestingCampaignsInput = context.getPlatformVariables().get("webTestingCampaigns");
         // If the web testing campaigns are not found, return null
-        if (webTestingCampaignsInput == null) {
+        if (isNull(webTestingCampaignsInput)) {
             return null;
         }
 
@@ -151,7 +154,7 @@ public final class WebTestingSegmentUtil {
         }
 
         // Booleans/numbers/other odd types are invalid.
-        String kind = webTestingCampaignsInput instanceof java.util.List<?> ? "array" : webTestingCampaignsInput.getClass().getSimpleName();
+        String kind = webTestingCampaignsInput instanceof java.util.List<?> || isArray(webTestingCampaignsInput) ? "array" : getType(webTestingCampaignsInput);
         serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_WEB_TESTING_CAMPAIGNS_TYPE", new HashMap<String, Object>() {{
             put("kind", kind);
             putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
@@ -170,7 +173,7 @@ public final class WebTestingSegmentUtil {
             String campaignVariationOperand,
             Map<String, String> assignedVariationsByCampaignId) {
         // Null means empty assignments map.
-        Map<String, String> assignments = assignedVariationsByCampaignId == null ? Collections.emptyMap() : assignedVariationsByCampaignId;
+        Map<String, String> assignments = isNull(assignedVariationsByCampaignId) ? Collections.emptyMap() : assignedVariationsByCampaignId;
 
         Matcher match;
 
