@@ -56,6 +56,16 @@ public class Settings {
     private int pollInterval = Constants.DEFAULT_POLL_INTERVAL;
     @JsonProperty("isWebConnectivityEnabled")
     private Boolean isWebConnectivityEnabled = true;
+    @JsonProperty("isMAU")
+    private Boolean isTrackingUsageEnabled = false;
+
+    public void setIsTrackingUsageEnabled(Boolean isTrackingUsageEnabled) {
+        this.isTrackingUsageEnabled = isTrackingUsageEnabled;
+    }
+
+    public boolean getIsTrackingUsageEnabled() {
+        return Boolean.TRUE.equals(this.isTrackingUsageEnabled);
+    }
 
     public List<Feature> getFeatures() {
         return features;

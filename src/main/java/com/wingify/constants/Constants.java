@@ -33,7 +33,7 @@ public class Constants {
   public static final int DEFAULT_EVENTS_PER_REQUEST = 100;
   public static final String WINGIFY_SDK_NAME = "wingify-fme-java-sdk";
   public static final String VWO_SDK_NAME = "vwo-fme-java-sdk";
-  public static final String SDK_VERSION = "1.50.0";
+  public static final String SDK_VERSION = "1.55.0";
   public static final long SETTINGS_EXPIRY = 10000000;
   public static final long SETTINGS_TIMEOUT = 50000;
 

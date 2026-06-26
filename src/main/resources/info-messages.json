@@ -29,6 +29,7 @@
   "SETTINGS_UPDATED": "Settings fetched and updated successfully on the current {brand} client instance when API: {apiName} got called having isViaWebhook param as {isViaWebhook}",
 
   "PROXY_AND_GATEWAY_SERVICE_PROVIDED": "Both proxy URL and gateway service are provided. Gateway service will be used and proxy URL will be ignored",
+  "USAGE_TRACKING_DISPATCHED": "FE track usage call dispatched for Account ID:{accountId}, User ID:{userId}, and feature key:{featureKey}",
   "NETWORK_CALL_SUCCESS_WITH_RETRIES": "Network call for {extraData} succeeded after {attempts} retries. Error: {err}",
 
   "STORED_HOLDOUT_DECISION": "User '{userId}' is in holdout '{holdoutId}' for feature '{featureKey}' found in storage.",

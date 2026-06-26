@@ -246,6 +246,42 @@ public class NetworkUtil {
     }
 
     /**
+     * Constructs the payload for explicit usage tracking event.
+     * @param serviceContainer The service container containing configuration.
+     * @param eventName The name of the event.
+     * @param context The user context model.
+     * @return The constructed payload with required fields.
+     */
+    public static EventArchPayload getUsageTrackingPayloadData(ServiceContainer serviceContainer, String eventName, WingifyUserContext context) {
+        EventArchPayload properties = getEventBasePayload(serviceContainer.getSettingsManager(), context.getId(), context.getSessionId(), eventName, context.getUserAgent(), context.getIpAddress());
+        
+        if (serviceContainer.getUuid() != null && !serviceContainer.getUuid().isEmpty()) {
+            properties.getD().setMsgId(generateMsgId(serviceContainer.getUuid()));
+            properties.getD().setVisId(serviceContainer.getUuid());
+        }
+
+        // Set vwoMeta (Usage Stats) if available
+        if (UsageStatsUtil.getInstance().getUsageStats() != null && !UsageStatsUtil.getInstance().getUsageStats().isEmpty()) {
+            properties.getD().getEvent().getProps().setWingifyMeta(UsageStatsUtil.getInstance().getUsageStats());
+        }
+
+        // Ensure id and variation are NOT set
+        properties.getD().getEvent().getProps().setId(null);
+        properties.getD().getEvent().getProps().setVariation(null);
+        properties.getD().getEvent().getProps().setIsFirst(null);
+        
+        // Log that the payload has been constructed
+        serviceContainer.getLoggerService().log(LogLevelEnum.DEBUG, "IMPRESSION_FOR_USAGE_TRACKING", new HashMap<String, Object>() {
+            {
+                put("accountId", serviceContainer.getSettingsManager().accountId.toString());
+                put("userId", context.getId());
+                put("brand", LogMessageUtil.getBrand(serviceContainer.getWingifyInitOptions().getIsViaVWO()));
+            }
+        });
+        return properties;
+    }
+
+    /**
      * Returns the payload data for the goal API.
      * @param serviceContainer  The service container containing configuration.
      * @param eventName  The name of the event.

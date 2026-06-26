@@ -22,7 +22,8 @@ public enum EventEnum {
     WINGIFY_ERROR("vwo_log"),
     WINGIFY_DEBUGGER_EVENT("vwo_sdkDebug"),
     WINGIFY_HOLDOUT("vwo_holdout"),
-    WINGIFY_USAGE_STATS("vwo_sdkUsageStats");
+    WINGIFY_USAGE_STATS("vwo_sdkUsageStats"),
+    WINGIFY_FE_TRACK_USAGE("vwo_feTrackUsage");
 
     private final String value;
 
