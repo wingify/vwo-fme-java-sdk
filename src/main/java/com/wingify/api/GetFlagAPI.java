@@ -42,6 +42,7 @@ import static com.wingify.utils.DecisionUtil.evaluateTrafficAndGetVariation;
 import static com.wingify.utils.FunctionUtil.*;
 import static com.wingify.utils.ImpressionUtil.sendImpressionForVariationShown;
 import static com.wingify.utils.ImpressionUtil.sendImpressionForVariationShownInBatch;
+import static com.wingify.utils.ImpressionUtil.sendUsageTrackingEvent;
 
 public class GetFlagAPI {
 
@@ -55,6 +56,7 @@ public class GetFlagAPI {
     public static GetFlag getFlag(String featureKey, WingifyUserContext context, ServiceContainer serviceContainer) {
         boolean shouldCheckForExperimentsRules = false;
         boolean isFlagEnabled = false;
+        boolean isVariationShownFired = false;
         List<Variable> variablesToReturn = new ArrayList<Variable>();
 
         Map<String, Object> passedRulesInformation = new HashMap<>();
@@ -136,6 +138,8 @@ public class GetFlagAPI {
                             new StorageDecorator().setDataInStorage(storageMap, storageService, serviceContainer);
 
                             if (holdoutPayloads != null && !holdoutPayloads.isEmpty()) {
+                                // set isVariationShownFired to true since holdout impression has been fired
+                                isVariationShownFired = true;
                                 if (serviceContainer.getSettingsManager().isGatewayServiceProvided) {
                                     for (EventArchPayload payload : holdoutPayloads) {
                                         sendImpressionForVariationShown(serviceContainer, 
@@ -151,6 +155,17 @@ public class GetFlagAPI {
                             // If we have batchPayloads, send them now before returning
                             if (!batchPayloads.isEmpty() && !serviceContainer.getSettingsManager().isGatewayServiceProvided) {
                                 sendImpressionForVariationShownInBatch(batchPayloads, serviceContainer);
+                            }
+                            // case when flag is not enabled: send usage tracking - No newly added holdout impression set
+                            if (!isVariationShownFired) {
+                                if (serviceContainer.getSettings().getIsTrackingUsageEnabled()) {
+                                    EventArchPayload usagePayload = NetworkUtil.getUsageTrackingPayloadData(
+                                            serviceContainer,
+                                            EventEnum.WINGIFY_FE_TRACK_USAGE.getValue(),
+                                            context
+                                    );
+                                    sendUsageTrackingEvent(serviceContainer, context, usagePayload, featureKey);
+                                }
                             }
 
                             return new GetFlag(false, new ArrayList<>(), context.getSessionId(), serviceContainer.getUuid());
@@ -195,6 +210,18 @@ public class GetFlagAPI {
                                 }
                             }
                         }
+                        // send UsageTracking call when we return the stored variation
+                        if (!isVariationShownFired) {
+                            if (serviceContainer.getSettings().getIsTrackingUsageEnabled()) {
+                                EventArchPayload usagePayload = NetworkUtil.getUsageTrackingPayloadData(
+                                        serviceContainer,
+                                        EventEnum.WINGIFY_FE_TRACK_USAGE.getValue(),
+                                        context
+                                );
+                                sendUsageTrackingEvent(serviceContainer, context, usagePayload, featureKey);
+                            }
+                        }
+
                         return new GetFlag(true, variation.getVariables(), context.getSessionId(), serviceContainer.getUuid()); 
                     }
                 }
@@ -255,6 +282,19 @@ public class GetFlagAPI {
                 put("featureKey", featureKey);
                 putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
             }});
+            
+            // case: feature not found, send usage tracking event
+            if (!isVariationShownFired) {
+                if (serviceContainer.getSettings().getIsTrackingUsageEnabled()) {
+                    EventArchPayload usagePayload = NetworkUtil.getUsageTrackingPayloadData(
+                            serviceContainer,
+                            EventEnum.WINGIFY_FE_TRACK_USAGE.getValue(),
+                            context
+                    );
+                    sendUsageTrackingEvent(serviceContainer, context, usagePayload, featureKey);
+                }
+            }
+
             return new GetFlag(false, new ArrayList<>(), context.getSessionId(), serviceContainer.getUuid());
         }
 
@@ -311,6 +351,8 @@ public class GetFlagAPI {
                 serviceContainer.getHooksManager().execute(serviceContainer.getHooksManager().get());
 
                 if (holdoutPayloads != null && !holdoutPayloads.isEmpty()) {
+                    // set isVariationShownFired to true as we are sending impression for holdout - user in holdout
+                    isVariationShownFired = true;
                     if (serviceContainer.getSettingsManager().isGatewayServiceProvided) {
                         for (EventArchPayload payload : holdoutPayloads) {
                             sendImpressionForVariationShown(serviceContainer, 
@@ -342,6 +384,8 @@ public class GetFlagAPI {
                 }
 
                 if (holdoutPayloads != null && !holdoutPayloads.isEmpty()) {
+                    // set isVariationShownFired to true as we are sending impression for holdout - not in holdout
+                    isVariationShownFired = true;
                     if (serviceContainer.getSettingsManager().isGatewayServiceProvided) {
                         for (EventArchPayload payload : holdoutPayloads) {
                             sendImpressionForVariationShown(serviceContainer, 
@@ -397,9 +441,12 @@ public class GetFlagAPI {
                             context
                     );
                     if (serviceContainer.getSettingsManager().isGatewayServiceProvided && payload != null) {
+                        // set isVariationShownFired to true as we are sending impression for rollout
+                        isVariationShownFired = true;
                         // Gateway service: send immediately
                         sendImpressionForVariationShown(serviceContainer, passedRolloutCampaign.getId(), variation.getId(), context, payload);
                     } else if (payload != null) {
+                        isVariationShownFired = true;
                         // Non-gateway: add to batch
                         batchPayloads.add(payload);
                     }
@@ -441,6 +488,8 @@ public class GetFlagAPI {
                         // Handle whitelisting payload
                         EventArchPayload whitelistPayload = (EventArchPayload) evaluateRuleResult.get("payload");
                         if (whitelistPayload != null) {
+                            // set isVariationShownFired to true as we are sending impression for whitelist
+                            isVariationShownFired = true;
                             if (serviceContainer.getSettingsManager().isGatewayServiceProvided) {
                                 // Gateway service: send immediately
                                 sendImpressionForVariationShown(serviceContainer, rule.getId(), whitelistedObject.getId(), context, whitelistPayload);
@@ -473,9 +522,13 @@ public class GetFlagAPI {
                             context
                     );
                     if (serviceContainer.getSettingsManager().isGatewayServiceProvided && payload != null) {
+                        // set isVariationShownFired to true as we are sending impression for experiment
+                        isVariationShownFired = true;
                         // Gateway service: send immediately
                         sendImpressionForVariationShown(serviceContainer, campaign.getId(), variation.getId(), context, payload);
                     } else if (payload != null) {
+                        // set isVariationShownFired to true as we are sending impression for experiment
+                        isVariationShownFired = true;
                         // Non-gateway: add to batch
                         batchPayloads.add(payload);
                     }
@@ -537,6 +590,8 @@ public class GetFlagAPI {
                     context
             );
             if (serviceContainer.getSettingsManager().isGatewayServiceProvided && impactPayload != null) {
+                // set isVariationShownFired to true as we are sending impression for impact campaign
+                isVariationShownFired = true;
                 // Gateway service: send immediately
                 sendImpressionForVariationShown(
                         serviceContainer,
@@ -546,6 +601,8 @@ public class GetFlagAPI {
                         impactPayload
                 );
             } else if (impactPayload != null) {
+                // set isVariationShownFired to true as we are sending impression for impact campaign
+                isVariationShownFired = true;
                 // Non-gateway: add to batch
                 batchPayloads.add(impactPayload);
             }
@@ -554,6 +611,18 @@ public class GetFlagAPI {
         // Send all collected payloads in a single batch request
         if (!batchPayloads.isEmpty() && !serviceContainer.getSettingsManager().isGatewayServiceProvided) {
             sendImpressionForVariationShownInBatch(batchPayloads, serviceContainer);
+        }
+
+        // case: final fallback - send usage tracking if no primary variationShown event was dispatched during the evaluation
+        if (!isVariationShownFired) {
+            if (serviceContainer.getSettings().getIsTrackingUsageEnabled()) {
+                EventArchPayload usagePayload = NetworkUtil.getUsageTrackingPayloadData(
+                        serviceContainer,
+                        EventEnum.WINGIFY_FE_TRACK_USAGE.getValue(),
+                        context
+                );
+                sendUsageTrackingEvent(serviceContainer, context, usagePayload, featureKey);
+            }
         }
 
         return new GetFlag(isFlagEnabled, variablesToReturn, context.getSessionId(), serviceContainer.getUuid());

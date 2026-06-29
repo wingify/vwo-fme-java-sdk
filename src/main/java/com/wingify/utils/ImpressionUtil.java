@@ -142,6 +142,55 @@ public class ImpressionUtil {
     }
 
     /**
+     * Sends an impression for the usage tracking event.
+     *
+     * @param serviceContainer The service container containing configuration.
+     * @param context          The user context model containing user-specific data.
+     * @param payload          The payload data for tracking the usage.
+     * @param featureKey       The feature key.
+     */
+    public static void sendUsageTrackingEvent(
+            ServiceContainer serviceContainer,
+            WingifyUserContext context,
+            EventArchPayload payload,
+            String featureKey) {
+        
+        // Check global guardrail: isTrackingUsageEnabled - return if false
+        if (!serviceContainer.getSettings().getIsTrackingUsageEnabled()) {
+            return;
+        }
+
+        // Get base properties for the event
+        Map<String, String> properties = NetworkUtil.getEventsBaseProperties(
+                serviceContainer.getSettingsManager(),
+                EventEnum.WINGIFY_FE_TRACK_USAGE.getValue(),
+                encodeURIComponent(context.getUserAgent()),
+                context.getIpAddress());
+
+        // We use a dummy feature info or empty since it's usage tracking - To avoid NPE
+        Map<String, Object> featureInfo = new HashMap<>();
+        featureInfo.put("featureKey", featureKey);
+
+        // Check if batch event queue is available
+        if (serviceContainer.getBatchEventQueue() != null) {
+            // Enqueue the event to the batch queue for future processing
+            serviceContainer.getBatchEventQueue().enqueue(payload);
+        } else {
+            // Send the event immediately if batch event queue is not available
+            NetworkUtil.sendPostApiRequest(serviceContainer, properties, payload, context, featureInfo);
+        }
+
+        // Log that the event has been dispatched
+        serviceContainer.getLoggerService().log(LogLevelEnum.INFO, "USAGE_TRACKING_DISPATCHED", new HashMap<String, Object>() {
+            {
+                put("accountId", serviceContainer.getSettingsManager().accountId.toString());
+                put("userId", context.getId());
+                put("featureKey", featureKey);
+            }
+        });
+    }
+
+    /**
      * Encodes the query parameters to ensure they are URL-safe
      * 
      * @param value The query parameters to encode
