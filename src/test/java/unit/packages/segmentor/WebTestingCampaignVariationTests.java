@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -85,7 +86,7 @@ public class WebTestingCampaignVariationTests {
         Assertions.assertTrue(WebTestingSegmentUtil.evaluateWebTestingCampaignVariation("!99", map).isResult());
         Assertions.assertFalse(WebTestingSegmentUtil.evaluateWebTestingCampaignVariation("!1", map).isResult());
 
-        Assertions.assertTrue(WebTestingSegmentUtil.evaluateWebTestingCampaignVariation("100", Map.of("100", "1")).isResult());
+        Assertions.assertTrue(WebTestingSegmentUtil.evaluateWebTestingCampaignVariation("100", Collections.singletonMap("100", "1")).isResult());
         Assertions.assertFalse(WebTestingSegmentUtil.evaluateWebTestingCampaignVariation("100", map).isResult());
 
         Assertions.assertTrue(WebTestingSegmentUtil.evaluateWebTestingCampaignVariation("!1", null).isResult());
@@ -95,7 +96,7 @@ public class WebTestingCampaignVariationTests {
     @Test
     public void invalidOperandEncodingReturnsFalse() {
         WebTestingSegmentUtil.WebTestingCampaignVariationEval result =
-                WebTestingSegmentUtil.evaluateWebTestingCampaignVariation("bogus", Map.of("1", "1"));
+                WebTestingSegmentUtil.evaluateWebTestingCampaignVariation("bogus", Collections.singletonMap("1", "1"));
         Assertions.assertFalse(result.isResult());
         Assertions.assertTrue(result.isInvalidFormat());
     }
@@ -113,49 +114,49 @@ public class WebTestingCampaignVariationTests {
 
     @Test
     public void segmentEvaluatorCampaignVariationWithJsonStringWebTestingCampaigns() {
-        context.setPlatformVariables(Map.of("webTestingCampaigns", "{\"1\":\"1\"}"));
+        context.setPlatformVariables(Collections.singletonMap("webTestingCampaigns", "{\"1\":\"1\"}"));
         String dsl = "{\"or\":[{\"campaignVariation\":\"1_1\"}]}";
         Assertions.assertTrue(segmentationManager.validateSegmentation(dsl, new HashMap<>()));
     }
 
     @Test
     public void segmentEvaluatorCampaignVariationWithObjectWebTestingCampaigns() {
-        context.setPlatformVariables(Map.of("webTestingCampaigns", Map.of("1", 1)));
+        context.setPlatformVariables(Collections.singletonMap("webTestingCampaigns", Collections.singletonMap("1", 1)));
         String dsl = "{\"or\":[{\"campaignVariation\":\"1_1\"}]}";
         Assertions.assertTrue(segmentationManager.validateSegmentation(dsl, new HashMap<>()));
     }
 
     @Test
     public void segmentEvaluatorCampaignVariationNotInCampaign() {
-        context.setPlatformVariables(Map.of("webTestingCampaigns", "{}"));
+        context.setPlatformVariables(Collections.singletonMap("webTestingCampaigns", "{}"));
         String dsl = "{\"or\":[{\"campaignVariation\":\"!1\"}]}";
         Assertions.assertTrue(segmentationManager.validateSegmentation(dsl, new HashMap<>()));
     }
 
     @Test
     public void segmentEvaluatorCampaignVariationWithNestedNot() {
-        context.setPlatformVariables(Map.of("webTestingCampaigns", "{\"1\":\"1\"}"));
+        context.setPlatformVariables(Collections.singletonMap("webTestingCampaigns", "{\"1\":\"1\"}"));
         String dsl = "{\"not\":{\"campaignVariation\":\"1_1\"}}";
         Assertions.assertFalse(segmentationManager.validateSegmentation(dsl, new HashMap<>()));
     }
 
     @Test
     public void segmentEvaluatorCampaignVariationWithCampaignOnly() {
-        context.setPlatformVariables(Map.of("webTestingCampaigns", "{\"100\":\"2\"}"));
+        context.setPlatformVariables(Collections.singletonMap("webTestingCampaigns", "{\"100\":\"2\"}"));
         String dsl = "{\"or\":[{\"campaignVariation\":\"100\"}]}";
         Assertions.assertTrue(segmentationManager.validateSegmentation(dsl, new HashMap<>()));
     }
 
     @Test
     public void segmentEvaluatorCampaignVariationOperandTrimmed() {
-        context.setPlatformVariables(Map.of("webTestingCampaigns", "{\"1\":\"1\"}"));
+        context.setPlatformVariables(Collections.singletonMap("webTestingCampaigns", "{\"1\":\"1\"}"));
         String dsl = "{\"or\":[{\"campaignVariation\":\"  1_1  \"}]}";
         Assertions.assertTrue(segmentationManager.validateSegmentation(dsl, new HashMap<>()));
     }
 
     @Test
     public void segmentEvaluatorCampaignVariationJsonArrayRejected() {
-        context.setPlatformVariables(Map.of("webTestingCampaigns", "[]"));
+        context.setPlatformVariables(Collections.singletonMap("webTestingCampaigns", "[]"));
         String dsl = "{\"or\":[{\"campaignVariation\":\"1_1\"}]}";
         Assertions.assertFalse(segmentationManager.validateSegmentation(dsl, new HashMap<>()));
     }
