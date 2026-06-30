@@ -63,6 +63,8 @@ public class SegmentEvaluator {
                 return segmentOperandEvaluator.evaluateUserDSL(subDsl.toString(), properties);
             case UA:
                 return segmentOperandEvaluator.evaluateUserAgentDSL(subDsl.toString(), context);
+            case WEB_CAMPAIGN_VARIATION:
+                return segmentOperandEvaluator.evaluateCampaignVariationDSL(subDsl, context);
             default:
                 return false;
         }
