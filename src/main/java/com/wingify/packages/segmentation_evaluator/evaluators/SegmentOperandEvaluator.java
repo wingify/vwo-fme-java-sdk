@@ -29,6 +29,7 @@ import com.wingify.packages.segmentation_evaluator.enums.SegmentOperandRegexEnum
 import com.wingify.packages.segmentation_evaluator.enums.SegmentOperandValueEnum;
 import com.wingify.ServiceContainer;
 import com.wingify.utils.GatewayServiceUtil;
+import com.wingify.packages.segmentation_evaluator.utils.WebTestingSegmentUtil;
 
 import static com.wingify.packages.segmentation_evaluator.utils.SegmentUtil.getKeyValue;
 import static com.wingify.packages.segmentation_evaluator.utils.SegmentUtil.matchWithRegex;
@@ -175,6 +176,74 @@ public class SegmentOperandEvaluator {
         tagValue = (String) processedValues.get("tagValue");
         SegmentOperandValueEnum operandType = (SegmentOperandValueEnum) preProcessOperandValue.get("operandType");
         return extractResult(operandType, processedValues.get("operandValue").toString().trim().replace("\"", ""), tagValue);
+    }
+    
+    /**
+     * Evaluates Web Testing pre-segmentation against {@code context.platformVariables.webTestingCampaigns}.
+     * Operand: {@code "C"} (in campaign, any variation), {@code "C_V"}, {@code "C_!V"}, {@code "!C"} (not in campaign C).
+     *
+     * @param campaignVariationOperandNode JSON text node from the segment DSL (e.g. {@code "122_4"})
+     * @param context user context carrying platform variables
+     * @return Boolean indicating whether the campaign variation operand evaluates to true
+     */
+    public boolean evaluateCampaignVariationDSL(JsonNode campaignVariationOperandNode, WingifyUserContext context) {
+        // Return false if the operand node is null or represents a JSON null value
+        if (campaignVariationOperandNode == null || campaignVariationOperandNode.isNull()) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_WEB_TESTING_CAMPAIGN_VARIATION_OPERAND_TYPE", new HashMap<String, Object>() {{
+                put("type", "null");
+                putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+            }});
+            return false;
+        }
+
+        // DSL should be a string or number — numeric campaign ids without quotes are valid and coerced to string.
+        // Anything else (object, array, boolean) is a wiring bug and is considered invalid.
+        if (!campaignVariationOperandNode.isTextual() && !campaignVariationOperandNode.isNumber()) {
+            String invalidOperandNodeType = campaignVariationOperandNode.getNodeType().name().toLowerCase();
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_WEB_TESTING_CAMPAIGN_VARIATION_OPERAND_TYPE", new HashMap<String, Object>() {{
+                put("type", invalidOperandNodeType);
+                putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+            }});
+            return false;
+        }
+
+        String campaignVariationOperandText = campaignVariationOperandNode.asText();
+        // Empty operand is invalid, return false
+        if (campaignVariationOperandText.isEmpty()) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_WEB_TESTING_CAMPAIGN_VARIATION_OPERAND_EMPTY", new HashMap<String, Object>() {{
+                putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+            }});
+            return false;
+        }
+        
+        // Trim the campaign variation operand to remove leading/trailing whitespaces
+        String trimmedCampaignVariationOperand = campaignVariationOperandText.trim();
+        // All spaces is invalid, return false
+        if (trimmedCampaignVariationOperand.isEmpty()) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_WEB_TESTING_CAMPAIGN_VARIATION_OPERAND_EMPTY", new HashMap<String, Object>() {{
+                putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+            }});
+            return false;
+        }
+
+        // Parse web testing campaigns map from user context
+        Map<String, String> assignedVariationsByCampaignId = WebTestingSegmentUtil.parseWebTestingCampaignsFromContext(context, serviceContainer);
+        
+        // Evaluate the campaign variation operand against the assigned variations map
+        WebTestingSegmentUtil.WebTestingCampaignVariationEval variationEval =
+                WebTestingSegmentUtil.evaluateWebTestingCampaignVariation(trimmedCampaignVariationOperand, assignedVariationsByCampaignId);
+
+        // Return false and log an error if the operand format is invalid
+        if (variationEval.isInvalidFormat()) {
+            serviceContainer.getLoggerService().log(LogLevelEnum.ERROR, "INVALID_WEB_TESTING_CAMPAIGN_VARIATION_OPERAND_FORMAT", new HashMap<String, Object>() {{
+                put("operand", trimmedCampaignVariationOperand);
+                putAll(serviceContainer.getDebuggerService().getStandardDebugProps());
+            }});
+            return false;
+        }
+
+        // Return the final evaluation result
+        return variationEval.isResult();
     }
 
     public String preProcessTagValue(String tagValue) {

@@ -29,7 +29,8 @@ public enum SegmentOperatorValueEnum {
   BROWSER_AGENT("browser_string"),
   UA("ua"),
   DEVICE("device"),
-  FEATURE_ID("featureId");
+  FEATURE_ID("featureId"),
+  WEB_CAMPAIGN_VARIATION("campaignVariation");
 
   private final String value;
 

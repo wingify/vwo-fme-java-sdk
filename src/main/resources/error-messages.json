@@ -61,5 +61,12 @@
 
   "ATTEMPTING_RETRY_FOR_FAILED_NETWORK_CALL": "Retrying {endPoint} after {delay}s (attempt {attempt}/{maxRetries}). Error: {err}",
   "NETWORK_CALL_FAILURE_AFTER_MAX_RETRIES": "Network call failed for {extraData} after {attempts} attempts. Error: {err}",
-  "INVALID_RETRY_CONFIG": "Invalid retry configuration provided: {retryConfig}. Using default values."
+  "INVALID_RETRY_CONFIG": "Invalid retry configuration provided: {retryConfig}. Using default values.",
+
+  "INVALID_WEB_TESTING_CAMPAIGN_VARIATION_OPERAND_TYPE": "Invalid web testing campaignVariation operand type: {type}",
+  "INVALID_WEB_TESTING_CAMPAIGN_VARIATION_OPERAND_EMPTY": "Invalid web testing campaignVariation operand: empty string",
+  "INVALID_WEB_TESTING_CAMPAIGN_VARIATION_OPERAND_FORMAT": "Invalid web testing campaignVariation operand format: {operand}",
+  "INVALID_WEB_TESTING_CAMPAIGNS_JSON": "Invalid JSON provided for platformVariables.webTestingCampaigns",
+  "INVALID_WEB_TESTING_CAMPAIGNS_TYPE": "Invalid type for platformVariables.webTestingCampaigns: {kind}",
+  "INVALID_WEB_TESTING_CAMPAIGNS_DUPLICATE_KEY": "platformVariables.webTestingCampaigns JSON string contains duplicate campaign id keys; last value will be used"
 }

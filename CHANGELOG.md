@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.60.0] - 2026-06-29
+
+### Added
+
+- Web testing pre-segmentation: `campaignVariation` rules and `VWOContext.setPlatformVariables()` / `webTestingCampaigns` (from frontend → server; SDK does not read cookies). See README.
+
+  ```java
+  import com.wingify.Wingify;
+  import com.wingify.models.user.WingifyUserContext;
+  import com.wingify.models.user.GetFlag;
+  import com.wingify.models.user.WingifyInitOptions;
+  import java.util.HashMap;
+  import java.util.Map;
+
+  WingifyInitOptions options = new WingifyInitOptions();
+  options.setAccountId(123456);
+  options.setSdkKey("32-alpha-numeric-sdk-key");
+
+  Wingify client = Wingify.init(options);
+
+  WingifyUserContext context = new WingifyUserContext();
+  context.setId("user-123");
+
+  // Pass web testing campaigns from frontend to SDK
+  Map<String, Object> platformVariables = new HashMap<>();
+  // Can be a JSON string or a Map<String, String>
+  platformVariables.put("webTestingCampaigns", "{\"122\": \"4\"}"); 
+  context.setPlatformVariables(platformVariables);
+
+  GetFlag flag = client.getFlag("feature-key", context);
+  ```
+
 ## [1.55.0] - 2026-06-26
 
 ### Added

@@ -24,12 +24,14 @@ import com.wingify.models.Holdout;
 import com.wingify.models.user.GatewayService;
 import com.wingify.models.user.WingifyUserContext;
 import com.wingify.packages.logger.enums.LogLevelEnum;
+import com.wingify.packages.segmentation_evaluator.enums.SegmentOperatorValueEnum;
 import com.wingify.packages.segmentation_evaluator.evaluators.SegmentOperandEvaluator;
 import com.wingify.packages.segmentation_evaluator.evaluators.SegmentEvaluator;
 import com.wingify.ServiceContainer;
 import com.wingify.services.LoggerService;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -114,6 +116,13 @@ public class SegmentationManager {
   public boolean validateSegmentation(Object dsl, Map<String, Object> properties) {
     try {
       JsonNode dslNodes = dsl instanceof String ? WingifyClient.objectMapper.readValue(dsl.toString(), JsonNode.class) : WingifyClient.objectMapper.valueToTree(dsl);
+      // If the segment uses campaignVariation but the caller provided no webTestingCampaigns, fail the
+      // whole rule immediately. Without this guard, NOT(campaignVariation) would flip to true when the
+      // inner operand evaluates false due to a missing map — giving a wrong "user passes" result.
+      if (containsCampaignVariationOperand(dslNodes) && !isWebTestingCampaignsProvided()) {
+        return false;
+      }
+
       return evaluator.isSegmentationValid(dslNodes, properties);
     } catch (Exception exception) {
       loggerService.log(LogLevelEnum.ERROR, "ERROR_VALIDATING_SEGMENTATION", new HashMap<String, Object>() {{
@@ -122,5 +131,62 @@ public class SegmentationManager {
       }});
       return false;
     }
+  }
+  /**
+   * Returns true if the caller passed webTestingCampaigns in context.platformVariables.
+   * 
+   * @return Boolean indicating whether webTestingCampaigns is present in platform variables.
+   */
+  private boolean isWebTestingCampaignsProvided() {
+    WingifyUserContext context = evaluator.context;
+    
+    // Return false if context or platform variables are not provided
+    if (context == null || context.getPlatformVariables() == null) {
+      return false;
+    }
+    
+    // Check if the webTestingCampaigns key exists in the platform variables map
+    return context.getPlatformVariables().get("webTestingCampaigns") != null;
+  }
+
+  /**
+   * Recursively walks the DSL tree and returns true if any node is a campaignVariation operand.
+   * 
+   * @param dsl The JSON node representing the segmentation DSL.
+   * @return Boolean indicating whether a campaignVariation operand is present in the DSL.
+   */
+  private boolean containsCampaignVariationOperand(JsonNode dsl) {
+    // If the DSL node is null or represents a JSON null value, return false
+    if (dsl == null || dsl.isNull()) {
+      return false;
+    }
+    
+    if (dsl.isObject()) {
+      // If it's a JSON object, iterate through all its fields
+      Iterator<String> fieldNames = dsl.fieldNames();
+      while (fieldNames.hasNext()) {
+        String fieldName = fieldNames.next();
+        
+        // Check if the current field is the web campaign variation operator
+        if (SegmentOperatorValueEnum.WEB_CAMPAIGN_VARIATION.getValue().equals(fieldName)) {
+          return true;
+        }
+        
+        // Recursively check the child node
+        if (containsCampaignVariationOperand(dsl.get(fieldName))) {
+          return true;
+        }
+      }
+    } else if (dsl.isArray()) {
+      // If it's a JSON array, recursively check all elements
+      for (JsonNode element : dsl) {
+        if (containsCampaignVariationOperand(element)) {
+          return true;
+        }
+      }
+    }
+    
+    // Return false if no campaignVariation operand was found in this branch
+    return false;
   }
 }
